@@ -1,0 +1,414 @@
+Title: OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP
+
+URL Source: https://arxiv.org/pdf/2610.18056v1
+
+Published Time: Wed, 14 Oct 2026 05:41:16 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP 
+
+## Ercüment Kaya ∗
+
+ercument.kaya@tum.de Leibniz Supercomputing Centre Technical University of Munich Garhing near Munich, Germany 
+
+## Ekin Devim Şahinkaya ∗
+
+ekin.sahinkaya@tum.de Leibniz Supercomputing Centre Technical University of Munich Garhing near Munich, Germany 
+
+## Minh Chung 
+
+minh.chung@lrz.de Leibniz Supercomputing Centre Garhing near Munich, Germany 
+
+## Martin Schulz 
+
+schulzm@in.tum.de Technical University of Munich Leibniz Supercomputing Centre Garhing near Munich, Germany 
+
+## Abstract 
+
+The emerging field of quantum computing requires specialized software stacks and programming interfaces. However, these tools are often tightly coupled to specific software ecosystems and hard-ware backends, limiting interoperability and software reuse. For High-Performance Computing-Quantum Computing (HPCQC) ap-plication developers, this complicates the integration of quantum accelerators into existing applications. Existing quantum programming frameworks expose circuit rep-resentations and compilation pipelines that are tightly coupled to their execution ecosystems, making it difficult to integrate quantum compilation with established heterogeneous compiler infrastruc-tures. To address this issue, we propose OpenMQPI, a Multi-Level Intermediate Representation (MLIR)-based OpenMP extension for quantum programming. OpenMQPI leverages OpenMP’s standard-ized target-offloading infrastructure to provide a reusable approach for integrating quantum resources into High Performance Comput-ing (HPC) applications. To enable quantum offloading with Open-MQPI, we create QPIR, a lightweight MLIR dialect for representing quantum circuits inside the OpenMP target regions, together with a compiler pipeline that performs quantum-specific optimizations and lowers the resulting representation into an executable compat-ible with the OpenMP offloading model. At runtime, the generated executable leverages the OpenMP target offloading model via a MQSS plugin within OpenMQPI to offload quantum circuits to the quantum hardware. We evaluate OpenMQPI using the Variational Quantum Eigen-solver (VQE), the Quantum Fourier Transform (QFT), and the Deutsch– Jozsa algorithm with 5, 10, 15, and 20 qubits, and compare its run-time performance against Qiskit and CUDA Quantum. The results show that OpenMQPI achieves the lowest average execution time for VQE across all evaluated qubit configurations. At 20 qubits, OpenMQPI requires 5.18 s, compared with 5.83 s for Qiskit and 7.39 s for CUDA Quantum. For QFT and Deutsch–Jozsa, OpenMQPI remains close to Qiskit while achieving lower execution times than CUDA Quantum. 
+
+> ∗Both authors contributed equally to this research.
+
+## 1 Introduction 
+
+Quantum computing has the potential to address computational problems that are believed to be unsolvable for classical comput-ers [37]. In practice, however, many quantum applications also rely on classical computation to support and coordinate quantum execution [8, 10, 38]. This has motivated growing interest in in-tegrating quantum computing resources into HPC environments, where classical and quantum resources can work together within hybrid applications [3]. Conspicuous progress has been made in the development of quantum computing hardware [29, 31]. However, to achieve the full potential of Quantum Computing (QC), this hardware requires compatible programming languages, interfaces, and compilation infrastructure that can coordinate classical and quantum resources within a common execution environment. A variety of programming interfaces, including Qiskit[13], PennyLane[4], and CUDA Quantum[18], provide tools for developing and exe-cuting quantum applications. However, these frameworks rely on different programming models, compiler infrastructures, and execu-tion environments. As a result, integrating quantum resources into existing HPC applications often requires developers to work with framework-specific software stacks and interfaces. This framework-specific approach limits the portability and reusability of software components across different HPCQC environments. A key challenge is that traditional HPC offloading and quan-tum execution expose different compilation and execution models. OpenMP target offloading is designed around launching compiled device code on a target device, whereas a quantum resource ex-ecutes a circuit or quantum job rather than conventional device instructions. Therefore, the quantum circuit must remain available as an ex-plicit representation beyond the device-code lowering stage. Di-rectly treating a quantum resource as another OpenMP target device does not provide a natural mechanism to preserve and optimize the circuit while still using the OpenMP compilation and runtime infrastructure. This observation motivates a different approach: treating quan-tum circuits as first-class target payloads rather than as machine code. OpenMQPI preserves the circuit at the compiler level, applies arXiv:2610.18056v1 [cs.PL] 13 Oct 2026 Ercüment Kaya, Ekin Devim Şahinkaya, Minh Chung, and Martin Schulz 
+
+quantum-specific transformations in MLIR, and then transports the resulting circuit through the OpenMP target-offloading path to a quantum-specific runtime plugin. In this paper, we introduce OpenMQPI, an MLIR-based compila-tion infrastructure that integrates quantum circuit compilation and execution into the OpenMP target-offloading model. Rather than introducing another framework-specific programming interface, OpenMQPI builds on the existing OpenMP infrastructure, allowing quantum resources to be integrated as target devices within the programming model already widely used in HPC. OpenMQPI preserves the quantum circuit as an Intermediate Representation (IR) during the compilation rather than lowering it to target device instructions. The MLIR-based representation enables quantum-specific optimizations before the circuits are low-ered for execution. The resulting circuit is then carried through the OpenMP offloading pipeline and delivered to a quantum-specific 
+
+libomptarget plugin, which submits the circuit to the selected quantum resource. The implementation leverages the OpenMP runtime and MQSS Client interface [15] to submit quantum circuits to the selected quan-tum device. The approach is considered a custom libomptarget 
+
+plugin, referred to as the MQSS plugin. We evaluate OpenMQPI using the VQE, the QFT, and the Deutsch–Jozsa algorithm across different qubit configurations. Our evaluation validates the com-plete compilation-and-execution pipeline and demonstrates that OpenMQPI maintains competitive runtime performance compared with existing quantum programming approaches. This paper makes the following contributions: 
+
+• An MLIR-based representation for quantum circuits: 
+
+We introduce Quantum Programming Intermediate Repre-sentation (QPIR), a lightweight MLIR dialect for represent-ing and optimizing quantum circuits. 
+
+• Circuit-preserving integration with OpenMP target offloading : We extend the OpenMP target-offloading in-frastructure to represent quantum circuits as target pay-loads, preserve them through compilation, and deliver them to the MQSS plugin for execution. 
+
+• A compiler and runtime pipeline for quantum ex-ecution: We implement qpir_cc, qpir_opt, and qpir_link together with an MQSS plugin to generate, optimize, lower, and execute quantum circuits through the OpenMP offload-ing infrastructure. 
+
+• An experimental evaluation of OpenMQPI: We evalu-ate the proposed infrastructure and its runtime performance across different quantum applications. The remainder of this paper is organized as follows: Section 2 covers background. In Section 3, we introduce the OpenMQPI, dis-cuss its architecture and components. In Section 4, we present the experiments and performance evaluation. Section 5 reviews the related literature. Finally, we conclude the paper and discuss future work in Section 6. 
+
+## 2 Background 
+
+This section briefly explains the basics of the concepts and tools that we exploit to keep this paper self-contained. 
+
+## 2.1 HPC and QC 
+
+HPC uses supercomputers and computer clusters to address com-plex computational problems with large data sets, large-scale simu-lations, and the modeling of complex physical phenomena [11, 40]. The HPC applications often use parallel processing and compu-tation offloading to hardware accelerators such as Graphics Pro-cessing Unit (GPU), Field Programmable Gate Array (FPGA), and quantum computers to improve the performance of HPC applica-tions [1, 32, 39]. The many-core architecture of GPUs is highly suitable for data-parallel processing, while quantum computers use a fundamentally different computational model. Quantum comput-ers use radically different modalities that could change the com-plexity of several computational problems, from factorization to optimization [17]. However, this potential power comes with new requirements on users, HPC centers, and the developers. The requirements include, but are not limited to, programming interfaces, compilation infrastructure, and a hybrid HPCQC labora-tory [38]. Programming interfaces, such as Qiskit [13] and CUDA-Q [18], are used to describe quantum circuits in HPCQC applica-tions. A compilation infrastructure that is tailored for QC is required to optimize and ensure that the given circuit is executable on the target hardware. 
+
+## 2.2 LLVM and MLIR 
+
+LLVM is a compiler framework that can be used to develop front-ends for programming languages and back-ends for architectures [20]. The LLVM [27] project contains multiple sub-projects, includ-ing compiler front-ends such as Clang [24], and Flang [25] to a debugger named LLDB[26]. Front-End Middle-End Back-end 
+
+> CFortran Objective-C LLVM IR x86_64 RISC-V ARM
+
+Figure 1: Simplified Version of LLVM’s Workflow 
+
+As illustrated in Figure 1, LLVM follows a modular approach; therefore, high-level programming languages, such as C and For-tran, are lowered to common LLVM IR using Clang or Flang. The generated IR can then be optimized using LLVM passes before that, being lowered to machine code for the target architecture. This ap-proach enables LLVM to provide language- and target-independent optimizations, while also supporting target-specific optimizations. LLVM IR is designed to resemble machine code, enabling domain-agnostic optimizations. However, this approach loses explicit do-main information, such as matrix multiplication and hardware OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP 
+
+accelerators. To address this limitation, Lattner et al. propose MLIR [21, 22]. It provides a higher-level abstraction that preserves explicit information and progressively lowers it to LLVM IR to enable better optimizations. The MLIR infrastructure provides various, extensible dialects to distinguish domains. An MLIR dialect includes, but is not limited to, domain-specific operations and types. Hence, optimizers can work on the different parts of the code that make sense for them. 
+
+## 2.3 OpenMP 
+
+OpenMP [9] is an Application Programming Interface (API) for shared-memory parallel programming in C, C++, and Fortran, and is widely used in the HPC domain to parallelize the application with a set of compiler directives and runtime library routines. Thanks to this approach, developers can parallelize HPC applications without major changes to the source code. OpenMP follows the fork-join execution model, that is, an application starts with a single thread, and after reaching a parallel region, additional threads are created to execute the region in parallel. Once the execution of the paral-lelized section is completed, the threads join the original thread and continue the execution of the application. OpenMP was initially designed for parallel programming on CPUs. However, with the 4.0 specification [34], OpenMP introduces support for target offloading to enable the use of hardware accel-erators such as GPU. This model allows developers to use a single source code for different architectures while improving portability across heterogeneous computing systems [5]. Listing 1 contains an Single-Precision A*X Plus Y (SAXPY) rou-tine to be offloaded to the target device. The keyword target 
+
+specifies that the region should be executed on a target device. 
+
+target data creates a region where data can be mapped to the device. map controls how variables are transferred between the host and the device. teams creates groups of threads on the de-vices, while distribute partitions the iterations among the created teams. parallel enables multiple threads in each team to execute simultaneously.           
+
+> 1void saxpy() {
+> 2float a, x[N], y[N];
+> 3...
+> 4#pragma omp target data map(to: x[0:N], a) map(tofrom: y[0:N])
+> 5{
+> 6#pragma omp target teams distribute parallel for
+> 7for (int i = 0; i < N; i++) {
+> 8y[i] = a * x[i] + y[i];
+> 9}
+> 10 }
+
+Listing 1: An example of SAXPY routine, implemented in OpenMP 
+
+The OpenMP offloading mechanism requires compiler and run-time support. While the compiler generates code for the host and the target device, OpenMP offloading runtime libraries, such as 
+
+libomptarget in LLVM and libgomp in GCC, manage the exe-cution of regions on the target device. In LLVM, libomptarget 
+
+provides a generic runtime for managing OpenMP offloading and communicates with device-specific implementations through a plu-gin interface. These plugins handle hardware-specific operations, such as device initialization, memory allocation, data transfers be-tween host and device, kernel execution, and synchronization. This separation allows the generic OpenMP runtime to support different accelerator architectures while delegating device-specific function-ality to the corresponding plugin. 
+
+## 3 OpenMQPI 3.1 Motivation 
+
+OpenMQPI is motivated by the idea of extending OpenMP’s es-tablished target-offloading model beyond classical accelerators to support quantum computing resources. This allows quantum re-sources to be integrated into an existing HPC programming and runtime infrastructure rather than requiring a separate execution model. At the compiler level, MLIR is particularly well-suited to this approach because its dialect-based design enables domain-specific representations to be introduced and optimized while remaining within a common compiler infrastructure. OpenMQPI leverages this flexibility to represent quantum operations through the QPIR dialect and progressively lower them into the OpenMP offloading pipeline. 
+
+## 3.2 Design and Components 
+
+OpenMQPI consists of a set of compiler and runtime components that extend the OpenMP offloading workflow for quantum circuit execution. On the compiler side, the QPIR dialect provides the intermediate representation for quantum circuits, while qpir_cc ,
+
+qpir_opt , and qpir_link handle circuit generation, optimization, and lowering. On the runtime side, the MQSS plugin extends libomptarget 
+
+to execute the resulting quantum circuits on quantum resources through the MQSS Client interface. 
+
+3.2.1 QPIR Dialect. QPIR is a lightweight MLIR dialect designed to represent quantum circuits within the OpenMQPI compilation pipeline. During its design, we considered existing quantum repre-sentations, including CUDA Quantum’s [18] Quake [33] and Cata-lyst’s [12] Quantum [36] dialects. However, adopting these dialects would introduce additional dependencies on their corresponding software ecosystems. The QPIR dialect follows an imperative programming model and uses an identifier-based representation of quantum resources, where qubits are addressed by integer identifiers rather than repre-sented as first-class SSA values. Listing 2 shows an example QPIR circuit represented within an OpenMP target region. Quantum gates are represented as ex-plicit QPIR operations, such as qpir.h , qpir.rx , qpir.cx , and 
+
+qpir.ry , while measurement and synchronization are represented by qpir.measure and qpir.barrier . Qubits are identified using integer indices, while rotation angles are represented as floating-point values. By keeping these operations within omp.target , QPIR represents the quantum circuit while preserving the OpenMP target structure required by the subsequent offloading stages. Ercüment Kaya, Ekin Devim Şahinkaya, Minh Chung, and Martin Schulz 
+
+> omp.target map_entries(%2 -> %arg3, %4 -> %arg4, %5 -> %arg5 : !llvm.ptr, !llvm.ptr, !llvm.ptr) { %6 = llvm.load %arg3 : !llvm.ptr -> f64 %7 = llvm.load %arg4 : !llvm.ptr -> f64 %c0_i32 = arith.constant 0 : i32 %c1_i32 = arith.constant 1 : i32 qpir.h %c0_i32 : i32 qpir.rx(%6) %c0_i32 : f64, i32 qpir.cx %c0_i32, %c1_i32 : i32, i32 qpir.ry(%7) %c1_i32 : f64, i32 qpir.barrier %8 = qpir.measure %c0_i32 : i32 -> i1 %9 = qpir.measure %c1_i32 : i32 -> i1 omp.terminator }
+
+Listing 2: Example of the QPIR dialect within an OpenMP target region. 
+
+3.2.2 QPIR_CC. The qpir_cc component acts as the compiler front end of OpenMQPI and generates the quantum circuit as QPIR operations within the device-side MLIR. It is able to create quantum circuits for VQE, QFT, and Deutsch–Jozsa algorithms with multiple qubit configurations as illustrated in Fig. 2. While the inputs of the qpir_cc are the algorithm as a string and the number of qubits as an integer, the output is the corresponding quantum circuit as an MLIR file. Configurations  
+
+> QPIR_CC DEVICE MLIR
+> Algorithms
+> VQE
+> QFT
+> Deutsch–Jozsa
+> Number of
+> Qubits
+
+Figure 2: Generation of an MLIR file from algorithm and configuration inputs using qpir_cc .
+
+As shown in Listing 3, the generated device code that corre-sponds to the Bell State is placed inside the omp.target region, which allows for following the OpenMP offloading path. The mod-ule attributes, such as omp.is_target_device and omp.is_gpu 
+
+direct the target region to the MQSS plugin. Therefore, the result-ing MLIR file contains the quantum circuit representation as well as the OpenMP information required by the subsequent optimization and lowering stages. 
+
+3.2.3 QPIR_OPT. The qpir_opt component performs optimiza-tions specific to quantum circuits on the MLIR module generated by qpir_cc . As shown in Fig. 3, it simplifies and optimizes the quantum circuits by executing the following optimization passes on the QPIR dialect, respectively: 
+
+• Rotational Cancellation: This pass simplifies the quan-tum circuit by summing and normalizing the angles of rotation gates applied sequentially to the same qubit. 
+
+• Double-Gate Cancellation: This pass cancels the sequen-tially applied self-inverse gates, such as CNOT and Hadamard. 
+
+> module attributes {llvm.data_layout = "e-p:64:64-i64:64-n8:16:32:64", llvm. target_triple = "qpu", omp.is_gpu = false, omp.is_target_device = true, omp.requires = #omp<clause_requires none>, omp.version = #omp.version< version = 11>, qpir.circuit_format = "qpir", qpir.target = "mqss_plugin"} {func.func @bell_state(%arg0: !llvm.ptr) { %0 = llvm.mlir.constant(1 : i64) : i64 %1 = omp.map.info var_ptr(%arg0 : !llvm.ptr, i8) map_clauses(from) capture( ByRef) -> !llvm.ptr {name = "qpi_result"} omp.target map_entries(%1 -> %arg1 : !llvm.ptr) { %c0_i32 = arith.constant 0 : i32 %c1_i32 = arith.constant 1 : i32 qpir.h %c0_i32 : i32 qpir.cx %c0_i32, %c1_i32 : i32, i32 qpir.barrier %2 = qpir.measure %c0_i32 : i32 -> i1 %3 = qpir.measure %c1_i32 : i32 -> i1 omp.terminator }return }}}
+
+Listing 3: The Device Side Code, generated by the QPIR_CC 
+
+• Hadamard Conjugation: This pass reduces the circuit depth by replacing H-X-H and H-Z-H gate sequences with Z and X gates, respectively. 
+
+• Commutative Cancellation: This pass simplifies controlled-gate sequences by replacing H-CX-H and H-CZ-H patterns on the target qubit with CZ and CX gates, respectively. Each transformation preserves the semantics of the original circuit while reducing the depth of the quantum circuit to be executed. Rotational Cancellation Pass 
+
+> Double-Gate Cancellation Pass
+> Hadamard Conjugation Pass
+> Commutative Cancellation Pass
+> device.mlir
+> optimized_device.mlir
+
+Figure 3: QPIR-specific optimization passes applied by 
+
+qpir_opt .OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP 
+
+3.2.4 QPIR_Link. The qpir_link is the final component of the OpenMQPI’s compilation pipeline. As illustrated in Fig. 4, it serial-izes the quantum circuit, performs offload registration, lowers the remaining module to LLVM IR, and links it with the host code to create an executable. Target Region Lowering                              
+
+> omp.target {
+> qpir.* operations
+> . . .
+> }
+> Serialize the QPIR circuit.
+> Collect mapped parameters.
+> Package runtime arguments.
+> Generate __tgt_target_kernel call.
+> Offload Registration
+> Create the offload entry.
+> Embed the minimal ELF image.
+> Create registration metadata.
+> Add registration functions.
+> ELF
+> Final MLIR Lowering
+> module {
+> . . .
+> }
+> Lower remaining func operations.
+> Reconcile type conversions.
+> func @main() {
+> }
+> Final MLIR
+> Optimized MLIR
+> LLVM IR Executable
+> Compilation with Clang
+> Offload Preparation
+
+Figure 4: Overview of the qpir_link lowering and executable generation workflow. 
+
+During target-region lowering, the quantum circuit is serialized into a textual representation rather than being converted into target-specific machine instructions. Runtime parameters are collected from the OpenMP mapping information and packaged together with the circuit into the data structures expected by libomptarget .The omp.target operation is then replaced with a call to __tgt_target_kernel ,enabling the circuit and its runtime parameters to follow the stan-dard OpenMP offloading path. The offload-registration stage adds the metadata required by 
+
+libomptarget , including an offload entry, a device-image descrip-tor, and the corresponding registration functions. Since OpenMQPI transfers the quantum circuit as a runtime argument rather than executable device code, qpir_link embeds a minimal ELF image to satisfy the device-image structure expected by the OpenMP run-time. The MQSS plugin does not execute this image; the quantum circuit is provided separately through the runtime arguments. After the target region and offload metadata have been prepared, the remaining MLIR operations are lowered to the LLVM dialect, and intermediate type conversions are resolved. The resulting MLIR module is translated into LLVM IR and compiled with Clang to generate the final executable. Crucial aspect of this lowering is to preserve the quantum cir-cuit as a compiler-level payload rather than lowered into device instructions. Therefore, the OpenMP runtime provides the offload-ing mechanism, while the quantum-specific plugin provides the execution mechanism. This separation allows the existing OpenMP target-offloading infrastructure to be reused without requiring the quantum resource to execute an OpenMP-generated device binary. 
+
+3.2.5 MQSS Plugin. The MQSS plugin extends the libomptarget 
+
+plugin infrastructure to support quantum resources as OpenMP target devices. As illustrated in Fig. 5, libomptarget forwards the circuit and its runtime arguments to the plugin when the target region is launched. The plugin then prepares the circuit for execu-tion and uses the MQSS Client interface to communicate with the selected quantum resource. libomptarget   
+
+> OpenMP Runtime
+> Receive Input
+> Read circuit and arguments
+> Prepare Circuit
+> Replace runtime placeholders
+> Convert QPIR to OpenQASM
+> MQSS Client Interface
+> Create Job
+> Request
+> Submit Job Retrieve
+> Result
+> Result Handling
+> Write counts to the result buffer
+> Quantum
+> Resources
+> Job Request
+> Job Result
+> MQSS Plugin
+> Host Result Buffer
+> Measurements count available to the
+> host application
+
+Figure 5: Overview of the MQSS plugin and its runtime exe-cution workflow. 
+
+The plugin first reads the textual circuit representation and the associated runtime arguments. Runtime-dependent values, such as rotation angles, are inserted into the circuit by replacing the place-holders generated during lowering. The circuit is then converted from QPIR to OpenQASM before being submitted for execution. The prepared circuit is submitted to the selected quantum re-source as a job through the MQSS Client interface. After execu-tion, the plugin retrieves the measurement results and writes the returned counts into the result buffer provided by the host applica-tion. The results, therefore, become available to the host through the same OpenMP offloading execution path. 
+
+## 3.3 Compilation and Runtime Workflow 
+
+Fig. 6 summarizes the end-to-end compilation workflow of Open-MQPI. Starting from an algorithm and its configuration, qpir_cc 
+
+generates an MLIR file containing the quantum circuit represented with QPIR operations. The generated MLIR is then processed by 
+
+qpir_opt , which applies the quantum-specific optimization passes described above. Finally, qpir_link prepares the optimized MLIR for OpenMP target offloading and lowers it toward LLVM IR, from which the final executable is generated. The runtime workflow is illustrated in Fig. 7. When the exe-cutable starts, the generated offload metadata is registered with 
+
+libomptarget . Upon reaching the OpenMP target region, the host program invokes __tgt_target_kernel , and libomptarget for-wards the kernel launch and its arguments to the MQSS plugin. Ercüment Kaya, Ekin Devim Şahinkaya, Minh Chung, and Martin Schulz qpir_cc Algortihm      
+
+> and Configuration qpir_opt Executable device.mlir optimized_device.mlir qpir_link
+
+Figure 6: Overview of the OpenMQPI compilation workflow. 
+
+The plugin submits the prepared circuit to the selected quantum resource and waits for results. Once the measurement results are returned, the plugin completes the offload operation, and control returns to the host application through libomptarget . Finally, the registered offload metadata is released when the application termi-nates. Host Program  libomptarget  MQSS Plugin  Quantum Resource  
+
+> Register offload
+> metadata
+> Launch target region
+> (__tgt_target_kernel) Forward kernel launch
+> and arguments
+> Submit circuit job
+> Measurement results
+> Launch complete
+> Target call returns
+> Unregister offload
+> metadata
+
+Figure 7: Runtime execution workflow of OpenMQPI through the OpenMP offloading infrastructure. 
+
+## 4 Evaluation 
+
+This evaluation addresses two questions. RQ1: End-to-end execu-tion. Can OpenMQPI successfully compile and execute quantum applications through the OpenMP-based offloading pipeline on a real quantum resource? RQ2: Runtime overhead and perfor-mance. What runtime overhead does OpenMQPI introduce com-pared with established quantum programming frameworks? To answer these questions, we first validate the complete compilation and execution pipeline on a real quantum computing environment. We then compare the runtime performance of OpenMQPI with Qiskit and CUDA Quantum across three representative quantum applications: VQE , QFT, and Deutsch–Jozsa. 
+
+## 4.1 Experimental Setup 
+
+All experiments were conducted in a Docker environment running Ubuntu 22.04 on a MacBook Pro equipped with an Apple M3 Pro processor and 18 GB of memory. OpenMQPI was built using LLVM 22.1.8, including MLIR and the OpenMP runtime infrastructure, together with MQSS Client interface. For the validation experiment, quantum circuits were executed on a 54-qubit quantum resource. For the performance experiments, we used a simulator to avoid variability due to queue waiting times for quantum resources. We compared OpenMQPI with Qiskit 1.3.3 and CUDA Quantum 0.15.0. All three implementations submitted their quantum circuits to the same simulator, providing a common execution environment for the comparison. The evaluation covers both hybrid and pure quantum appli-cations: VQE represents a hybrid quantum-classical application, whereas QFT and Deutsch–Jozsa are pure quantum applications. All three applications were evaluated using 5, 10, 15, and 20 qubits. 
+
+4.1.1 VQE Setup. For VQE experiments, all implementations used the same parameterized ansatz, shown in Fig. 8. The ansatz con-sists of two parameterized 𝑅 𝑦 layers separated by a linear chain of controlled-X (CX) gates between neighboring qubits. For an 𝑛 -qubit circuit, the ansatz contains 2 𝑛 trainable parameters, all initialized to 0.25. 
+
+Figure 8: Parameterized two-layer 𝑅 𝑌 ansatz used in the VQE evaluation for a four-qubit example. 
+
+VQE objective function was defined using the following Hamil-tonian: ˆ𝐻 = −
+
+> 𝑛 −1
+
+∑︁ 
+
+> 𝑖 =0
+
+𝑍 𝑖 − 12
+
+> 𝑛 −2
+
+∑︁ 
+
+> 𝑖 =0
+
+𝑍 𝑖 𝑍 𝑖 +1. (1) For each parameter set, the quantum circuit was executed using 1,000 shots. The resulting measurement counts were used to calcu-late the expectation values of the 𝑍 𝑖 and 𝑍 𝑖 𝑍 𝑖 +1 terms, from which the corresponding energy was computed. Since the Hamiltonian contains only 𝑍 and 𝑍𝑍 terms, these expectation values were ob-tained directly from the measured bitstrings without additional basis-rotation circuits. All implementations used the COBYLA optimization algorithm. OpenMQPI used the COBYLA implementation from the NLopt library, while Qiskit and CUDA Quantum used the COBYLA op-timizers provided by their respective software stacks. For all im-plementations, COBYLA was configured with a maximum of 100 objective-function evaluations, an initial step size of 0.25, and a relative parameter tolerance of 10 −4.
+
+4.1.2 QFT and Deutsch–Jozsa Setup. For QFT experiments, all im-plementations used the same circuit structure, shown in Fig. 9 for a four-qubit example. The circuit decomposes the QFT into Hadamard, controlled-phase (CP), and SWAP gates. In the figure, the black node denotes the control qubit, while the blue node de-notes the target qubit to which the phase rotation is applied. The OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP 
+
+rotation angle of each CP gate depends on the distance between the interacting qubits and is defined as 
+
+𝜃 𝑖,𝑗 = 𝜋 
+
+2𝑗 −𝑖 .
+
+After the Hadamard and controlled-phase operations, SWAP gates reverse the order of the output qubits, and all qubits are measured. 
+
+Figure 9: QFT circuit used in the evaluation for a four-qubit example. 
+
+For the Deutsch–Jozsa experiments, all implementations used the same circuit structure, shown in Fig. 10 for a four-qubit example. The circuit uses three input qubits and one ancilla qubit. The ancilla qubit is first initialized to |1⟩, after which Hadamard gates are applied to all qubits. We used a balanced oracle, implemented using controlled-X (CX) gates between each input qubit and the ancilla qubit. After the oracle, a second Hadamard gate is applied to each input qubit. Finally, only the input qubits are measured, while the ancilla qubit is left unmeasured. For both QFT and Deutsch–Jozsa, each circuit was executed using 1,000 shots. 
+
+Figure 10: Deutsch–Jozsa circuit used in the evaluation for a four-qubit example. 
+
+## 4.2 Validation Experiment 
+
+The validation experiment examines the end-to-end execution of OpenMQPI on a real quantum resource. To analyze the runtime behavior of the pipeline, we instrumented the MQSS plugin and the host application to measure the execution time of its main stages. For the validation experiments, we collected the following runtime metrics: 
+
+• Total Execution (TE): End-to-end execution time of the application. 
+
+• Lowering (TL): Time required to lower the QPIR circuit to OpenQASM and prepare it for offloading. 
+
+• Submit and Wait (TSW): Time between submitting the quantum circuit and receiving the execution results. 
+
+• Serialization (TS): Time required to process the returned measurement results into the format expected by the appli-cation. 
+
+• Constant Time (TC): Remaining execution overhead not included in lowering, quantum job submission, or energy estimation. 
+
+• Energy Estimation (TEE): Time required to estimate the energy from the measurement results. This metric applies only to VQE. 
+
+Table 1: Runtime metrics collected during the VQE validation experiment for different qubit counts.                                                               
+
+> Algorithms TE (s) TL (s) TSW (s) TS (s) TC (s) TEE (s)
+> VQE (5 qubits) 124.41 4.00 ×10 −3124.40 5.96 ×10 −41.38 ×10 −22.00 ×10 −5
+> VQE (10 qubits) 109.01 3.54 ×10 −3108.99 8.55 ×10 −41.08 ×10 −21.14 ×10 −4
+> VQE (15 qubits) 76.20 3.68 ×10 −376.19 1.01 ×10 −31.13 ×10 −23.80 ×10 −4
+> VQE (20 qubits) 78.68 3.73 ×10 −378.66 1.12 ×10 −31.27 ×10 −25.52 ×10 −4
+
+Table 1 presents the runtime metrics collected for the VQE valida-tion experiments with 5, 10, 15, and 20 qubits. Across all configu-rations, the submit-and-wait time (TSW) accounts for most of the total execution time, while lowering, serialization, energy estima-tion, and the remaining execution overhead contribute only a small fraction of the overall runtime. The variation in total execution time across qubit configurations is therefore primarily due to time spent waiting for the quantum resource. 
+
+Table 2: Runtime metrics collected during the QFT and Deutsch–Jozsa validation experiments for different qubit counts.                                                                                              
+
+> Algorithms TE (s) TL (s) TSW (s) TS (s) TC (s)
+> QFT (5 qubits) 6.10 2.02 ×10 −36.09 3.71 ×10 −48.83 ×10 −3
+> QFT (10 qubits) 161.47 2.33 ×10 −3161.46 4.13 ×10 −49.54 ×10 −3
+> QFT (15 qubits) 86.25 2.71 ×10 −386.24 6.01 ×10 −47.15 ×10 −3
+> QFT (20 qubits) 6.24 2.77 ×10 −36.23 5.76 ×10 −47.14 ×10 −3
+> Deutsch–Jozsa (5 qubits) 877.63 1.68 ×10 −3877.62 3.84 ×10 −48.24 ×10 −3
+> Deutsch–Jozsa (10 qubits) 973.55 1.68 ×10 −3973.53 2.85 ×10 −46.42 ×10 −3
+> Deutsch–Jozsa (15 qubits) 1002.72 1.99 ×10 −31002.72 3.42 ×10 −46.90 ×10 −3
+> Deutsch–Jozsa (20 qubits) 29.58 1.78 ×10 −329.58 3.17 ×10 −46.69 ×10 −3
+
+Similar to VQE, Table 2 presents the runtime metrics collected for the QFT and Deutsch–Jozsa validation experiments, and the TSW accounts for most of the total execution time across all config-urations, while lowering, serialization, and the remaining execution overhead contribute only a small fraction of the overall runtime. Since QFT and Deutsch–Jozsa do not perform energy estimation, the TEE metric is not applicable to these applications. Overall, the successful execution of all three applications on a quantum resource validates the complete OpenMQPI compilation and execution pipeline. 
+
+## 4.3 Performance Evaluation 
+
+To characterize runtime performance, each application and qubit configuration was executed 100 times, and the execution time of each run was recorded for the analysis. Ercüment Kaya, Ekin Devim Şahinkaya, Minh Chung, and Martin Schulz 
+
+Figure 11: Average VQE execution time for different qubit configurations. 
+
+Fig. 11 compares the average VQE execution times of OpenMQPI, Qiskit, and CUDA Quantum for 5, 10, 15, and 20 qubits. Under the evaluated experimental setup, OpenMQPI achieves the lowest average execution time across the evaluated qubit configurations. Its execution time increases from 4.37 s for 5 qubits to 5.18 s for 20 qubits. Qiskit ranges from 4.67 s to 5.83 s, while CUDA Quantum ranges from 5.86 s to 7.39 s. 
+
+Table 3: Average runtime breakdown of the 5-qubit VQE benchmark for the evaluated implementations.                                             
+
+> Metrics Implementation TE (s) TL (s) TSW (s) TS (s) TC (s) TEE (s)
+> OpenMQPI 4.35 7.30 ×10 −34.25 1.28 ×10 −39.33 ×10 −21.45 ×10 −4
+> CUDA Quantum 5.79 1.71 3.97 7.62 ×10 −39.38 ×10 −21.69 ×10 −3
+> Qiskit 5.00 7.89 ×10 −24.34 –9.11 ×10 −21.76 ×10 −2
+
+Table 3 presents the average runtime breakdown for the 5-qubit VQE benchmark. OpenMQPI has the lowest lowering time, requir-ing 7 .30 ×10 −3 s compared with 7 .89 ×10 −2 s for Qiskit and 1.71 s for CUDA Quantum. OpenMQPI uses QPIR, a lightweight MLIR dialect designed specifically for the proposed compilation and offloading pipeline. In comparison, CUDA Quantum represents quantum oper-ations using its Quake dialect, while Qiskit represents circuits using its own circuit model and processes them through its transpilation infrastructure. Qiskit does not expose a separate serialization stage in our measurements, as measurement result processing is handled within its execution pipeline. In contrast, OpenMQPI and CUDA Quantum perform serialization as a separate step. OpenMQPI re-quires 1 .28 × 10 −3 s for this stage, compared with 7 .62 × 10 −3 s for CUDA Quantum. Overall, the VQE results show that OpenMQPI introduces low compilation and runtime processing overhead and achieves lower end-to-end execution times than Qiskit and CUDA Quantum across the evaluated qubit configurations. Figures 12 and 13 present the average execution times of QFT and Deutsch–Jozsa, respectively, for 5, 10, 15, and 20 qubits. For both QFT and Deutsch–Jozsa, OpenMQPI shows lower aver-age execution times than CUDA Quantum across all evaluated qubit configurations, while its execution times remain close to those of Qiskit. For QFT, the execution time of CUDA Quantum increases more noticeably with the number of qubits, whereas OpenMQPI and Qiskit show smaller increases. For Deutsch–Jozsa, the exe-cution times remain relatively stable across the evaluated qubit configurations for all three implementations. To further examine these differences, Table 4 presents the av-erage runtime breakdown for the 5-qubit QFT and Deutsch–Jozsa benchmarks. For both applications, OpenMQPI shows the lowest lowering time among the evaluated implementations. For QFT, the lowering time is 1 .93 × 10 −3 s for OpenMQPI, compared with 4.53 × 10 −3 s for Qiskit and 3 .62 × 10 −1 s for CUDA Quantum. A similar pattern is observed for Deutsch–Jozsa, where OpenMQPI requires 1 .77 × 10 −3 s, compared with 3 .56 × 10 −3 s for Qiskit and 3.40 × 10 −1 s for CUDA Quantum. This is consistent with the VQE results, where OpenMQPI also shows a relatively small lowering overhead. As in the VQE benchmark, Qiskit does not expose a separate serialization time, whereas OpenMQPI and CUDA Quan-tum perform serialization as a separate stage. For both QFT and Deutsch–Jozsa, the serialization overhead of OpenMQPI remains small. The submit-and-wait times are of similar magnitude across the three implementations, which use the same simulator as the execution environment. The remaining constant-time overhead is also small for OpenMQPI. Unlike VQE, QFT, and Deutsch–Jozsa do not perform energy estimation; therefore, the TEE metric is not applicable to these benchmarks. 
+
+## 5 Related Works 
+
+Several quantum software frameworks and interfaces have been developed to support the programming and execution of quantum applications across different quantum computing environments. These frameworks and interfaces provide different abstractions for representing quantum programs, transforming quantum circuits, and interacting with quantum computing resources. One of these frameworks is Qiskit, an open-source software de-velopment kit for developing and executing quantum applications. It provides a circuit-based programming model in which quantum computations are represented as circuits composed of quantum and classical operations [13]. Qiskit includes a transpiler that transforms and optimizes quantum circuits according to the instruction set and constraints of a target quantum device. While Qiskit performs these transformations within its circuit transpilation infrastructure, OpenMQPI represents and optimizes quantum operations directly within MLIR using the QPIR dialect. Qiskit also supports execution on both quantum simulators and physical quantum hardware, as well as hybrid quantum-classical workflows that combine quantum circuit execution with classical computation [35]. Its modular de-sign also allows the framework to be extended with new circuit synthesis and optimization methods and to target different quantum hardware backends. Another framework is CUDA Quantum, a programming model and software platform designed for heterogeneous quantum-classical computing [18]. CUDA Quantum integrates quantum resources into HPC and GPU-accelerated workflows, providing interoperabil-ity with classical parallel programming models. At the compiler level, CUDA Quantum represents quantum programs using MLIR [28] and the Quake [33] dialect for quantum operations [19], as illustrated in Fig. 14. The resulting representation is then lowered OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP 
+
+Figure 12: Average QFT execution time for different qubit configurations. 
+
+Figure 13: Average Deutsch–Jozsa execution time for different qubit configurations. Table 4: Average runtime breakdown of the 5-qubit QFT and Deutsch–Jozsa benchmarks. 
+
+Algorithm Implementation Metrics TE (s) TL (s) TSW (s) TS (s) TC (s) 
+
+QFT OpenMQPI 7.79 × 10 −2 1.93 × 10 −3 6.76 × 10 −2 1.54 × 10 −4 8.22 × 10 −3
+
+CUDA Quantum 4.22 × 10 −1 3.62 × 10 −1 4.51 × 10 −2 1.87 × 10 −3 1.30 × 10 −2
+
+Qiskit 8.40 × 10 −2 4.53 × 10 −3 4.55 × 10 −2 – 3.40 × 10 −2
+
+Deutsch–Jozsa OpenMQPI 7.83 × 10 −2 1.77 × 10 −3 6.82 × 10 −2 1.51 × 10 −4 8.16 × 10 −3
+
+CUDA Quantum 4.05 × 10 −1 3.40 × 10 −1 4.68 × 10 −2 1.90 × 10 −3 1.63 × 10 −2
+
+Qiskit 8.52 × 10 −2 3.56 × 10 −3 4.56 × 10 −2 – 3.51 × 10 −2
+
+through LLVM and emitted as Quantum Intermediate Represen-tation (QIR) for execution on simulation or quantum hardware backends. Quantum Program    
+
+> CUDA-Q Frontend
+> MLIR
+> CC +Quake Dialect
+> LLVM IR / QIR
+> Execution Backend
+
+Figure 14: Simplified overview of the CUDA-Q compilation workflow. 
+
+In HPC environments, the Quantum Programming Interface (QPI) [16] offers a C-based runtime interface for integrating quan-tum programs into HPC applications. Similarly, CQ [6] provides a C-like API, programming model, and specification for developing hybrid applications. Munich Quantum Software Stack (MQSS) is a modular and open-source software ecosystem designed to support hybrid quantum-classical applications and integrate quantum computing resources into HPC environments [7, 14]. Its architecture decouples high-level programming interfaces from the underlying quantum hardware while supporting compilation, resource management, and schedul-ing within the same software stack. Similarly, Quantum Resource Management Interface (QRMI) [2] provides a vendor-agnostic library to access, control, and monitor the quantum resources. It is designed to hide the vendor-specific implementation details by providing interfaces for HPC environ-ments. Mittal et al. propose OpenMP-Q, which extends the OpenMP target model to support the offloading of quantum tasks from C/C++ applications to quantum devices [30]. It introduces a circuit clause to the OpenMP target directive, which passes a user-defined quan-tum circuit to the OpenMP runtime for offloading. At runtime, OpenMP-Q uses a POSIX pipe-based bridge to connect the C/C++ OpenMP application to Python-based quantum software for circuit execution. OpenMP-Q also supports reverse offloading for iterative quantum-classical workflows and the parallel execution of quantum tasks across multiple QPUs. Lee et al. propose Quantum Task Offloading with the OpenMP API to introduce an OpenMP-based programming model to inte-grate quantum computing resources into HPC applications [23]. The approach uses the OpenMP target construct to treat quantum Ercüment Kaya, Ekin Devim Şahinkaya, Minh Chung, and Martin Schulz 
+
+devices as offloading targets, following the same host-device ex-ecution model used for conventional accelerators such as GPUs. Within the target region, quantum circuits are constructed via ded-icated function calls to create quantum registers, apply quantum gates, and measure. These quantum operations are then transpiled into OpenQASM and QIR, which can be passed to their quantum resource manager for further optimization and scheduling on a quantum device or simulator. This programming model is closely related to OpenMQPI, as both approaches integrate quantum execu-tion into the OpenMP target-offloading model. However, while this approach represents quantum operations via dedicated function calls that are subsequently transpiled to QASM or QIR, OpenMQPI represents them directly as QPIR operations within MLIR. OpenMQPI differs from these approaches by introducing QPIR as an MLIR-level representation of quantum operations and by preserving this representation through compiler lowering until the circuit is serialized for the OpenMP runtime. 
+
+## 6 Conclusion and Future Work 
+
+Integrating quantum computing resources into HPC applications remains challenging for portability and reusability, as existing quan-tum programming frameworks rely on different programming mod-els, compiler infrastructures, and execution environments. OpenMP is a well-established programming model in HPC that provides a portable and reusable approach to parallel programming and tar-get offloading. Building on this existing infrastructure, this paper presented OpenMQPI, an MLIR-based compilation infrastructure that integrates quantum circuit compilation and execution into the OpenMP target-offloading model. OpenMQPI uses the QPIR dialect to represent quantum circuits directly within MLIR, enabling quantum-specific optimizations be-fore the circuits are lowered for execution. The resulting circuits are integrated into the OpenMP offloading pipeline and executed on quantum resources through libomptarget and MQSS Client interface. The evaluation demonstrated that OpenMQPI success-fully executes VQE, QFT, and Deutsch–Jozsa through the proposed compilation and offloading pipeline on a real quantum computing environment. Under the evaluated simulator-based configuration, OpenMQPI achieves competitive runtime performance compared with Qiskit and CUDA Quantum. Overall, OpenMQPI demonstrates that quantum computing resources can be integrated into the es-tablished OpenMP offloading infrastructure while preserving a compiler-based workflow for quantum circuit representation, opti-mization, and execution. Future work will focus on extending OpenMQPI in several di-rections. First, integrating the OpenMQPI front end more directly with Clang could provide a more unified compilation workflow for quantum-enabled OpenMP applications. Second, the lowering pipeline could be extended to support QIR as an additional represen-tation, enabling interoperability with a broader range of quantum software and execution environments. Finally, integrating a local quantum simulator would allow quantum circuits to be executed di-rectly within the OpenMQPI environment without requiring access to an external quantum resource. These extensions would further strengthen OpenMQPI as a compiler-based approach for integrating quantum computing resources into established HPC programming and offloading environments. 
+
+## Acknowledgments 
+
+This work is supported by the German Federal Ministry of Re-search, Technology, and Space (BMFTR) with the grants 13N15689 (DAQC), 13N16063 (Q-Exa), 13N16078 (MUNIQC-Atoms), 13N16187 (MUNIQC-SC), 13N16690 (Euro-Q-Exa), 13N16894 (MAQCS), Euro-pean fundings 101114305 (Millenion), 101113946 (OpenSuperQPlus), 101194491 (QEX), and the Bavarian State Ministry of Science and the Arts (StMWK) through funding, as part of Munich Quantum Valley, Q-DESSI. 
+
+## References 
+
+[1] Tor M Aamodt, Wilson Wai Lun Fung, Timothy G Rogers, and Margaret Martonosi. 2018. General-purpose graphics processor architectures . Springer. [2] Utz Bacher, Mark Birmingham, Christopher D Carothers, Andrew Damin, Carlos D Gonzalez Calaza, Ashwin Kumar Karnad, Stefano Mensa, Matthieu Moreau, Aurelien Nober, Munetaka Ohtani, et al. 2025. Quantum resources in resource management systems. arXiv preprint arXiv:2506.10052 (2025). [3] Thomas Beck, Alessandro Baroni, Ryan Bennink, Gilles Buchs, Eduardo Anto-nio Coello Pérez, Markus Eisenbach, Rafael Ferreira da Silva, Muralikrishnan Gopalakrishnan Meena, Kalyan Gottiparthi, Peter Groszkowski, Travis S. Hum-ble, Ryan Landfield, Ketan Maheshwari, Sarp Oral, Michael A. Sandoval, Amir Shehata, In-Saeng Suh, and Christopher Zimmer. 2024. Integrating Quantum Computing Resources into Scientific HPC Ecosystems. Future Generation Com-puter Systems 161 (2024), 11–25. https://doi.org/10.1016/j.future.2024.06.058 [4] Ville Bergholm, Josh Izaac, Maria Schuld, Christian Gogolin, Shahnawaz Ahmed, Vishnu Ajith, M. Sohaib Alam, Guillermo Alonso-Linaje, B. AkashNarayanan, Ali Asadi, Juan Miguel Arrazola, Utkarsh Azad, Sam Banning, Carsten Blank, Thomas R Bromley, Benjamin A. Cordier, Jack Ceroni, Alain Delgado, Olivia Di Matteo, Amintor Dusko, Tanya Garg, Diego Guala, Anthony Hayes, Ryan Hill, Aroosa Ijaz, Theodor Isacsson, David Ittah, Soran Jahangiri, Prateek Jain, Ed-ward Jiang, Ankit Khandelwal, Korbinian Kottmann, Robert A. Lang, Christina Lee, Thomas Loke, Angus Lowe, Keri McKiernan, Johannes Jakob Meyer, J. A. Montañez-Barrera, Romain Moyard, Zeyue Niu, Lee James O’Riordan, Steven Oud, Ashish Panigrahi, Chae-Yeun Park, Daniel Polatajko, Nicolás Quesada, Chase Roberts, Nahum Sá, Isidor Schoch, Borun Shi, Shuli Shu, Sukin Sim, Ar-shpreet Singh, Ingrid Strandberg, Jay Soni, Antal Száva, Slimane Thabet, Ro-drigo A. Vargas-Hernández, Trevor Vincent, Nicola Vitucci, Maurice Weber, David Wierichs, Roeland Wiersema, Moritz Willmann, Vincent Wong, Shaom-ing Zhang, and Nathan Killoran. 2022. PennyLane: Automatic differentia-tion of hybrid quantum-classical computations. arXiv:1811.04968 [quant-ph] https://arxiv.org/abs/1811.04968 [5] Carlo Bertolli, Samuel F. Antao, Gheorghe-Teodor Bercea, Arpith C. Jacob, Alexandre E. Eichenberger, Tong Chen, Zehra Sura, Hyojin Sung, Georgios Rokos, David Appelhans, and Kevin O’Brien. 2015. Integrating GPU Support for OpenMP Offloading Directives into Clang. In Proceedings of the Second Work-shop on the LLVM Compiler Infrastructure in HPC (LLVM-HPC ’15) . ACM, 1–11. https://doi.org/10.1145/2833157.2833161 [6] Oliver Thomson Brown, Mateusz Meller, and James Richings. 2025. Introducing CQ: A C-like API for Quantum Accelerated HPC. arXiv:2508.10854 [cs.DC] https://arxiv.org/abs/2508.10854 [7] Lukas Burgholzer, Jorge Echavarria, Patrick Hopf, Yannick Stade, Damian Rovara, Ludwig Schmid, Ercüment Kaya, Burak Mete, Muhammad Nufail Fa-rooqi, Minh Chung, Marco De Pascale, Laura Schulz, Martin Schulz, and Robert Wille. 2026. The Munich Quantum Software Stack: Connecting End Users, Integrating Diverse Quantum Technologies, Accelerating HPC. In Proceed-ings of the Supercomputing Asia and International Conference on High Perfor-mance Computing in Asia Pacific Region (SCA/HPCAsia 2026) . ACM, 55–67. https://doi.org/10.1145/3773656.3773669 [8] Adam Callison and Nicholas Chancellor. 2022. Hybrid quantum-classical algo-rithms in the noisy intermediate-scale quantum era and beyond. Physical Review A 106, 1 (2022), 010101. https://doi.org/10.1103/PhysRevA.106.010101 [9] Leonardo Dagum and Ramesh Menon. 1998. OpenMP: An Industry-Standard API for Shared-Memory Programming. IEEE Computational Science and Engineering 
+
+5, 1 (1998), 46–55. https://doi.org/10.1109/99.660313 [10] Amr Elsharkawy, Xiaorang Guo, and Martin Schulz. 2024. Integration of Quan-tum Accelerators into HPC: Toward a Unified Quantum Platform. In 2024 IEEE International Conference on Quantum Computing and Engineering (QCE) , Vol. 01. 774–783. https://doi.org/10.1109/QCE60285.2024.00097 OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP 
+
+[11] Violeta Holmes and Matthew Newall. 2016. HPC and the Big Data challenge. 
+
+International Journal of Parallel, Emergent and Distributed Systems 31, 3 (2016), 213–224. https://doi.org/10.1080/09617353.2016.1252085 [12] David Ittah, Ali Asadi, Erick Ochoa Lopez, Sergei Mironov, Samuel Banning, Romain Moyard, Mai Jacob Peng, and Josh Izaac. 2024. Catalyst: a Python JIT compiler for auto-differentiable hybrid quantum programs. Journal of Open Source Software 9, 99 (2024), 6720. [13] Ali Javadi-Abhari, Matthew Treinish, Kevin Krsulich, Christopher J. Wood, Jake Lishman, Julien Gacon, Simon Martiel, Paul D. Nation, Lev S. Bishop, Andrew W. Cross, Blake R. Johnson, and Jay M. Gambetta. 2024. Quantum computing with Qiskit. https://doi.org/10.48550/arXiv.2405.08810 arXiv:2405.08810 [quant-ph] [14] Ercüment Kaya, Jorge Echavarria, Muhammad Nufail Farooqi, Aleksandra Swierkowska, Patrick Hopf, Burak Mete, Lukas Burgholzer, Robert Wille, Laura Schulz, and Martin Schulz. 2024. A Software Platform to Support Disaggregated Quantum Accelerators. In SC24-W: Workshops of the International Conference for High Performance Computing, Networking, Storage and Analysis . 1646–1653. https://doi.org/10.1109/SCW63240.2024.00205 [15] Ercüment Kaya, Muhammad Nufail Farooqi, Minh Chung, Burak Mete, Martin Schulz, and Jorge Echavarria. 2026. MQSS Client: Interface for Decoupling Quantum Programming Interfaces. arXiv:2607.28563 [cs.ET] https://arxiv.org/ abs/2607.28563 [16] Ercüment Kaya, Burak Mete, Laura Schulz, Muhammad Nufail Farooqi, Jorge Echavarria, and Martin Schulz. 2024. QPI: A Programming Interface for Quantum Computers. In 2024 IEEE International Conference on Quantum Computing and Engineering (QCE) , Vol. 02. 286–291. https://doi.org/10.1109/QCE60285.2024. 10293 [17] Phillip Kaye, Raymond Laflamme, and Michele Mosca. 2006. An introduction to quantum computing . OUP Oxford. [18] Jin-Sung Kim, Alex McCaskey, Bettina Heim, Manish Modani, Sam Stanwyck, and Timothy Costa. 2023. CUDA Quantum: The Platform for Integrated Quantum-Classical Computing. In 2023 60th ACM/IEEE Design Automation Conference (DAC) . 1–4. https://doi.org/10.1109/DAC56929.2023.10247886 [19] Vinooth Kulkarni, Jaehyun Lee, Adam Hutchings, Anas Albahri, Jai Nana, Shuai Xu, and Vipin Chaudhary. 2026. Efficient Transpilation of OpenQASM 3.0 Dynamic Circuits to CUDA-Q: Performance and Expressiveness Advantages. arXiv:2604.11599 [quant-ph] https://arxiv.org/abs/2604.11599 [20] Chris Lattner and Vikram Adve. 2004. LLVM: A compilation framework for lifelong program analysis & transformation. In International symposium on code generation and optimization, 2004. CGO 2004. IEEE, 75–86. [21] Chris Lattner, Mehdi Amini, Uday Bondhugula, Albert Cohen, Andy Davis, Jacques Pienaar, River Riddle, Tatiana Shpeisman, Nicolas Vasilache, and Olek-sandr Zinenko. 2020. MLIR: A Compiler Infrastructure for the End of Moore’s Law. arXiv:2002.11054 [cs.PL] https://arxiv.org/abs/2002.11054 [22] Chris Lattner, Mehdi Amini, Uday Bondhugula, Albert Cohen, Andy Davis, Jacques Pienaar, River Riddle, Tatiana Shpeisman, Nicolas Vasilache, and Olek-sandr Zinenko. 2021. MLIR: Scaling Compiler Infrastructure for Domain Specific Computation. In 2021 IEEE/ACM International Symposium on Code Generation and Optimization (CGO) . 2–14. https://doi.org/10.1109/CGO51591.2021.9370308 [23] Joseph K. L. Lee, Oliver T. Brown, Mark Bull, Martin Ruefenacht, Johannes Doerfert, Michael Klemm, and Martin Schulz. 2023. Quantum Task Offloading with the OpenMP API. arXiv:2311.03210 [cs.DC] https://arxiv.org/abs/2311.03210 [24] LLVM Project. n.d.. Clang: a C language family frontend for LLVM. https: //clang.llvm.org Clang Documentation. [25] LLVM Project. n.d.. Flang Documentation. https://flang.llvm.org/docs/ Flang Documentation. [26] LLVM Project. n.d.. LLDB: The LLVM Debugger. https://lldb.llvm.org LLDB Documentation. [27] LLVM Project. n.d.. LLVM. https://llvm.org LLVM Documentation. [28] Martin Paul Lücke, Oleksandr Zinenko, William S. Moses, Michel Steuwer, and Albert Cohen. 2024. The MLIR Transform Dialect. Your compiler is more powerful than you think. arXiv:2409.03864 [cs.PL] https://arxiv.org/abs/2409.03864 [29] Eric Mansfield, Stefan Seegerer, Panu Vesanen, Jorge Echavarria, Muhammad Nu-fail Farooqi, Burak Mete, and Laura Schulz. 2025. First Practical Experiences Integrating Quantum Computers with HPC Resources: A Case Study With a 20-qubit Superconducting Quantum Computer. In Proceedings of the SC ’25 Work-shops of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC Workshops ’25) . Association for Computing Machinery, New York, NY, USA, 1842–1850. https://doi.org/10.1145/3731599.3767551 [30] Swastik Mittal, Atulya Mahesh, and Frank Mueller. 2025. OpenMP-Q: Quantum Task Offloading in OpenMP. In International Workshop on OpenMP . Springer, 81–95. [31] Hartmut Neven. 2025. Meet Willow, our state-of-the-art quantum chip. https://blog.google/innovation-and-ai/technology/research/google-willow-quantum-chip/ [32] Michael A Nielsen, Isaac L Chuang, et al. 2000. Quantum computation and quantum information . Vol. 1. Cambridge university press Cambridge. [33] NVIDIA. n.d.. Quake Dialect. https://nvidia.github.io/cuda-quantum/latest/ specification/quake-dialect.html CUDA-Q Documentation. [34] OpenMP Architecture Review Board. 2013. OpenMP Application Program Interface, Version 4.0 . Technical Report. OpenMP Architecture Review Board. https: //www.openmp.org/wp-content/uploads/OpenMP4.0.0.pdf [35] Param Pathak, K Tarakeshwar, Syed Sufiyan Ali, Shalini Devendrababu, and Adarsh Ganesan. 2025. The Evolution of IBM’s Quantum Information Software Kit (Qiskit): A Review of its Applications. arXiv:2508.12245 [quant-ph] https: //arxiv.org/abs/2508.12245 [36] PennyLane. n.d.. Quantum Dialect. https://docs.pennylane.ai/projects/catalyst/ en/latest/code/dialects/quantum.html PennyLane Catalyst Documentation. [37] John Preskill. 2018. Quantum Computing in the NISQ era and beyond. Quantum 
+
+2 (2018), 79. https://doi.org/10.22331/q-2018-08-06-79 [38] Martin Schulz, Hossam Ahmed, Xiaolong Deng, Jorge Echavarria, Mathias Gam-melmark, Sven Karlsson, Ercüment Kaya, Michal Reznak, Laura Brandon Schulz, and Matthew Tovey. 2024. From the Physics Lab to the Computer Lab: Towards Flexible and Comprehensive DevOps for Quantum Computing. In Proceedings of the 21st ACM International Conference on Computing Frontiers: Workshops and Special Sessions (Ischia, Italy) (CF ’24 Companion) . Association for Computing Ma-chinery, New York, NY, USA, 139–143. https://doi.org/10.1145/3637543.3653432 [39] Wim Vanderbauwhede and Khaled Benkrid. 2013. High-performance computing using FPGAs . Vol. 3. Springer. [40] Jeffrey S. Vetter (Ed.). 2013. Contemporary High Performance Computing: From Petascale toward Exascale . CRC Press, Boca Raton, FL. https://doi.org/10.1201/ 9781351104005

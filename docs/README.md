@@ -48,17 +48,17 @@
 <section class="dpr-home-dashboard-card dpr-home-report-card">
   <div class="dpr-home-dashboard-header">
     <div>
-      <span class="dpr-home-dashboard-kicker">2026-09-21 ~ 2026-10-20</span>
+      <span class="dpr-home-dashboard-kicker">2026-10-20</span>
       <h3 class="dpr-home-dashboard-title">今日汇总</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">共 9 篇</strong>
+    <strong class="dpr-home-dashboard-count">共 2 篇</strong>
   </div>
   <dl class="dpr-home-dashboard-stats">
     <div class="dpr-home-dashboard-stat"><dt>累计更新</dt><dd>1 次</dd></div>
-    <div class="dpr-home-dashboard-stat"><dt>精读</dt><dd>2</dd></div>
-    <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>7</dd></div>
+    <div class="dpr-home-dashboard-stat"><dt>精读</dt><dd>0</dd></div>
+    <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>2</dd></div>
   </dl>
-  <p class="dpr-home-dashboard-body">最近更新：2026-10-20 03:37:18 UTC<br>状态：成功</p>
+  <p class="dpr-home-dashboard-body">最近更新：2026-10-20 22:35:21 UTC<br>状态：成功</p>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-brief-card">
   <div class="dpr-home-dashboard-header">
@@ -69,9 +69,7 @@
     <strong class="dpr-home-dashboard-count">AI</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<p>本期共汇总9篇（精读2篇、速读7篇），主题集中在编译器与加速器、存内计算的协同设计。</p>
-<p>最值得看的是两篇精读：加速器架构的编译与硬件协同设计，以及把半环动态规划编译到分层3D-DRAM存内计算（均8.0/10）。</p>
-<p>建议先读这两篇精读建立主线，再借速读中的MLIR pass自动选择、Rust多后端张量编译等补足工程实现视角。</p>
+<p>今日速读两篇各 6.0 分：OpenMQPI 用 MLIR 和 OpenMP 卸载量子电路，EdgeKernelBench 用大模型统一生成边缘后端内核。最值得关注的是量子编译与边缘内核自动生成两个方向，均处于工程整合阶段。普通读者可先看 EdgeKernelBench 了解 LLM 如何适配多种边缘后端，再按需跟进量子编译。</p>
   </div>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-deep-card">
@@ -80,12 +78,12 @@
       <span class="dpr-home-dashboard-kicker">今日累计</span>
       <h3 class="dpr-home-dashboard-title">精读推荐</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">2 篇</strong>
+    <strong class="dpr-home-dashboard-count">0 篇</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="Compiler and Hardware Co-Design for Accelerator Architectures">Compiler and Hardware Co-Design for Accelerator Architectures</span></li><li><span class="dpr-home-dashboard-paper-title" title="Compiling Semi-Ring Dynamic Programming to Tier-Aware 3D-DRAM Processing-in-Memory">Compiling Semi-Ring Dynamic Programming to Tier-Aware 3D-DRAM Processing-in-Memory</span></li></ul>
+<p class="dpr-home-dashboard-empty">今日暂无推荐。</p>
   </div>
-  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">mlir-iree <strong>2</strong></span></div>
+
 </section>
 <section class="dpr-home-dashboard-card dpr-home-skim-card">
   <div class="dpr-home-dashboard-header">
@@ -93,12 +91,12 @@
       <span class="dpr-home-dashboard-kicker">今日累计</span>
       <h3 class="dpr-home-dashboard-title">速读推荐</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">7 篇</strong>
+    <strong class="dpr-home-dashboard-count">2 篇</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="MQSS-Selector: RL-Guided Pass Selection for an MLIR Compilation Pipeline">MQSS-Selector: RL-Guided Pass Selection for an MLIR Compilation Pipeline</span></li><li><span class="dpr-home-dashboard-paper-title" title="RLX: A Unified Multi-Backend Tensor Compiler and Distributed Runtime in Rust">RLX: A Unified Multi-Backend Tensor Compiler and Distributed Runtime in Rust</span></li><li><span class="dpr-home-dashboard-paper-title" title="Annotation-Driven Migration of CUDA Programs to Tenstorrent Blackhole">Annotation-Driven Migration of CUDA Programs to Tenstorrent Blackhole</span></li></ul>
+<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP">OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP</span></li><li><span class="dpr-home-dashboard-paper-title" title="EdgeKernelBench: Unified LLM-Driven Kernel Generation for Edge Backends">EdgeKernelBench: Unified LLM-Driven Kernel Generation for Edge Backends</span></li></ul>
   </div>
-  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">mlir-iree <strong>7</strong></span></div>
+  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">mlir-iree <strong>2</strong></span></div>
 </section>
 </div>
 

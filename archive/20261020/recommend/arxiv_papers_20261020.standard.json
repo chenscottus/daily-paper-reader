@@ -1,0 +1,95 @@
+{
+  "mode": "standard",
+  "generated_at": "2026-10-20T22:35:02.638205+00:00",
+  "stats": {
+    "mode": "standard",
+    "tag_count": 1,
+    "deep_divecandidates": 0,
+    "deep_cap": 6,
+    "deep_selected": 0,
+    "quick_candidates": 2,
+    "quick_skim_target": 11,
+    "quick_selected": 2
+  },
+  "deep_dive": [],
+  "quick_skim": [
+    {
+      "id": "2610.18056v1",
+      "source": "arxiv",
+      "title": "OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP",
+      "abstract": "Quantum computing introduces specialized software stacks and programming interfaces that are often tightly coupled to specific ecosystems and hardware backends, limiting interoperability and software reuse. For HPCQC application developers, this complicates the integration of quantum accelerators into existing applications. Existing quantum frameworks also use ecosystem-specific circuit representations and compilation pipelines, hindering integration with established heterogeneous compiler infrastructures. We propose OpenMQPI, an MLIR-based OpenMP extension for quantum programming that leverages OpenMP's standardized target offloading infrastructure to integrate quantum resources into HPC applications. OpenMQPI introduces QPIR, a lightweight MLIR dialect for representing quantum circuits within OpenMP target regions, and a compiler pipeline that performs quantum-specific optimizations and lowers circuits to executables compatible with OpenMP offloading. At runtime, an MQSS plugin enables the generated executable to offload quantum circuits to quantum hardware through the OpenMP target offloading model. We evaluate OpenMQPI using the VQE, QFT, and Deutsch-Jozsa algorithms with 5, 10, 15, and 20 qubits, comparing execution times against Qiskit and CUDA Quantum. OpenMQPI achieves the lowest average VQE execution time across all tested qubit configurations. At 20 qubits, it requires 5.18 s, compared with 5.83 s for Qiskit and 7.39 s for CUDA Quantum. For QFT and Deutsch-Jozsa, OpenMQPI achieves execution times comparable to Qiskit and lower than those of CUDA Quantum.",
+      "authors": [
+        "Ercüment Kaya",
+        "Ekin Devim Şahinkaya",
+        "Minh Chung",
+        "Martin Schulz"
+      ],
+      "primary_category": "cs.PL",
+      "categories": [
+        "cs.PL"
+      ],
+      "published": "2026-10-13T09:44:28+00:00",
+      "link": "https://arxiv.org/pdf/2610.18056v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "MLIR-based pipeline with a custom dialect for offloading to hardware backends",
+      "llm_evidence_cn": "基于MLIR及自定义方言的硬件后端卸载流水线",
+      "llm_evidence": "基于MLIR及自定义方言的硬件后端卸载流水线",
+      "canonical_evidence": "基于MLIR及自定义方言的硬件后端卸载流水线",
+      "llm_tldr_en": "Quantum stacks are tied to specific ecosystems, hindering heterogeneous compiler integration. OpenMQPI adds QPIR, a lightweight MLIR dialect, and reuses OpenMP target offloading to map quantum circuits onto accelerators. It enables interoperable quantum offloading within HPC compiler infrastructures.",
+      "llm_tldr_cn": "量子软件栈常与特定生态紧耦合，难以接入异构编译器基础设施。作者提出OpenMQPI，在OpenMP目标卸载框架上引入轻量级MLIR方言QPIR，将量子线路经MLIR流水线降级并卸载到加速器。该工作展示了以MLIR方言和编译流水线对接硬件后端的方式，为在统一编译基础设施中集成专用加速器提供了可借鉴的模式。",
+      "llm_tldr": "量子软件栈常与特定生态紧耦合，难以接入异构编译器基础设施。作者提出OpenMQPI，在OpenMP目标卸载框架上引入轻量级MLIR方言QPIR，将量子线路经MLIR流水线降级并卸载到加速器。该工作展示了以MLIR方言和编译流水线对接硬件后端的方式，为在统一编译基础设施中集成专用加速器提供了可借鉴的模式。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "MLIR compiler infrastructure for model compilation and dialect lowering",
+      "matched_requirement_id": "req-2",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    },
+    {
+      "id": "2610.24648v1",
+      "source": "arxiv",
+      "title": "EdgeKernelBench: Unified LLM-Driven Kernel Generation for Edge Backends",
+      "abstract": "Recent works show that LLMs can generate kernels with strong performance on server GPUs. Edge deployment presents distinct challenges because the hardware is heterogeneous, the software stacks are fragmented, and the resource budgets are tight. LLM kernel generation across diverse edge backends has yet to be studied systematically. We introduce EdgeKernelBench, which combines a unified IR deployment framework with a hierarchical benchmark for edge workloads. The unified IR captures reusable computation, scheduling, and memory decisions and connects to each target backend through a compiler interface. The benchmark spans progressively larger program scopes, from individual operators to compact model graphs, across representative edge application domains. We instantiate the design with TVM as a reference compiler and validate it across heterogeneous edge backends. With a single generation attempt, the best model achieves 64.5% Correct@1 but only 25.5% Fast@1.0. This gap shows that functional correctness does not consistently translate into performance gains. We therefore introduce the Layered Edge Kernel Agent (LEKA), which organizes optimization through a layered IR. On the agent evaluation subset, LEKA achieves 43.5% Fast@1.0, compared with 13.0% for direct generation and 26.1% for Claude Code. LEKA and Claude Code use the same base model and optimization budget. Together, EdgeKernelBench and LEKA support unified evaluation and layered optimization of kernels generated by LLMs across edge backends.",
+      "authors": [
+        "Yuhua Zheng",
+        "Xueyi Chen",
+        "Xinze Zou",
+        "Xin Li",
+        "Haoji Hu",
+        "Huan Wang"
+      ],
+      "primary_category": "cs.LG",
+      "categories": [
+        "cs.LG"
+      ],
+      "published": "2026-10-17T11:51:50+00:00",
+      "link": "https://arxiv.org/pdf/2610.24648v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "unified IR with compiler interface to edge backends",
+      "llm_evidence_cn": "统一 IR 经编译器接口对接边缘后端",
+      "llm_evidence": "统一 IR 经编译器接口对接边缘后端",
+      "canonical_evidence": "统一 IR 经编译器接口对接边缘后端",
+      "llm_tldr_en": "LLM kernel generation is unexplored for heterogeneous edge backends. EdgeKernelBench couples a unified IR that captures compute, scheduling and memory decisions with a compiler interface to each backend, plus a hierarchical edge benchmark.",
+      "llm_tldr_cn": "现有 LLM 生成内核的研究多集中在服务器 GPU，边缘场景因硬件异构、软件栈碎片化和资源紧张而缺乏系统研究。作者提出 EdgeKernelBench，将统一中间表示与分层基准结合：统一 IR 捕获可复用的计算、调度与内存决策，并通过编译器接口对接各目标后端，基准覆盖从单算子到紧凑模型图的多级程序范围。该框架为面向多样化边缘后端的硬件加速后端生成与评测提供了统一基础设施。",
+      "llm_tldr": "现有 LLM 生成内核的研究多集中在服务器 GPU，边缘场景因硬件异构、软件栈碎片化和资源紧张而缺乏系统研究。作者提出 EdgeKernelBench，将统一中间表示与分层基准结合：统一 IR 捕获可复用的计算、调度与内存决策，并通过编译器接口对接各目标后端，基准覆盖从单算子到紧凑模型图的多级程序范围。该框架为面向多样化边缘后端的硬件加速后端生成与评测提供了统一基础设施。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "hardware acceleration backend generation from MLIR and IREE pipelines",
+      "matched_requirement_id": "req-6",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    }
+  ]
+}

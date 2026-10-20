@@ -1,0 +1,41 @@
+{
+  "date": "20261020",
+  "date_label": "",
+  "generated_at": "2026-10-20 22:35:21 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2610.18056v1",
+      "route": "202610/20/2610.18056v1-openmqpi-an-mlir-based-pipeline-to-offload-quantum-circuits-via-openmp",
+      "title": "OpenMQPI: An MLIR-based Pipeline to Offload Quantum Circuits via OpenMP",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "基于MLIR及自定义方言的硬件后端卸载流水线",
+      "first_seen_at": "2026-10-20 22:35:21 UTC",
+      "updated_at": "2026-10-20 22:35:21 UTC"
+    },
+    {
+      "paper_id": "2610.24648v1",
+      "route": "202610/20/2610.24648v1-edgekernelbench-unified-llm-driven-kernel-generation-for-edge-backends",
+      "title": "EdgeKernelBench: Unified LLM-Driven Kernel Generation for Edge Backends",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "统一 IR 经编译器接口对接边缘后端",
+      "first_seen_at": "2026-10-20 22:35:21 UTC",
+      "updated_at": "2026-10-20 22:35:21 UTC"
+    }
+  ]
+}
