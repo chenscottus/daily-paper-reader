@@ -25,3 +25,65 @@ subscriptions:
     stage: A
     diff_threshold_pct: 15
   keyword_recall_mode: or
+  intent_profiles:
+    - tag: mlir-iree
+      description: LiteRT、MLIR 与 IREE 的编译与运行时集成 FPGA SoC
+      enabled: true
+      paper_sources:
+        - arxiv
+      keywords:
+        - keyword: LiteRT runtime
+          keyword_cn: LiteRT 运行时
+          query: LiteRT runtime for on-device machine learning inference
+        - keyword: MLIR compiler infrastructure
+          keyword_cn: MLIR 编译器基础设施
+          query: MLIR compiler infrastructure for model compilation and dialect lowering
+        - keyword: IREE compiler runtime
+          keyword_cn: IREE 编译器运行时
+          query: IREE compiler and runtime stack for deploying machine learning models
+        - keyword: FPGA accelerator integration
+          keyword_cn: FPGA 加速器集成
+          query: FPGA accelerator integration with compiler and runtime stacks
+        - keyword: IREE HAL runtime
+          keyword_cn: IREE HAL 运行时
+          query: IREE hardware abstraction layer runtime for target devices
+        - keyword: hardware acceleration backend
+          keyword_cn: 硬件加速后端
+          query: hardware acceleration backend generation from MLIR and IREE pipelines
+      intent_queries:
+        - query: How does LiteRT integrate with MLIR and IREE for compiling and executing machine learning models?
+          query_cn: LiteRT 如何与 MLIR 和 IREE 集成以编译和执行机器学习模型？
+          enabled: true
+          source: manual
+          note: ''
+        - query: How to integrate LiteRT models with MLIR and IREE compilation and runtime for FPGA acceleration
+          query_cn: 如何将 LiteRT 模型与 MLIR 和 IREE 的编译及运行时集成以实现 FPGA 加速
+          enabled: true
+          source: manual
+          note: ''
+        - query: Runtime integration patterns for executing compiled models on FPGA accelerators with IREE
+          query_cn: 使用 IREE 在 FPGA 加速器上执行编译模型的运行时集成模式
+          enabled: true
+          source: manual
+          note: ''
+        - query: Compiler pipeline design for lowering LiteRT models through MLIR to IREE runtime on FPGA SoC
+          query_cn: 在 FPGA SoC 上通过 MLIR 将 LiteRT 模型降级到 IREE 运行时的编译器流水线设计
+          enabled: true
+          source: manual
+          note: ''
+      updated_at: '2026-10-20T03:27:57.044Z'
+source_backends:
+  arxiv:
+    papers_table: arxiv_papers
+    use_vector_rpc: true
+    vector_rpc: match_arxiv_papers
+    vector_rpc_exact: match_arxiv_papers_exact
+    use_bm25_rpc: true
+    bm25_rpc: match_arxiv_papers_bm25
+    sync_table: arxiv_sync_status
+    sync_success_value: success
+    schema: public
+    kind: supabase
+    enabled: true
+    url: https://lyucdwgefyfbmaiopjbk.supabase.co
+    anon_key: sb_publishable_lX-oi64Uxyd7SIVv3_w2Uw_MTOojeKq
