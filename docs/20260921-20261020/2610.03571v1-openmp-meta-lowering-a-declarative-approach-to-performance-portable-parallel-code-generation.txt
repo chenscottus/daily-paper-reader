@@ -1,0 +1,594 @@
+Title: OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation
+
+URL Source: https://arxiv.org/pdf/2610.03571v1
+
+Published Time: Mon, 05 Oct 2026 01:33:34 GMT
+
+Number of Pages: 16
+
+Markdown Content:
+# OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation 
+
+## Luca Parigi 
+
+University of Bologna Bologna, BO, Italy 
+
+luca.parigi2@unibo.it 
+
+## Giuseppe Tagliavini 
+
+University of Bologna Bologna, BO, Italy 
+
+giuseppe.tagliavini@unibo.it 
+
+## Abstract 
+
+The increasing diversity of parallel hardware challenges ex-isting compilation flows. While OpenMP provides a portable abstraction for shared-memory parallelism, existing com-pilers tightly couple the frontend semantics with fixed low-ering strategies. This design limits performance portability across different runtimes and architectures. In this paper, we present a modular approach to parallel code generation based on the Multi-Level Intermediate Representation (MLIR) framework. Our approach combines an OpenMP frontend with a domain-specific language (DSL) that specifies how OpenMP constructs are lowered for a target. We call this approach OpenMP meta-lowering, treating lowering as a pro-grammable component rather than compiler-specific logic. This design provides explicit control over code outlining, data sharing, and runtime interfacing across diverse tar-gets. We evaluate our approach on PolyBench/C-OMP across general-purpose and embedded multicore targets. Our re-sults show that the proposed method matches the perfor-mance of state-of-the-art compiler toolchains with negligible code-size overhead (< 0.7%). Preserving OpenMP constructs until late lowering stages enables both general-purpose and OpenMP-specific MLIR optimizations. By decoupling low-ering from compiler internals, our approach expresses the same OpenMP subset in 5,182 lines of code, ∼32% fewer than the corresponding lowering code in Clang and ∼76% fewer than in GCC, while supporting the pmsis runtime costs only a few specification lines, enabling rapid support for new runtimes without modifying the compiler. 
+
+CCS Concepts: • Software and its engineering → Com-pilers ; Parallel programming languages ; Runtime en-vironments .
+
+Keywords: Parallel Programming, OpenMP, MLIR, Perfor-mance Portability, Domain-Specific Languages, Runtime Sys-tems 
+
+## 1 Introduction 
+
+The increasing heterogeneity of modern computing plat-forms, ranging from general-purpose CPUs to embedded 
+
+> CGO 2027, Salt Lake City, UT, USA
+> 2027. ACM ISBN 978-X-XXXX-XXXX-X/XX/XX
+> https://doi.org/XXXXXXX.XXXXXXX
+
+systems, has made performance portability a key require-ment, as maintaining separate implementations for each target architecture significantly increases development time and cost [6]. This challenge is particularly critical in parallel computing systems, where differences in execution models, memory hierarchies, and synchronization mechanisms com-plicate the development of software that enforces portability without sacrificing efficiency [7]. To address this complexity, high-level parallel program-ming models have been introduced to allow developers to ex-press parallelism independently of the underlying hardware. Open Multi-Processing (OpenMP) has emerged as one of the most widely used models for shared-memory parallel plat-forms [5, 27]. It provides a directive-based abstraction that enables developers to express parallelism and data-sharing semantics through source-code annotations. By abstracting low-level aspects of parallel execution, such as thread cre-ation, synchronization, and workload distribution, OpenMP allows developers to write portable parallel code through a set of compiler directives and runtime services. This ap-proach has been demonstrated to be effective across various domains, including high-performance computing [13], desk-top applications, and embedded systems [32]. The portability of OpenMP is mainly limited to the source code level. The translation of OpenMP constructs into exe-cutable code relies on compiler-specific strategies that are closely tied to a particular runtime implementation. Mod-ern toolchains, such as LLVM and GCC, convert OpenMP directives into calls to their respective runtime libraries (e.g., 
+
+libomp for LLVM and libgomp for GCC). Consequently, as-sumptions about runtime interfaces and low-level execution semantics are embedded directly into the compiler infras-tructure, limiting portability across alternative runtimes and execution environments. This tight coupling is evident even for simple constructs. For instance, consider a #pragma omp parallel for loop: depending on the target runtime, the compiler must generate different sequences of runtime calls, such as __kmpc_fork_call and __kmpc_for_static_init 
+
+for libomp [23], or GOMP_parallel followed by explicit loop-boundary computations for libgomp [12], respectively. While these implementations achieve the same high-level seman-tics, their interfaces and calling conventions differ signifi-cantly. In current implementations, the compiler integrates runtime-specific logic directly into the lowering pipeline,  
+
+> 1arXiv:2610.03571v1 [cs.PL] 2 Oct 2026 CGO 2027, March 2027, Salt Lake City, UT, USA Luca Parigi and Giuseppe Tagliavini
+
+making it difficult and error-prone to retarget to new run-times. This approach becomes particularly challenging when tar-geting embedded and ultra-low-power architectures. While general-purpose platforms rely on mature runtimes, em-bedded systems often require specialized runtime imple-mentations that sacrifice generality for efficiency [3, 32, 35]. Supporting these environments typically requires re-implementing significant parts of the lowering pipeline to align with the target application binary interface (ABI) and execution model. Consequently, expanding OpenMP support to new architectures or runtimes demands considerable en-gineering effort and restricts the ability to experiment with different execution strategies [1]. To address the aforementioned limitations, this paper presents a modular approach to OpenMP lowering across multiple targets. The proposed methodology introduces a meta-layer on top of the Multi-Level Intermediate Repre-sentation (MLIR) [14, 15], a compiler infrastructure that en-ables flexible program representations at different levels of abstraction. However, despite this flexibility, the current ap-proach to lowering OpenMP constructs within the MLIR infrastructure remains tightly coupled to specific runtime implementations. The key insight of this work is that the lowering process should not be hardwired into the compiler, but instead expressed as a declarative mapping between high-level parallel semantics and runtime interfaces. We reformu-late the lowering process as a programmable component by introducing a domain-specific language (DSL) that de-scribes lowering rules for diverse runtime implementations as an external specification, decoupling parallel semantics from runtime-specific details. Unlike previous MLIR-based approaches, which rely on fixed lowering pipelines [24] or imperative transformations implemented through compiler passes and pattern rewrites [19, 20], our methodology treats lowering as a declarative, runtime-parametric abstraction. To the best of our knowledge, this is the first approach to make OpenMP lowering explicitly programmable and runtime-agnostic within a production compiler infrastructure. Our implementation is available as open-source software 1, with an archived snapshot 2.Our approach replaces the traditional monolithic lowering pipeline with a three-phase process: annotating the Interme-diate Representation (IR), outlining functional contexts, and applying the lowering plan. The lowering process is driven by the meta-level specification expressed through DSL rules, enabling each phase to be customized for different runtime targets. This design fully decouples OpenMP semantics from any particular runtime implementation, allowing the same high-level representation to be lowered to multiple backends 
+
+> 1https://github.com/EEESlab/mlir-opt-omp
+> 2https://zenodo.org/records/22211483
+
+without embedding runtime-specific logic into the compiler infrastructure. To summarize, this paper presents the following contribu-tions: 
+
+• A meta-lowering methodology that expresses the OpenMP lowering by means of a DSL specification, interpreted by the compiler infrastructure in a runtime-agnostic and extensible manner. 
+
+• A modular three-phase MLIR lowering pipeline that instantiates the runtime-specific behavior based on the rules provided by the DSL specification. 
+
+• An end-to-end integration of the DSL and MLIR pipeline into a Clang/CIR-based compiler flow, en-abling the combination with additional MLIR transfor-mations from very early compilation stages. 
+
+• An evaluation on the PolyBench/C-OMP benchmark suite, across general-purpose and embedded targets, showing that our approach matches the performance of state-of-the-art compiler toolchains while incur-ring negligible code size overhead. Additionally, the evaluation considers the effects of illustrative general-purpose and OpenMP-specific optimizations. We demonstrate the flexibility of our approach by tar-geting heterogeneous execution environments, including general-purpose runtimes ( libomp , libgomp ) and a light-weight embedded runtime for the Parallel Ultra-Low Power (PULP) multicore platform [4]. Across the evaluated bench-marks, our approach matches the performance of state-of-the-art compiler toolchains while introducing negligible code size overhead (below 0.7%). This decoupling reduces engi-neering complexity: the whole lowering pipeline takes 5,040 lines of code, ∼32% less than the corresponding lowering code in Clang and ∼76% less than in GCC for the same OpenMP subset, and adding support for a new runtime costs a few lines in the specification. 
+
+## 2 Background 
+
+Our work builds on MLIR and the OpenMP compilation infrastructure. MLIR provides a multi-level intermediate rep-resentation in which high-level program semantics can be preserved and progressively lowered toward machine code. In particular, OpenMP constructs are represented through the dedicated omp dialect and coexist with other dialects, such as ClangIR (CIR), within the same compilation pipeline. Figure 1 contrasts the conventional OpenMP compi-lation flow with our approach. In the standard LLVM/-Clang pipeline, OpenMP operations are eventually translated through OpenMPIRBuilder into calls to the LLVM OpenMP runtime ( libomp ). As a result, runtime-specific assumptions are embedded in the lowering implementation. In contrast, our approach inserts a configurable meta-lowering layer that drives lowering via an external DSL specification, enabling           
+
+> 2OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation CGO 2027, March 2027, Salt Lake City, UT, USA
+> C/C++ + #pragma omp
+> Clang (CIRGen) CIR + omp dialect
+> Default lowering
+> OpenMPIRBuilder
+> LLVM dialect IR LLVM IR
+> libomp
+> Machine code
+> Our approach 1Annotation
+> 2Outlining
+> 3Plan application LLVM dialect IR LLVM IR DSL file
+> libomp libgomp pmsis . . .
+> Machine code
+
+Figure 1. Compilation pipeline overview. The default LLVM/Clang flow targets only libomp, whereas our three-phase DSL-driven pipeline supports multiple runtimes and can be extended to additional backends. the same OpenMP representation to target multiple runtimes without modifying compiler internals. 
+
+2.1 MLIR-Based OpenMP Compilation 
+
+MLIR [14] is a compiler infrastructure designed to support multiple levels of abstraction within a single compilation framework. Rather than lowering source code directly to a low-level representation, MLIR organizes programs into 
+
+dialects , each providing domain-specific operations, types, and transformations. This design enables high-level program information to be preserved throughout compilation and progressively lowered toward machine code. Our work builds on ClangIR (CIR) [22], a high-level MLIR dialect for C/C++. CIR represents source-language constructs such as functions, loops, variables, and control-flow struc-tures while retaining information that is typically lost during early lowering to LLVM IR. The CIR compilation flow in-tegrates with the broader MLIR ecosystem, allowing CIR operations to coexist with operations from other dialects. OpenMP support in MLIR is provided through the ded-icated omp dialect, which models OpenMP directives and clauses. Since both CIR and OpenMP are represented as MLIR dialects, parallel constructs remain explicit alongside the surrounding C/C++ code throughout most of the compi-lation process. This separation between high-level parallel semantics and low-level code generation enables transforma-tions and optimizations to be applied before runtime-specific lowering decisions are introduced. 
+
+2.2 OpenMP Lowering 
+
+OpenMP compilation requires translating high-level parallel constructs into runtime-specific implementations. This pro-cess typically involves three categories of transformations. First, function outlining extracts the body of a parallel region into a separate function. Second, control-flow restructuring 
+
+rewrites work-sharing constructs, such as parallel loops, into forms compatible with the scheduling mechanisms provided by the target runtime. Third, runtime call emission introduces calls that implement thread creation, synchronization, and work distribution. In current MLIR-based toolchains, these transformations are implemented through OpenMPIRBuilder and are tightly coupled to the ABI of a specific runtime, namely libomp .For example, OpenMP constructs are lowered into runtime-specific calls such as __kmpc_fork_call and loop schedul-ing routines whose interfaces are embedded directly into the  
+
+> 3CGO 2027, March 2027, Salt Lake City, UT, USA Luca Parigi and Giuseppe Tagliavini
+
+lowering implementation. Consequently, supporting alter-native runtimes requires modifying compiler-internal code rather than simply changing the runtime description. This tight coupling between OpenMP semantics and runtime-specific lowering motivates the approach proposed in this paper. Instead of hardwiring runtime behavior into compiler passes, we externalize lowering decisions into a declarative specification that the compiler infrastructure can interpret and adapt to different runtime environments. A DSL specification defines which runtime calls to emit and which code-generation strategy to apply for each construct; the proposed compilation pipeline applies the actual changes. 
+
+## 3 Methodology 
+
+In this section, we present our OpenMP meta-lowering ap-proach. A DSL specification declares, for each OpenMP con-struct, how it is realized on a target runtime: the runtime calls to emit, their position relative to the construct body, and the handling of the body itself. Section 3.1 describes what a specification can express and Section 3.2 formalizes its grammar; Section 3.3 describes the three-phase MLIR pipeline that performs the lowering, and Section 3.4 walks through a complete example. The last two subsections state how correctness is checked and which constructs are cur-rently supported. 
+
+3.1 What a specification can express 
+
+A specification outlines how each omp -dialect operation is lowered for a target runtime. It does so in terms of four concepts: 1. The omp -dialect operations that a specification can lower ( omp.parallel , omp.wsloop , etc.). 2. The context variables that each operation exposes, rep-resented by the values of its clauses ( num_threads ,
+
+nowait ). 3. The body-handling modes available to a construct: its body may be outlined into a separate function, restruc-tured as a work-sharing loop, or absent. 4. The structured rewrites that a specification can invoke, each generating a dedicated code pattern. There are no restrictions on the names of functions, which means that a specification can express any construct that re-duces to a sequence of runtime calls associated with one of the body-handling modes. Section 3.6 outlines which OpenMP constructs are currently included in this set. 
+
+3.2 Lowering description language 
+
+The lowering process for a generic runtime is described using a DSL whose grammar is shown in Figure 2. A DSL program consists of one or more runtime declarations , each of which bundles a set of lowering rules under a named runtime iden-tifier. This design allows users to specify multiple runtimes in a single file and choose one at compile time.                                                                                                               
+
+> program :: ={runtime-decl }
+> runtime-decl :: =runtime IDENT
+> { { runtime-item } }
+> runtime-item :: =let-decl
+> |construct-decl construct-decl :: =construct IDENT
+> [when predicate ] { { construct-item } }
+> construct-item :: =let-decl
+> |property-decl
+> |block-decl property-decl :: =IDENT = expr ;
+> block-decl :: =(pre |invoke |post ){ { statement } }
+> let-decl :: =let IDENT = expr ;
+> statement :: =when predicate => action ;
+> |otherwise => action ;
+> |let IDENT = expr ;
+> |action ;
+> action :: =call (IDENT |STRING )( [ arg-list ] )
+> |emit IDENT predicate :: =pred-and {or pred-and }
+> pred-and :: =pred-not {and pred-not }
+> pred-not :: =not pred-not |pred-atom pred-atom :: =has (IDENT )
+> |IDENT == expr
+> |IDENT != expr
+> |IDENT |true |false
+> |( predicate )
+> expr :: =IDENT ( [ arg-list ] )
+> |IDENT |STRING |NUMBER
+> |true |false
+> |[ [ arg-list ] ] |( expr )
+> arg-list :: =expr { , expr }
+
+Figure 2. EBNF grammar of the DSL. 
+
+Runtime and construct declarations. A runtime block may contain local bindings ( let-decl ) and any number of 
+
+construct declarations . Each construct declaration maps an operation of the omp dialect to a set of lowering rules. An optional when guard, expressed as a predicate over the con-struct attributes, allows the same construct to be handled differently depending on runtime conditions. For example, it can be used to differentiate between parallel regions that specify or do not specify a num_threads clause. 
+
+Construct items. A construct declaration consists of a flat list that includes three types of items. A property dec-laration associates a name with an expression, making it available as a symbol during the lowering process. A let dec-laration introduces a constant binding that is valid within the scope of the construct. A block declaration describes the low-ering process in terms of three lifecycle blocks: pre , executed before materializing the construct; invoke , which handles the materialization of the construct’s parallel semantics and may either dispatch an outlined function via call or apply  
+
+> 4OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation CGO 2027, March 2027, Salt Lake City, UT, USA
+
+structured rewrites via emit ; and post , executed after the construct materialization. 
+
+Statements and actions. Within a lifecycle block, each statement either fires unconditionally or is guarded by a 
+
+when /otherwise conditional. The executable unit of a state-ment is an action , of which there are two forms. A call action invokes a function with a list of expressions as arguments, corresponding to the emission of a runtime library call into the lowered IR. An emit action names a structured rewrite supported by the infrastructure, such as thread_bounds or 
+
+loop_body , allowing IR rewrites and runtime calls to be composed declaratively within the same lowering sequence. 
+
+Predicates. Guards on both construct declarations and in-dividual statements are expressed as predicates . The grammar supports conjunction ( and ), disjunction ( or ), and negation (not ), following standard precedence rules from lowest to highest. Atomic predicates can check for the presence of a named attribute using has , compare the attribute value with a reference using == or != , or treat the attribute name as a boolean flag. Parentheses are available for explicit grouping. 
+
+Expressions. Expressions cover the value language used in property bindings, let declarations, and action arguments. An expression can be a function call, a bare identifier refer-ring to a bound attribute or let variable, a string or integer literal, a boolean literal, or a list. Lists allow passing struc-tured data, such as sets of clause names, as arguments to 
+
+call or emit actions. Primitive token types ( IDENT , STRING ,
+
+NUMBER ) are supplied by the lexer and are not expanded further in the grammar. 
+
+3.3 MLIR Lowering Pipeline 
+
+The lowering pipeline consists of three MLIR passes orches-trated by mlir-opt-omp , a custom driver built on top of the standard MlirOptMain entry point. The driver registers the dialects required throughout the pipeline: cir , arith , func ,
+
+llvm , omp , and the custom omp_lower dialect. Two flags control the global lowering configuration: –omp-lower-dsl 
+
+specifies the path to the DSL file containing the runtime declarations, and –omp-lower-runtime selects the target runtime from that file. Dialect legalization is handled trans-parently by the MLIR conversion framework, which verifies that all operations are legal with respect to the registered dialects after each pass. Figure 1 shows the three passes and their integration into the compilation pipeline. 
+
+Pass 1: Annotation ( –omp-to-omp-lower ). The first pass processes the DSL file using a dedicated parser and evaluates the lowering declarations for the selected runtime. For each visited operation, the pass selects the declaration to apply based on the actual values of the clauses: a when 
+
+guarded declaration takes precedence over an unguarded one. When no declaration matches, the pass reports an error. Based on the selected declaration, the pass then attaches the lowering plan to the omp dialect operation, encoded as an additional operation belonging to the custom omp_lower 
+
+dialect. This operation records the target runtime name, the construct identifier, a dictionary of resolved property bind-ings, and three data structures carrying the pre , invoke ,and post action sequences. As a result of this pass, the struc-ture of the omp operations remains unchanged, but they now carry all the necessary meta-level information required by the subsequent passes. 
+
+Pass 2: Outlining ( –omp-outline ). The second pass con-siders the lowering annotations from Pass 1 and realizes the body-handling mode that each construct requires. Where that mode is function outlining (e.g., omp.parallel ), it col-lects the variables crossing the region boundary, extracts the body into a separate function, and rewrites the original site into a dispatch point. The signature of the outlined func-tion and the way captured variables are passed to it are not hardcoded in the pass, but dictated by outline_signature 
+
+and capture_strategy properties of the plan. When using 
+
+by_pointer , each capture is treated as a separate argument in the outlined function; with packed , captures are combined into a single structure allocated at the call site, which defines the env_size and env_align context variables for size and alignment, respectively. For an omp.wsloop , whose body is restructured, the pass computes the iteration range assigned to each thread and rebuilds the loop over that range. 
+
+Pass 3: Plan application ( –omp-lower-plan ). The third pass applies the lowering plan produced in Pass 1 to the out-lined code from Pass 2, materializing the pre , invoke , and 
+
+post action sequences for each construct. For each omp op-eration, the pass first processes the pre actions, inserting the corresponding llvm dialect calls or applying structured rewrites immediately before the construct in the IR. It then processes the invoke actions, which materialize the con-struct at the point where the original omp operation appears. Finally, it processes the post actions, inserting any required teardown or synchronization code immediately after the construct. For each set of actions, call actions are lowered to di-rect llvm.call operations with the resolved function name and argument list. Each argument name resolves to an SSA value in the IR: num_threads and if_clause to operands that the omp operation already carries, body to the function outlined by Pass 2, and env_ptr to the capture structure built at the dispatch site. emit actions are dispatched by name to a registry of standard IR rewrite patterns, each of which pro-duces a fixed sequence of llvm dialect operations, detailed in Section 3.4. 
+
+3.4 DSL Semantics 
+
+This section walks through a concrete DSL specification, then characterizes the emit primitives and the properties that parameterize them.                                                                                                                                                        
+
+> 5CGO 2027, March 2027, Salt Lake City, UT, USA Luca Parigi and Giuseppe Tagliavini
+> 1runtime libgomp {2construct parallel {3outline_signature =closure ( env_ptr ); 4capture_strategy =" packed "; 5invoke {6when has ( num_threads ) => 7call " GOMP_parallel "( 8body , env_ptr , num_threads , 0); 9otherwise => 10 call " GOMP_parallel "( body , env_ptr , 0, 0); 11 }12 }13 construct wsloop when schedule == static {14 thread_id_function =" omp_get_thread_num "; 15 num_thread_function =" omp_get_num_threads "; 16 pre {emit thread_bounds ; }17 invoke {18 emit loop_body ; 19 }20 post {21 when not nowait => call " GOMP_barrier " (); 22 }23 }24 construct wsloop when schedule == dynamic {25 chunk_start_function =" GOMP_loop_dynamic_start "; 26 chunk_next_function =" GOMP_loop_dynamic_next "; 27 pre {28 emit chunked_loop ; 29 }30 invoke {31 emit loop_body ; 32 }33 post {34 when nowait => call " GOMP_loop_end_nowait " (); 35 otherwise => call " GOMP_loop_end " (); 36 }37 } 38 construct task {39 outline_signature =closure ( env_ptr ); 40 capture_strategy =" packed "; 41 invoke {42 when has ( if_clause ) => 43 call " GOMP_task "( body , env_ptr , null , 44 env_size , env_align , 45 if_clause , 0, null , 0); 46 otherwise => 47 call " GOMP_task "( body , env_ptr , null , 48 env_size , env_align , 49 true ,0, null , 0); 50 }51 }52 construct barrier {53 invoke {call " GOMP_barrier " (); }54 }55 }
+
+Figure 3. Specification of the libgomp runtime (subset). 
+
+A concrete example. Figure 3 shows an excerpt of a DSL specification targeting the GCC OpenMP runtime (libgomp ), covering four representative constructs. The 
+
+parallel declaration opens with outline_signature and 
+
+capture_strategy (lines 3 and 4), set to the libgomp con-vention: a single environment pointer, with the captures packed into one struct. These properties are consumed by the outlining pass before the invoke block is processed. The 
+
+invoke block handles the dispatch: if the construct carries a num_threads clause, tested with the has predicate, the outlined function is dispatched via GOMP_parallel with the thread count as the third argument (line 7); otherwise, the argument is set to zero, signaling libgomp to use the default thread count (line 9). Two separate wsloop declarations handle the static and dynamic scheduling policies, selected at lowering time by the when guard on the construct declaration. For the static policy (lines 13–23), the pre block emits a structured rewrite (thread_bounds ) that computes the iteration range assigned to each thread, and the invoke block emits the loop body over that range. The post block conditionally issues a 
+
+GOMP_barrier call unless the nowait clause is present, pre-serving OpenMP semantics. For the dynamic policy (lines 24– 37), two properties name the dispatching functions, and the 
+
+post block selects the final call depending on nowait .Similar to parallel , the task declaration provides the information required for outlining and generates a call to 
+
+GOMP_task , parameterized by a condition derived from one of the task clauses. Finally, the barrier declaration (lines 52–54) illustrates the simplest lowering pattern: a single runtime call with no outlining and no control flow restructuring. The entire construct body reduces to one GOMP_barrier call in the 
+
+invoke block, with pre and post absent. 
+
+Semantics. The rest of the semantics lies in the emit 
+
+primitives and the properties that parameterize them, which fall into three classes: 1. Runtime-agnostic parameters. These proper-ties parameterize a primitive describing a generic code-rewriting pattern. The thread_bounds 
+
+pattern uses the thread_id_function and 
+
+num_thread_function (Figure 3, lines 14–15) to generate the code to perform static work-load distribution; retargeting for a different runtime only requires assigning different values to these variables (e.g., ext_pi_core_id and ext_pi_cl_nb_cores 
+
+on PMSIS). The loop_body pattern rebuilds the sequential loop over the computed range. 2. OpenMP-level mechanisms. These properties se-lect among alternative realizations of OpenMP mechanisms (e.g., outlining conventions, schedul-ing policies). Lines 3–4 name the libgomp con-vention; libomp instead uses microtask(ptr_tid, ptr_btid, captures) and "by_pointer" , which add two runtime-specific thread-identifier parameters and deliver each capture as a separate argument. Dynamic scheduling requires specifying two chunk function  
+
+> 6OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation CGO 2027, March 2027, Salt Lake City, UT, USA
+
+properties (Figure 3, lines 25–26), called by the dy-namic scheduling loop generated by the emit action. 3. Runtime-specific extensions. These properties are specific to a single runtime. ident generates a descrip-tor that carries source-location metadata, which is passed as a pointer to most libomp functions. Similarly, 
+
+global_tid gets a global thread identifier by calling 
+
+__kmpc_global_thread_num , and it is also used by a subset of libomp functions. 
+
+3.5 Well-formedness and semantic preservation 
+
+Specifications are checked at several points: the parser ac-cepts only well-formed programs, and lowering stops on a construct with no matching declaration or on a plan nam-ing an emit keyword or a property value that no pass im-plements. Each pass leaves the IR in a form that the MLIR verifier accepts, so any mismatch between a plan and the code it applies to is detected during compilation. OpenMP semantics (regions, nesting, clauses) are encoded in the omp 
+
+dialect produced by the ClangIR frontend. The three passes transform the program without altering its semantics: the annotation pass attaches information; the outlining pass re-locates a region into a separate function and restructures work-sharing constructs; the plan application pass emits runtime calls and applies structured rewrites. 
+
+3.6 Scope and limitations 
+
+Table 1 lists the constructs and clauses supported by our current implementation. PMSIS covers fewer constructs be-cause the bare-metal cluster runtime lacks a tasking API, which is essential to implement constructs such as task and 
+
+taskwait . However, constructs that are not yet supported can still be expressed. For example, constructs like critical ,which require a sequence of runtime calls around a specific region, simply need a dedicated declaration, as the existing passes already provide the necessary body-handling mode. Constructs like atomic , which require the lowering to be a single instruction instead of a call, will also need an emit keyword added at that level. 
+
+## 4 Results 
+
+In this section, we assess the effectiveness of our approach us-ing three main criteria: performance portability, engineering effort, and integration with the MLIR optimization pipeline. We compare against state-of-the-art compiler toolchains across both general-purpose and embedded platforms, as-sessing parallel speedup, code size, and implementation com-plexity. 
+
+4.1 Experimental setup 
+
+Benchmark suite. We evaluate our approach using the PolyBench/C benchmark suite [31] in its OpenMP-enabled variant (PolyBench/C-OMP). PolyBench is a widely adopted collection of computational kernels representative of numer-ical workloads, including linear algebra, stencil computa-tions, and dynamic programming. We selected this bench-mark suite for our experimental assessment because it offers a diverse set of computational kernels that cover various domains such as linear algebra, stencil computations, and dynamic programming. These benchmarks are also highly representative of modern numerical and machine-learning workloads. Their structured, loop-based design makes them especially suitable for evaluating compiler transformations and parallelization strategies in a controlled and reproducible environment. The suite provides multiple dataset sizes. In our exper-iments, we use the large configuration on the general-purpose platform to expose sufficient parallelism and stress both computation and memory subsystems. For the PULP platform, we use the mini dataset instead, as this architecture provides limited on-chip memory. Tasking is supported on both general-purpose runtimes, where we validated it for functional correctness; the PULP cluster runtime does not provide it. For the performance eval-uation, we considered a single benchmark suite executable on every target. 
+
+General-purpose platform. Experiments targeting general-purpose runtimes were conducted on an Intel ®
+
+Core™ i7-10700K CPU operating at 3.80 GHz. This processor features 8 physical cores with simultaneous multithreading (SMT), for a total of 16 hardware threads. The system is equipped with 32 GB of DDR4 main memory. The memory hierarchy follows a typical multi-level cache organization. Each core has private L1 instruction and data caches (32 KB each) and a private 256 KB L2 cache. All cores share a unified last-level cache (L3) of 16 MB. 
+
+PULP platform. For the embedded evaluation, we target a GAP8 [11] board, which is a physical embodiment of the PULP architecture. The GAP8 system-on-chip integrates a heterogeneous multicore architecture composed of a fabric controller (FC) and a cluster of 8 RISC-V cores dedicated to parallel computation. The memory hierarchy is explicitly managed with the aim of optimizing energy efficiency. The cluster features a 64 KB shared L1 scratchpad memory that is software-managed and provides low-latency access for all cores. This memory is backed by a 512 KB L2 scratchpad shared with the FC. Data transfers between L2 and L1 are orchestrated explicitly via a Direct Memory Access (DMA) engine. 
+
+Compiler toolchains. On the general-purpose platform, we use two compiler toolchains: GCC 12.3.0 (binary release) and LLVM 23.0.0 (git development branch). The LLVM fron-tend has been extended to support the lowering of omp dialect operations that are not yet handled by the mainstream CIR pipeline.  
+
+> 7CGO 2027, March 2027, Salt Lake City, UT, USA Luca Parigi and Giuseppe Tagliavini
+
+Table 1. Constructs and clauses supported by the current implementation. 
+
+Construct Supported clauses libomp libgomp pmsis 
+
+parallel num_threads , proc_bind , if , private , firstprivate ✓ ✓ ✓
+
+wsloop schedule(static) , schedule(dynamic) , nowait ✓ ✓ ✓
+
+barrier none ✓ ✓ ✓
+
+task if , firstprivate ✓ ✓ ×
+
+taskwait none ✓ ✓ ×covariance correlation jacobi-1d heat-3d fdtd-2d jacobi-2d adi gemm gesummv trmm gemver syrk syr2k symm gramschmidt lu cholesky ludcmp trisolv durbin mvt atax doitgen bicg 2mm 3mm floyd-warshall deriche nussinov seidel-2d 012345678910 11 12 13 14 15 16 Parallel speedup 
+
+> GCC frontend Our
+
+Figure 4. Parallel speedup with libgomp: GCC frontend vs our approach (PolyBench/C, large dataset). Each configuration is run ten times with PolyBench’s cycle accurate TSC timer; the minimum and maximum are discarded and the mean is reported. covariance correlation jacobi-1d heat-3d fdtd-2d jacobi-2d adi gemm gesummv trmm gemver syrk syr2k symm gramschmidt lu cholesky ludcmp trisolv durbin mvt atax doitgen bicg 2mm 3mm floyd-warshall deriche nussinov seidel-2d 012345678910 Parallel speedup 
+
+> Clang frontend Our
+
+Figure 5. Parallel speedup with libomp: Clang frontend vs our approach (PolyBench/C, large dataset). Each configuration is run ten times with PolyBench’s cycle accurate TSC timer; the minimum and maximum are discarded and the mean is reported. For the PULP platform, we evaluated the performance of its custom OpenMP support using the PULP GCC toolchain [29], based on GCC 7.1. Although older, this toolchain provides superior performance compared to al-ternative ones due to backend optimizations tailored to the target. To evaluate our approach, which is implemented on top of the LLVM infrastructure, we used the PULP LLVM toolchain [28]. While this toolchain is currently less opti-mized than its GCC counterpart, we ensure a fair comparison by reporting parallel speedups with respect to the sequential execution produced by the same compiler. This methodology isolates the impact of our lowering strategy from differences in code generation quality caused by compiler backend opti-mizations. 
+
+OpenMP runtime libraries. On general-purpose plat-forms, we evaluate interoperability with standard OpenMP runtimes, including libgomp and libomp . For PULP, we use the runtime provided by the PULP SDK [30], which in-cludes a custom bare-metal OpenMP implementation de-signed for ultra-low-power embedded systems. This runtime is tightly coupled with the compiler, enabling efficient exe-cution through lightweight barrier synchronization.  
+
+> 8OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation CGO 2027, March 2027, Salt Lake City, UT, USA
+
+Compilation settings. All benchmarks are compiled with optimization level -O3 . On the CPU platform, OpenMP sup-port is enabled via -fopenmp . For PULP, compilation is per-formed using the PULP SDK build system. Benchmarks are executed using all available hardware threads (16 on the CPU and 8 on the PULP cluster). To ensure a fair evaluation of parallelization effects, we turn off automatic vectorization and enforce precise floating-point semantics. These optimizations are orthogonal to our work and could introduce variability that obscures the impact of the lowering strategy on performance. 
+
+4.2 General-purpose runtimes 
+
+We evaluate our approach on general-purpose platforms by comparing against state-of-the-art compiler toolchains targeting standard OpenMP runtimes, namely GCC with lib-gomp and LLVM/Clang with libomp . Figures 4 and 5 report the parallel speedup achieved on the PolyBench/C bench-mark suite using all available hardware threads. In the lib-gomp configuration, the baseline corresponds to the GCC frontend, whereas we compare against the LLVM/Clang toolchain in the libomp configuration. Overall, our approach preserves performance across all benchmarks. The doitgen benchmark exhibits improved per-formance with our flow when targeting libgomp . This kernel implements a triply-nested matrix update 𝐴 [𝑟 ] [ 𝑞 ] [ 𝑝 ] + =Í𝑠 𝐴 [𝑟 ] [ 𝑞 ] [ 𝑠 ] · 𝐶 4[𝑠 ] [ 𝑝 ], accumulated through a private buffer sum_local :
+
+#pragma omp p a r a l l e l p r i v a t e ( q , p , s ) {DATA_TYPE s u m _ l o c a l [ NP ] ; # pragma omp f o r f o r ( r = 0 ; r < NR ; r ++) 
+
+f o r ( q = 0 ; q < NQ ; q ++) {
+
+f o r ( p = 0 ; p < NP ; p ++) {s u m _ l o c a l [ p ] = 0 . 0 ; 
+
+f o r ( s = 0 ; s < NP ; s ++) s u m _ l o c a l [ p ] += A[ r ] [ q ] [ s ] ∗C4 [ s ] [ p ] ; }
+
+f o r ( p = 0 ; p < NP ; p ++) A[ r ] [ q ] [ p ] = s u m _ l o c a l [ p ] ; }}The analysis of the optimized IR produced by the middle-end optimizer reveals that GCC inserts an NP > 0 guard in the first basic block within the region corresponding to the 𝑞 -loop. This condition is loop-invariant throughout the entire parallel region. However, GCC fails to hoist it, so the branch executes once per (𝑟, 𝑞 ) pair. This overhead is significant in the large dataset configuration, where 𝑁 𝑅 
+
+and 𝑁𝑄 are 150 and 140, respectively. Conversely, the LLVM IR optimization flow eliminates this overhead through loop unswitching, because all entry conditions are collapsed into a single short-circuit check before any loop is entered. 
+
+4.3 Bare-metal runtime 
+
+On GAP8, we compared against the PULP GCC toolchain equipped with its custom OpenMP runtime. Figure 6 reports the parallel speedup obtained across the PolyBench/C bench-mark suite. Overall, our approach achieves performance on par with the PULP GCC baseline. A small subset of benchmarks (i.e., floyd-warshall ,
+
+deriche , and nussinov ) exhibits higher speedups with the PULP GCC toolchain. This behavior is mainly seen in ker-nels with multiple barrier synchronization points. In these cases, the PULP GCC backend applies target-specific opti-mizations that reduce the number of instructions required to implement barriers, exploiting knowledge of the under-lying hardware and runtime interface. Incorporating these optimizations into the PULP LLVM toolchain could address this gap, but this goes beyond the scope of this paper. Figure 7 reports the code size of the generated PULP bi-naries. We explicitly consider this additional metric for this target since the memory footprint is a critical constraint in ultra-low-power embedded systems. Overall, the differences between the two approaches are negligible across the bench-marks. In a few cases, our approach produces slightly larger binaries; however, the increase remains below 0 .7% in all instances. Overall, these results clearly demonstrate that declarative lowering does not compromise performance or code size even in constrained embedded environments. 
+
+4.4 Lowering Complexity and Engineering Cost 
+
+A central claim of this work is that decoupling OpenMP semantics from runtime-specific implementations not only improves portability but also significantly reduces the en-gineering burden to support new targets. In conventional compiler infrastructures, OpenMP lowering is implemented through a large body of tightly coupled code spanning fron-tend, middle-end, and runtime-specific components. As dis-cussed in Section 2.2, this design choice hardwires runtime assumptions into the compiler pipeline, making even small extensions or adaptations costly in terms of development effort. To quantify this aspect, we analyze the amount of code required to implement OpenMP lowering in GCC and LLVM, comparing it with our declarative approach. For both compilers we identified the files that participate in OpenMP lowering and counted the lines of the code re-gions involved, including blank lines and comments. The count covers lowering effort wherever it resides, and ex-cludes directive parsing, AST construction, and semantic checking on all three sides, since our approach reuses those components from the host compiler.  
+
+> 9CGO 2027, March 2027, Salt Lake City, UT, USA Luca Parigi and Giuseppe Tagliavini covariance correlation jacobi-1d heat-3d fdtd-2d jacobi-2d adi gemm gesummv trmm gemver syrk syr2k symm gramschmidt lu cholesky ludcmp trisolv durbin mvt atax doitgen bicg 2mm 3mm floyd-warshall deriche nussinov seidel-2d 0123456789Parallel speedup
+> PULP GCC Our
+
+Figure 6. Parallel speedup on PULP: GCC (custom libgomp) vs our low-level lowering approach (PolyBench/C, mini dataset). Each configuration is a single run: execution on the bare-metal target is deterministic. covariance correlation jacobi-1d heat-3d fdtd-2d jacobi-2d adi gemm gesummv trmm gemver syrk syr2k symm gramschmidt lu cholesky ludcmp trisolv durbin mvt atax doitgen bicg 2mm 3mm floyd-warshall deriche nussinov seidel-2d -0.8% -0.6% -0.4% -0.2% -0.0% 0.2% 0.4% 0.6% 0.8% 1.0% Binary size change 
+
+> PULP GCC Our
+
+Figure 7. Binary size increase for parallel versions on the PULP embedded target. 
+
+Table 2. Total and minimal lines of code for OpenMP low-ering in GCC, Clang, and our approach. “Minimal” denotes the lines required to support parallel , for , task , taskwait ,
+
+barrier , schedule(static|dynamic) and the data clauses. 
+
+Compiler Total lines Minimal lines 
+
+GCC 82,400 ∼21,761 Clang 50,754 ∼7,617 
+
+Our approach – 5,182 
+
+In GCC, this spans the dedicated middle-end passes (omp-low.cc , omp-expand.cc , omp-general.cc ), a fraction of the gimplification pass ( gimplify.cc ), and the associated IR definitions and headers. To estimate the minimal line count, which is the subset required to support only #pragma omp parallel , #pragma omp for , schedule(static|dynamic) , #pragma omp task ,
+
+#pragma omp taskwait , #pragma omp barrier , and the data-sharing clauses, we applied a two-stage methodology. First, we identified all top-level functions (or methods) that participate in the lowering of these constructs. Then, we classified every function as minimal (required by the target feature set) or non-minimal . For counting lines, we consid-ered only minimal functions. For our approach, we reported the total number of lines. All values are reported in Table 2. These results highlight a substantial gap between tradi-tional approaches and our solution. In the minimal configu-ration, the lowering code amounts to ∼7,617 lines for Clang and ∼21,761 for GCC, whereas our approach requires 5,182 lines for the entire lowering pipeline, including the DSL in-terpreter and the MLIR passes. Overall, this analysis demon-strates that a declarative lowering strategy not only enables performance portability but also significantly lowers the bar-rier to extending compiler support to new architectures and runtime systems. By transforming lowering from a mono-lithic, hardcoded process into a programmable abstraction, our approach facilitates rapid experimentation and promotes a more sustainable evolution of compiler infrastructures. 
+
+4.5 Optimizing Before Lowering: Benefits of MLIR Integration 
+
+In traditional compilation flows, OpenMP directives are translated early into low-level runtime invocations, obscur-ing parallel structure and limiting further optimization op-portunities. In contrast, our approach maintains OpenMP  
+
+> 10 OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation CGO 2027, March 2027, Salt Lake City, UT, USA correlation fdtd-2d gemm trmm gemver syrk gramschmidt ludcmp mvt 2mm floyd-warshall 0% 1% 2% 3% 4% 5% 6% 7% 8% Unroll speedup
+
+Figure 8. Impact of a CIR-level unroll-by-two optimization on PULP parallel speedup. semantics alongside CIR and other MLIR dialects until the final stages, so transformations can run before runtime-specific code is generated, enabling general-purpose and OpenMP-specific optimizations. Because DSL-driven low-ering rewrites only the omp constructs and the CIR is left untouched, any existing or future CIR transformation ap-plies unchanged; and the omp operations are still in the IR, so transformations that depend on OpenMP structure become possible as well. After lowering, the resulting LLVM IR still benefits from the standard LLVM optimization pipeline. 
+
+A general-purpose transformation. We implemented a custom loop unrolling pass in the CIR dialect. It operates directly on cir.for constructs and unrolls innermost loops by a factor of two, analyzing loop bounds statically and drop-ping the residual iteration when the trip count is provably even. This optimization is particularly effective on the GAP8 platform because it increases instruction-level parallelism and hides the single-cycle latency of the L1 scratchpad, im-proving overall execution efficiency. Moreover, eliminating redundant condition checks in the inner loops significantly reduces the total execution cycles. Figure 8 shows the speedup increment achieved by en-abling this optimization. Across ten applications, loop un-rolling yields an average improvement of approximately 4.6%, ranging from 6.8% for correlation down to 1.0% for fdtd-2d. The remaining applications in the benchmark suite are only marginally affected by loop unrolling. 
+
+An OpenMP-specific transformation. The implicit bar-rier that closes a work-sharing loop is redundant when the loop is the last statement of its parallel region, since the following join point already waits for every thread. We im-plemented a pass on the omp dialect that removes such barri-ers, along with explicit omp.barrier operations that open a region, close it, or immediately follow another synchroniza-tion point. Traditional compilers apply this elision: Clang only when the loop is written as a combined parallel for ,GCC also when the parallel region and the for loop are separate. Across the PolyBench suite, our pipeline emits 59 team-barrier calls without the pass and 26 with it. On the same kernels, Clang and GCC emit 45 and 28 barriers, re-spectively. Compared with the previous transformation, the performance impact on the GAP8 platform is minimal: an overall saving of 0.037%, with 22 of 30 kernels improving and a per-kernel range of −0.16% to +1.12% ( trisolv ). These values are small because the barrier cost on the GAP8 cluster is very low (around 20 cycles) and the kernels are simple, but more complex applications can benefit significantly from this optimization. The few regressions are due to code layout effects rather than the cost of the transformation: removing a call shifts the surrounding code, changing how it maps to the shared instruction cache in the cluster. These experiments highlight the importance of optimizing before lowering. By leveraging MLIR, our framework enables a flexible compilation strategy where high-level transforma-tions and backend optimizations complement each other. 
+
+## 5 Related Work 
+
+Prior work relevant to this paper lies at the intersection of OpenMP runtime support, compiler intermediate represen-tations for parallelism, and MLIR-based infrastructures. 
+
+OpenMP compiler and runtime implementations. Asubstantial body of research focuses on compiler toolchains and runtime systems that efficiently realize the OpenMP execution model on specific platforms. Mainstream ecosys-tems such as GCC and LLVM provide mature implementa-tions through tightly integrated runtime libraries, notably 
+
+libgomp [12] and libomp [23]. In these systems, the lower-ing of OpenMP constructs is tightly coupled with compiler-specific code-generation paths and runtime-specific ABIs. While this design enables high efficiency, it limits portabil-ity across runtimes and architectures. This coupling is even more pronounced in embedded and ultra-low-power sys-tems, where runtime support is often highly specialized for the target hardware. Several works [3, 32, 35] demonstrate OpenMP support on embedded targets through custom im-plementations, while Agathos et al. [1] go a step further by proposing a compiler-assisted adaptive runtime organization for embedded multicores. Although these approaches high-light the importance of compiler–runtime co-design, they retain the assumption that lowering is a compiler-internal, target-specific mechanism. 
+
+Decoupling lowering from compiler and runtime. Ear-lier research works have loosened that coupling in differ-ent ways. Mercurium [2] specifies the transformation of OpenMP directives through code templates, written in the source language. ROSE [17] translates OpenMP into calls to XOMP, a common runtime library that needs to be imple-mented on top of each target library. OpenUH [16] lowers OpenMP within Open64’s IR and can re-emit the result as  
+
+> 11 CGO 2027, March 2027, Salt Lake City, UT, USA Luca Parigi and Giuseppe Tagliavini
+
+source code, making the translation portable. Our approach specifies lowering rules applied directly to the constructs rather than using a template for instantiation or translating to a common library. The calls generated by these rules di-rectly invoke the target runtime, eliminating the need for any additional layers specific to each runtime. Additionally, both general-purpose and OpenMP-aware transformations can be applied to the IR before lowering. 
+
+Intermediate representations for parallel semantics. 
+
+Another line of work argues that parallel semantics should remain explicit in the compiler intermediate representation, rather than being lowered prematurely into runtime calls. Tapir [33] extends LLVM IR with explicit fork-join constructs, enabling optimization of task-parallel code prior to runtime mapping. Similarly, OpenMP-aware compiler optimizations operate on enriched intermediate representations that pre-serve OpenMP semantics, allowing analyses and transfor-mations that would otherwise be obscured by early lower-ing [8]. More generally, unified parallel intermediate rep-resentations such as UPIR [34] aim to capture parallel se-mantics across multiple programming models in a common abstraction. While these approaches emphasize preserving parallel structure for optimization and analysis, they focus on representation and transformation rather than on making the lowering itself programmable. 
+
+MLIR-based OpenMP compilation and declarative specification. MLIR provides a structured OpenMP compi-lation flow in which directives are represented in the omp 
+
+dialect and progressively lowered through the MLIR/LLVM stack [18, 21]. While this design preserves high-level seman-tics and enables composition with other dialects, the final lowering remains tied to a specific runtime ABI through compiler-internal translation logic. MLIR also provides mechanisms for declaratively spec-ifying transformations. DRR [20] and PDLL [19] express local IR rewrites, while the MLIR Transform dialect [25] lets performance engineers script fine-grained optimization sequences such as tiling, unrolling, and vectorization over the IR. These approaches are declarative and IR-native, but domain-agnostic: they focus on which transformations are applied to a program rather than on how parallel constructs are mapped to a runtime, and they have no vocabulary for OpenMP lowering concepts, so outlining, capture-struct lay-out, and if-clause serialization fall back to native rewrites. Recent work has demonstrated that multi-level IRs can en-able retargetable compilation flows and facilitate the integra-tion of domain-specific optimizations across abstraction lev-els [9, 10, 24]. However, the lowering process itself remains encoded in compiler passes or transformation pipelines, and is not exposed as a programmable abstraction. 
+
+Imperative and structure-preserving alternatives. Arelated line of work modularizes OpenMP lowering or pre-serves high-level program structure, but does so imperatively rather than declaratively. The OpenMPIRBuilder, which un-derlies the MLIR OpenMP translation infrastructure [18, 21], factors runtime-call emission into helper functions shared across frontends, yet fixes the target runtime in its transla-tion logic: retargeting requires modifying the builder itself. Our DSL expresses the same mapping declaratively rather than relying on compiler-internal code. Polygeist [26] raises C/C++ into structured MLIR (the scf and affine dialects) to expose programs to polyhedral and affine optimization. It shares the philosophy of preserving high-level structure before lowering, but targets loop-level optimization rather than runtime abstraction: the lowering itself remains a fixed compiler-internal process. 
+
+Positioning of this work. Our work builds on existing foundations but addresses a different problem. Instead of introducing a new representation or transformation mecha-nism, we elevate OpenMP lowering to a first-class, declara-tive, and runtime-agnostic abstraction. Unlike previous ap-proaches that either specialize runtime implementations, pre-serve parallel semantics for optimization, or provide struc-tured compilation infrastructures, our method allows the same OpenMP representation to be reconfigured for differ-ent runtimes via a configurable lowering specification, all without modifying the compiler internals. 
+
+## 6 Conclusion 
+
+This paper introduces a meta-level declarative approach to OpenMP lowering that rethinks the traditional compilation pipeline as a programmable, runtime-agnostic process. Our framework replaces monolithic lowering with a configurable specification: even with the flexibility of MLIR, the tradi-tional lowering process remains encoded in compiler passes, whereas our approach expresses it through an external DSL. Our evaluation shows that this flexibility comes at no cost in performance or code size, while the lowering pipeline takes 5,182 lines of code, ∼32% less than the corresponding code in Clang and ∼76% less than in GCC. The current implementation supports a subset of OpenMP sufficient for different application domains; supporting ad-ditional features, such as offloading and more complex syn-chronization patterns, is a natural evolution. More broadly, the declarative lowering paradigm introduced in this pa-per can be generalized to other programming models (e.g., SYCL) and to different scenarios, such as describing the code transformations required to map code to a custom acceler-ator. This approach would enable a new class of compiler frameworks in which lowering strategies are expressed at a meta-level and adapted to diverse execution contexts.  
+
+> 12 OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation CGO 2027, March 2027, Salt Lake City, UT, USA
+
+## Acknowledgments 
+
+This work was funded by Infineon Technologies AG. 
+
+## A Artifact Appendix 
+
+A.1 Abstract 
+
+This is the supporting artifact for the paper titled “OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation” as submitted to CGO 2027. It can be used to reproduce all results presented in Section 4 of this paper. 
+
+A.2 Artifact check-list 
+
+• Algorithm: declarative, runtime-parametric lowering of OpenMP constructs: a DSL specification of a runtime ABI is evaluated against the omp.* operations it declares to produce a lowering plan, realized by three MLIR passes (annotation, outlining, plan application), plus an optional redundant team-barrier elimination pass. 
+
+• Program: the PolyBench/C 4.2.1 kernels in their OpenMP-enabled variant 3 (PolyBench/C-OMP), and hand-written MLIR modules. 
+
+• Compilation: publicly available and included in this arti-fact: mlir-opt-omp 4 built against LLVM/MLIR 23.0.0 with ClangIR 5, GCC 12.3.0 (Ubuntu binary release), the GAP8 GCC 7.1 toolchain 6 and the PULP LLVM 18.1.4 toolchain 7.
+
+• Transformations: the mlir-opt-omp pass pipeline (-omp-to-omp-lower , -omp-outline , -omp-lower-plan ,and optionally -omp-barrier-elim ), parameterized by 
+
+-omp-lower-dsl and -omp-lower-runtime .
+
+• Binary: host ELF executables for the general-purpose exper-iments and bare-metal RISC-V ELF executables for GAP8, as generated by the workflow in the Docker container image. 
+
+• Data set: inputs generated by PolyBench from the selected dataset macro: LARGE_DATASET on the general-purpose plat-form, MINI_DATASET on GAP8. 
+
+• Run-time environment: the Docker container image plat-form is linux/amd64. Host runs use the OpenMP runtime shipped with each toolchain ( libgomp and libomp ); GAP8 runs use the OpenMP support of the PULP SDK. 
+
+• Hardware: an x86-64 multicore machine for the general-purpose experiments, of the class described in Section 4.1. The GAP8 results are obtained on the cycle-accurate gvsoc 
+
+simulator shipped in the image. 
+
+• Run-time state: other significant loads can impact general-purpose timings; GAP8 simulated runs are unaffected. 
+
+• Metrics: parallel speedup against the sequential execution produced by the same compiler, binary size, static count of emitted team barriers, and lines of code. 
+
+• Output: execution logs and CSV files, along with the derived plots and tables of Section 4. 
+
+> 3https://github.com/EEESlab/PolyBenchC-4.2.1-OpenMP/tree/testing/ pulp
+> 4https://github.com/EEESlab/mlir-opt-omp/tree/lucap/paper-cleanup
+> 5https://github.com/EEESlab/llvm-project/tree/users/lucap/cir-omp-clauses
+> 6https://github.com/GreenWaves-Technologies/gap-riscv-gnu-toolchain
+> 7https://github.com/pulp-platform/llvm-project/tree/integer_SIMD_fix
+
+• Experiments: reproduction following the instructions in this appendix and using the scripts available in the artifact. 
+
+• How much disk space required: 20.6 GB for the Docker container image, and less than a GB more for the results of the full benchmark suite. 
+
+• How much time is needed to prepare workflow: about 15 minutes, i.e. the time to download and load the container image; everything it needs is already built inside it. 
+
+• How much time is needed to complete experiments: on the platform of Section 4.1, the two general-purpose perfor-mance runs ( libomp and libgomp , ten repetitions of every tim-ing cell) take about 5 hours together; every other experiment adds less than 30 minutes. Reducing the repetition count to 
+
+REPS=1 brings the complete artifact under one hour, at the cost of any measure of run-to-run variation (Section A.7). 
+
+• Publicly available: Yes. 
+
+• Code licenses: Apache License version 2.0 with LLVM Ex-ceptions. 
+
+• Data licenses: PolyBench/C 4.2.1 and its OpenMP variant, under the Ohio State University Software Distribution Li-cense. 
+
+• Workflow framework used: none. 
+
+• Archived: https://doi.org/10.5281/zenodo.22211483 (Zenodo DOI). 
+
+A.3 Description A.3.1 How delivered. The artifact is archived at https: //doi.org/10.5281/zenodo.22211483 (Zenodo DOI) as a Docker container image containing all the toolchains, benchmarks, and scripts needed to reproduce the results. 
+
+A.3.2 Hardware dependencies. An x86-64 machine run-ning Linux, with at least 20.6 GB of free disk space. The general-purpose experiments report parallel speedups, so the core count of the host bounds what can be observed: reproducing Figures 4 and 5 as published requires a machine of comparable core count to the one of Section 4.1, whereas the shape of the comparison between the baseline and our approach is preserved on any multicore host. The GAP8 ex-periments are simulated and have no hardware dependency. 
+
+A.3.3 Software dependencies. A working Docker instal-lation. This has been tested on a Linux x86-64 host machine with Docker 29.1.3. Internet access is needed only to down-load the image and count lines of code for upstream GCC and LLVM versions. 
+
+A.4 Installation 
+
+Download the Docker image from the archive, navigate to the directory containing the download, and load it: 
+
+$ docker image load --input \ mlir-opt-omp-1.0.0-linux-amd64.docker.tar.zst 
+
+Check that the container starts: 
+
+$ docker run --rm -it mlir-opt-omp:latest 
+
+Check the availability of the compilers: 
+
+$ docker run --rm mlir-opt-omp:latest \  
+
+> 13 CGO 2027, March 2027, Salt Lake City, UT, USA Luca Parigi and Giuseppe Tagliavini
+
+bash -c "gcc-12 --version" $ docker run --rm mlir-opt-omp:latest \ bash -c "/opt/llvm-mlir/bin/clang --version" $ docker run --rm mlir-opt-omp:latest \ bash -c "riscv32-unknown-elf-gcc --version" $ docker run --rm mlir-opt-omp:latest \ bash -c "/opt/pulp-llvm/bin/clang --version" 
+
+A.5 Experiment workflow 
+
+The commands below must be executed in the 
+
+/root/mlir-opt-omp folder within the Docker envi-ronment (the default folder at startup). 
+
+E1 — Passes. 74 lit tests over the three passes: 
+
+$ cd ~/mlir-opt-omp $ cmake --build build --target check-omp 
+
+E2 — Correctness. Array dumps compared bit-by-bit against the reference toolchain, 30 kernels per runtime: 
+
+$ cd ~/mlir-opt-omp/test/Integration $ RUNTIME=iomp ./run_correctness.sh $ RUNTIME=libgomp ./run_correctness.sh $ RUNTIME=pmsis ./run_correctness.sh 
+
+E3 — Performance. One configuration per figure: 
+
+$ cd ~/mlir-opt-omp/test/Integration $ RUN_ENV=configs/paper-libgomp.env \ PLOT=true ./run_performance.sh $ RUN_ENV=configs/paper-iomp.env \ PLOT=true ./run_performance.sh $ RUN_ENV=configs/paper-pmsis.env \ PLOT=true ./run_performance.sh 
+
+The first two generate Figures 4 and 5, about 5 hours together; the third generates Figures 6 and 7. 
+
+E4 — Section 4.5. The results of the proposed transforma-tions: 
+
+$ cd ~/mlir-opt-omp/test/Integration $ ./run_unroll.sh # unroll Figure $ ./run_barrier_vs_native.sh # barrier counts $ RUNTIME=pmsis BARRIER_ELIM=both \ ./run_performance.sh # compare run cycles 
+
+The first generates Figure 8; the last compares cycles with and without barrier elimination. 
+
+E5 — Table 2. Line counts. The GCC and LLVM trees should be cloned at the commits pinned in 
+
+test/LoC/README.md before running the python scripts: 
+
+$ cd ~/mlir-opt-omp $ python3 mlir-opt-omp_loc.py $ python3 test/LoC/gcc_omp_loc.py --root $GCC_SRC $ python3 test/LoC/clang_omp_loc.py \ --root $LLVM_SRC 
+
+E6 — Table 1. Twelve MLIR programs covering the con-structs and clauses that never appear in the PolyBench suite. 
+
+$ cd ~/mlir-opt-omp/test/Integration/constructs $ RUNTIME=iomp ./run_constructs.sh $ RUNTIME=libgomp ./run_constructs.sh 
+
+A.6 Evaluation and expected result 
+
+E1 expects 74 passing tests; E2 expects PASS for every kernel; E5 expects the line counts of Table 2; E4 barrier expects the count reported at Section 4.5; E6 expects PASS on all twelve tests. The GAP8 runs (E3 and E4) are simulated on a bare-metal, in-order cluster, so they are deterministic and are expected to closely replicate Figures 6, 7, and 8. The host speedups in Figures 4 and 5 scale with the ma-chine, so what is evaluated is not the absolute speedup but the per-kernel ratio between ours and the native toolchain, and its geometric mean across the suite. 
+
+A.7 Experiment customization 
+
+Every script reads RUNTIME , DATASET , THREADS , KERNELS ,
+
+REPS , BARRIER_ELIM , PLOT and OUTDIR , from the command line or from a RUN_ENV file. Each runtime and the barrier-elimination variant write to their own directories. For a shorter run, it is always possible to reduce the num-ber of REPS .
+
+A.8 Notes 
+
+• Vectorization off and precise floating-point semantics (Section 4.1) are what make the bit-exact correctness oracle possible: with contraction and reassociation enabled, two binaries diverge on the iterative kernels due to IEEE-754 floating-point arithmetic. 
+
+• The runtime identified as libomp in the paper is refer-enced as iomp throughout the artifact: in rules.dsl ,in -omp-lower-runtime , and in the names of the result directories. outline_signature has been re-moved since it was redundant: the signature of the outlined function follows from capture_strategy 
+
+(by_pointer , packed , shareds ), as no evaluated run-time needs the two to vary independently. Clauses whose value is known only at run time (e.g., the if 
+
+clause on parallel and task ) are handled by a branch 
+
+block, which a when guard cannot express. Dynamic scheduling is expressed by first_chunk /next_chunk 
+
+blocks in place of the chunk_*_function properties: a block carries the call itself, arguments included, where the property gave only the name of the function to call. 
+
+## References    
+
+> [1] Spiros N. Agathos, Vassilios V. Dimakopoulos, and Ilias K. Kasmeridis. 2022. Compiler-assisted, adaptive runtime system for the support of OpenMP in embedded multicores. Parallel Comput. 110 (2022), 102895.
+> https://doi.org/10.1016/j.parco.2022.102895
+> [2] Jairo Balart, Alejandro Duran, Marc Gonzàlez, Xavier Martorell, Eduard Ayguadé, and Jesús Labarta. 2004. Nanos Mercurium: A Research 14
+
+OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation CGO 2027, March 2027, Salt Lake City, UT, USA 
+
+Compiler for OpenMP. In Proceedings of the European Workshop on OpenMP (EWOMP) . 103–109. [3] Barbara Chapman, Lei Huang, Eric Biscondi, Eric Stotzer, Ashish Shri-vastava, and Alan Gatherer. 2009. Implementing OpenMP on a high performance embedded multicore MPSoC. In 2009 IEEE International Symposium on Parallel & Distributed Processing . IEEE, Rome, Italy, 1–8. 
+
+https://doi.org/10.1109/IPDPS.2009.5161107 
+
+[4] Francesco Conti, Angelo Garofalo, Davide Rossi, Giuseppe Tagliavini, and Luca Benini. 2025. Open Source Heterogeneous SoCs for Artificial Intelligence: The PULP Platform experience. IEEE Solid-State Circuits Magazine 17, 2 (2025), 49–60. https://doi.org/10.1109/MSSC.2025. 3537987 
+
+[5] L. Dagum and R. Menon. 1998. OpenMP: an industry standard API for shared-memory programming. IEEE Computational Science and Engineering 5, 1 (1998), 46–55. https://doi.org/10.1109/99.660313 
+
+[6] Tom Deakin, Simon McIntosh-Smith, James Price, Andrei Poenaru, Patrick Atkinson, Codrin Popa, and Justin Salmon. 2019. Performance Portability across Diverse Computer Architectures. In 2019 IEEE/ACM International Workshop on Performance, Portability and Productivity in HPC (P3HPC) . IEEE, Denver, CO, USA, 1–13. https://doi.org/10.1109/ P3HPC49587.2019.00006 
+
+[7] Javier Diaz, Camelia Muñoz-Caro, and Alfonso Niño. 2012. A Survey of Parallel Programming Models and Tools in the Multi and Many-Core Era. IEEE Transactions on Parallel and Distributed Systems 23, 8 (2012), 1369–1386. https://doi.org/10.1109/TPDS.2011.308 
+
+[8] Johannes Doerfert and Hal Finkel. 2018. Compiler Optimizations for OpenMP. In Proceedings of the International Workshop on OpenMP (IWOMP) . Springer, Barcelona, Spain, 113–127. https://doi.org/10. 1007/978-3-319-98521-3_8 
+
+[9] Mathieu Fehr, Yuyou Fan, Hugo Pompougnac, John Regehr, and Tobias Grosser. 2025. First-Class Verification Dialects for MLIR. Proceedings of the ACM on Programming Languages 9, PLDI, Article 206 (June 2025), 25 pages. https://doi.org/10.1145/3729309 
+
+[10] Mathieu Fehr, Michel Weber, Christian Ulmann, Alexandre Lopoukhine, Martin Paul Lücke, Théo Degioanni, Christos Vasiladiotis, Michel Steuwer, and Tobias Grosser. 2025. xDSL: Sidekick Compilation for SSA-Based Compilers. In Proceedings of the 23rd ACM/IEEE Inter-national Symposium on Code Generation and Optimization (Las Vegas, NV, USA) (CGO ’25) . Association for Computing Machinery, New York, NY, USA, 179–192. https://doi.org/10.1145/3696443.3708945 
+
+[11] Eric Flamand, Davide Rossi, Francesco Conti, Igor Loi, Antonio Pullini, Florent Rotenberg, and Luca Benini. 2018. GAP-8: A RISC-V SoC for AI at the Edge of the IoT. In 2018 IEEE 29th International Conference on Application-specific Systems, Architectures and Processors (ASAP) . IEEE Press, Piscataway, NJ, USA, 1–4. https://doi.org/10.1109/ASAP.2018. 8445101 
+
+[12] GNU Project. 2026. GNU OpenMP Runtime Library (libgomp). https: //gcc.gnu.org/onlinedocs/libgomp/ . Accessed: 2026-04-01. [13] Tal Kadosh, Niranjan Hasabnis, Timothy Mattson, Yuval Pinter, and Gal Oren. 2023. Quantifying OpenMP: Statistical Insights into Usage and Adoption. In 2023 IEEE High Performance Extreme Computing Conference (HPEC) . IEEE, Boston, MA, USA, 1–7. https://doi.org/10. 1109/HPEC58863.2023.10363459 
+
+[14] Chris Lattner, Mehdi Amini, Uday Bondhugula, Albert Cohen, Andy Davis, Jacques Pienaar, River Riddle, Tatiana Shpeisman, Nicolas Vasi-lache, and Oleksandr Zinenko. 2020. MLIR: A Compiler Infrastructure for the End of Moore’s Law. https://doi.org/10.48550/arXiv.2002.11054 
+
+[15] Chris Lattner, Mehdi Amini, Uday Bondhugula, Albert Cohen, Andy Davis, Jacques Pienaar, River Riddle, Tatiana Shpeisman, Nicolas Vasi-lache, and Oleksandr Zinenko. 2021. MLIR: scaling compiler infras-tructure for domain specific computation. In Proceedings of the 2021 IEEE/ACM International Symposium on Code Generation and Optimiza-tion (Virtual Event, Republic of Korea) (CGO ’21) . IEEE Press, Seoul, Re-public of Korea, 2–14. https://doi.org/10.1109/CGO51591.2021.9370308 
+
+[16] Chunhua Liao, Oscar Hernandez, Barbara Chapman, Wenguang Chen, and Weimin Zheng. 2007. OpenUH: An Optimizing, Portable OpenMP Compiler. Concurrency and Computation: Practice and Experience 19, 18 (2007), 2317–2332. https://doi.org/10.1002/cpe.1174 
+
+[17] Chunhua Liao, Daniel J. Quinlan, Thomas Panas, and Bronis R. de Supinski. 2010. A ROSE-Based OpenMP 3.0 Research Compiler Supporting Multiple Runtime Libraries. In Proceedings of the 6th In-ternational Workshop on OpenMP (IWOMP) (Lecture Notes in Com-puter Science, Vol. 6132) . Springer, Berlin, Heidelberg, 15–28. https: //doi.org/10.1007/978-3-642-13217-9_2 
+
+[18] LLVM Project. 2024. LLVM IR Target – MLIR. https://mlir.llvm.org/ docs/TargetLLVMIR/ . Accessed: 2026-04-01. [19] LLVM Project. 2024. PDLL - PDL Language - MLIR. https://mlir.llvm. org/docs/PDLL/ . Accessed: 2026-04-01. [20] LLVM Project. 2024. Table-driven Declarative Rewrite Rule (DRR) - MLIR. https://mlir.llvm.org/docs/DeclarativeRewrites/ . Accessed: 2026-04-01. [21] LLVM Project. 2024. omp Dialect – MLIR. https://mlir.llvm.org/docs/ Dialects/OpenMPDialect/ . Accessed: 2026-04-01. [22] LLVM Project. 2026. ClangIR. https://llvm.github.io/clangir/ Accessed: 2026-04-01. [23] LLVM Project. 2026. LLVM OpenMP Runtime (libomp). https: //openmp.llvm.org/ . Accessed: 2026-04-01. [24] Alexandre Lopoukhine, Federico Ficarelli, Christos Vasiladiotis, An-ton Lydike, Josse Van Delm, Alban Dutilleul, Luca Benini, Marian Verhelst, and Tobias Grosser. 2025. A Multi-level Compiler Backend for Accelerated Micro-kernels Targeting RISC-V ISA Extensions. In 
+
+Proceedings of the 23rd ACM/IEEE International Symposium on Code Generation and Optimization (Las Vegas, NV, USA) (CGO ’25) . As-sociation for Computing Machinery, New York, NY, USA, 163–178. 
+
+https://doi.org/10.1145/3696443.3708952 
+
+[25] Martin Paul Lücke, Oleksandr Zinenko, William S. Moses, Michel Steuwer, and Albert Cohen. 2025. The MLIR Transform Dialect: Your Compiler Is More Powerful Than You Think. In Proceedings of the 23rd ACM/IEEE International Symposium on Code Generation and Optimiza-tion (CGO) . ACM. https://doi.org/10.1145/3696443.3708922 
+
+[26] William S. Moses, Lorenzo Chelini, Ruizhe Zhao, and Oleksandr Zi-nenko. 2021. Polygeist: Raising C to Polyhedral MLIR. In Proceed-ings of the 30th International Conference on Parallel Architectures and Compilation Techniques (PACT) . IEEE, 45–59. https://doi.org/10.1109/ PACT52795.2021.00011 
+
+[27] OpenMP Architecture Review Board. 2026. OpenMP Application Programming Interface Version 6.0. https://www.openmp.org/ specifications/ 
+
+[28] PULP Platform. 2024. PULP LLVM Toolchain. https://github.com/pulp-platform/llvm-project/tree/release/18.x . Accessed: 2026-04-01. [29] PULP Platform. 2026. pulp-riscv-gnu-toolchain. https://github.com/ pulp-platform/pulp-riscv-gnu-toolchain . Accessed: 2026-04-01. [30] PULP Platform. 2026. PULP SDK. https://github.com/pulp-platform/ pulp-sdk . Accessed: 2026-04-01. [31] Louis-Noël Pouchet and Tomofumi Yuki. 2016. PolyBench/C Benchmark Suite. http://web.cse.ohio-state.edu/~pouchet/software/ polybench/ . Accessed: 2026-04-01. [32] Davide Rossi, Igor Loi, Francesco Conti, Giuseppe Tagliavini, Antonio Pullini, and Andrea Marongiu. 2014. Energy efficient parallel comput-ing on the PULP platform with support for OpenMP. In 2014 IEEE 28th Convention of Electrical & Electronics Engineers in Israel (IEEEI) . IEEE, IEEE, Eilat, Israel, 1–5. [33] Tao B. Schardl, William S. Moses, and Charles E. Leiserson. 2017. Tapir: Embedding Fork-Join Parallelism into LLVM’s Intermediate Representation. In Proceedings of the 22nd ACM SIGPLAN Symposium on Principles and Practice of Parallel Programming (PPoPP) (Austin, Texas, USA) (PPoPP ’17) . Association for Computing Machinery, New York, NY, USA, 249–265. https://doi.org/10.1145/3018743.3018758 
+
+15 CGO 2027, March 2027, Salt Lake City, UT, USA Luca Parigi and Giuseppe Tagliavini 
+
+[34] Anjia Wang, Xinyao Yi, and Yonghong Yan. 2023. UPIR: Toward the Design of Unified Parallel Intermediate Representation for Parallel Programming Models. In Proceedings of the International Conference on Parallel Architectures and Compilation Techniques (Chicago, Illinois) 
+
+(PACT ’22) . Association for Computing Machinery, New York, NY, USA, 530–531. https://doi.org/10.1145/3559009.3569646 
+
+[35] Cheng Wang, Sunita Chandrasekaran, Barbara Chapman, and Jim Holt. 2013. libEOMP: a portable OpenMP runtime library based on MCA APIs for embedded systems. In Proceedings of the 2013 International Workshop on Programming Models and Applications for Multicores and Manycores (Shenzhen, Guangdong, China) (PMAM ’13) . Association for Computing Machinery, New York, NY, USA, 83–92. https://doi. org/10.1145/2442992.2443001 
+
+16

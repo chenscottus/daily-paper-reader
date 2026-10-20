@@ -1,0 +1,543 @@
+Title: MQSS-Selector: RL-Guided Pass Selection for an MLIR Compilation Pipeline
+
+URL Source: https://arxiv.org/pdf/2609.30104v1
+
+Published Time: Fri, 25 Sep 2026 01:33:14 GMT
+
+Number of Pages: 11
+
+Markdown Content:
+# MQSS-Selector: RL-Guided Pass Selection for an MLIR Compilation Pipeline ∗
+
+# A. Youssefi 
+
+Leibniz Supercomputing Centre (LRZ) Garching bei München, Germany andre.youssefi@lrz.de 
+
+# E. Kaya 
+
+Leibniz Supercomputing Centre (LRZ), Technical University of Munich (TUM) Garching bei München, Germany ercument.kaya@tum.de 
+
+# M. Chung 
+
+Leibniz Supercomputing Centre (LRZ) Garching bei München, Germany minh.chung@lrz.de 
+
+# J. Echavarria 
+
+Munich Quantum Valley (MQV) Garching bei München, Germany jorge.echavarria@lrz.de 
+
+# L. B. Schulz 
+
+Argonne National Laboratory (ANL) Lemont, IL, United States schulz@anl.gov 
+
+# M. Schulz 
+
+Leibniz Supercomputing Centre (LRZ), Technical University of Munich (TUM) Garching bei München, Germany schulzm@in.tum.de 
+
+## Abstract 
+
+High Performance Computing (HPC) and Quantum Computing (QC) systems are increasingly converging towards unified High Performance Computing-Quantum Computing (HPCQC) infras-tructures, driven by a growing need to bridge classical and quantum workflows, which affects all levels of the system stack, from the hardware to compilers and runtimes, all the way to applications. However, today’s QC devices are still in the Noisy Intermediate-Scale Quantum (NISQ) era, are error-prone and resource-limited, and therefore require specialized optimizations and topology map-pings to achieve sufficient fidelity. This places special emphasis on proper compilation and optimization within the overall quantum software stack. Many existing stacks remain fragmented, with sep-arate components responsible for device selection, compiler-pass optimization, and job queue scheduling. This paper proposes a uni-fied, learning-based selector that integrates these disparate stages into a cohesive framework. Our proposed selector scheme lever-ages reinforcement learning and deep learning models that can be extended to simultaneously optimize multiple objectives—such as fidelity, compilation time, and scheduling latency—while dynami-cally adapting to circuit characteristics and device conditions. 
+
+## CCS Concepts 
+
+• Hardware → Quantum computation ; • Software and its engi-neering → Just-in-time compilers ; • Theory of computation 
+
+→ Sequential decision making .
+
+## Keywords 
+
+HPC, Quantum Computing, HPCQC, Quantum Compilation, Quan-tum Circuit Optimization, Scheduling, Machine Learning, Rein-forcement Learning 
+
+## 1 Introduction 
+
+As High Performance Computing (HPC) and Quantum Computing (QC) systems converge, the design of software infrastructures that 
+
+> ∗Code available at: https://anonymous.4open.science/r/Pass_selector-10AE/README. md
+
+support seamless integration of classical and quantum workloads becomes critical. In hybrid High Performance Computing-Quantum Computing (HPCQC) environments, quantum processors are typi-cally accessed as off-node accelerators, where quantum programs are offloaded for execution. The execution pipeline requires appropriate scheduling and quantum device selection that can select the right resources, coor-dinate classical-quantum tasks, and optimize performance. State-of-the-art heterogeneous HPCQC stacks, such as the HPCQC efforts at RIKEN in connection with IBM [1] devices, the software stacks originating from the Chicago Quantum Exchange [2], the Quantum Delta in the Netherlands [3], or the Munich Quantum Software Stack (MQSS) developed in the Munich Quantum Valley (MQV) initiative [4], adopt one- or even two-level scheduling approaches. Specifically, the first step is with a HPC scheduler (e.g., SLURM [5]) that allocates classical resources, followed by a second-level quan-tum scheduler for selecting the target device and optimizing the task for the device. The second step is typically compilation and optimization for quantum circuits. We employ MLIR [6], a compiler framework that handles multiple IRs on different levels via the abstraction of dialects, which makes it extensible to new domains. Program modifications and analyses are implemented as passes, which are composable and reusable components. In the context of our work, we define a pass as an operation applied to a quantum program that either transforms it into an equivalent representation or performs a data analysis on the job. In contrast to classical systems, applying quantum compilation passes can be done at runtime, as critical input parameters are not known statically. The current challenges of Noisy Intermediate-Scale Quantum (NISQ) devices are their inherently error-prone nature, devices are constrained in qubit count, and highly sensitive to calibration and workload conditions [7]. The software environments must be care-fully designed in order to mitigate these limitations to the extent possible. In particular, quantum programs must be compiled and op-timized prior to execution to tailor them to the selected system, tune to the system’s topology, and account for the current calibration data. Compilation and optimization, therefore, involve a complex 
+
+> 1arXiv:2609.30104v1 [quant-ph] 24 Sep 2026
+
+Figure 1: Illustration of the scheduling pipeline integrating device selection and phase ordering (i.e., compiler pass-sequence optimization) for a quantum program execution. 
+
+software stack capable of achieving Pareto-optimal quantum de-vice selection, while also ensuring efficient and robust Just-In-Time (JIT) compilation and optimization. Generally, as mentioned, this is achieved through a series of unitary-preserving transformations or passes. Device and compilation pass selection is considered a critical challenge, as both involve two NP-hard problems, namely device selection and phase ordering problems [8, 9]. These two problems can be seen as isolated challenges. In which, phase ordering implies a valid and effective order of passes for transforming quantum programs. Conventionally, related works often apply heuristics or static policies without coordination across stages [10]. Crucially, device selection and phase ordering problems are both inherently multi-objective combinatorial problems with tightly inter-dependent design spaces: On the one hand, device selection involves choosing a target device from a set of available quantum devices, where each device may differ in topology, gate fidelity, queuing de-lay, and scheduled maintenance windows. The selection’s objectives may include, for example, maximizing compatibility between an arbitrary quantum program and a chosen quantum device, maximiz-ing device availability, minimizing queue wait time, and meeting time-varying availability constraints based on device workload and maintenance schedules. On the other hand, phase ordering is similarly a multi-objective problem: choosing a sequence from a set of compilation and optimization passes, potentially with rep-etition, to minimize JIT compilation and execution runtime, and to produce a program of adequate quality and device compliance. We propose a unified scheduling framework called MQSS-Selector, which addresses the stages of the quantum execution pipeline from device selection to program transformation together. Scheduling in this context focuses on selecting quantum devices and compilation passes. We use a Reinforcement Learning (RL)-based approach to develop an adaptive selector. The selector’s objective is to make decisions based on program characteristics, available compilation passes and quantum backends. The contributions of this paper are as follows: 
+
+• MQSS-Selector : an RL-based Pass-Selector module that learns to choose and order compilation passes for quantum circuits, demonstrating the feasibility of data-driven, MLIR-native pass selection — in contrast to prior work, which largely targets Qiskit-based pass pipelines. 
+
+• Dual-Annealed Exploration Priming (DAEP) : a training strategy for the reinforcement learning agent that improves efficiency during training. 
+
+• A set of analysis metrics for the agent’s actor and critic networks, enabling evaluation of the learned policy indepen-dently of other compiler tools. 
+
+• An extension of the MQSS X Compilation Pass Suite with a considerably larger set of Multi-Level Intermediate Repre-sentation (MLIR)-based passes. 
+
+## 2 Problem Statement and Motivation 
+
+The theoretical problem statement can be understood by the theo-rem below. Theorem 1. The problems Device selection and Phase ordering are NP-hard, and they both reduce to an NP-hard combinatorial opti-mization problem and jointly determine Pareto-optimal compilation results. 
+
+Proof. We use the classic Partition problem—that is, deciding whether a multiset of positive integers can be split into two subsets of equal sum—as our hardness base. Partition is well known to be NP-complete [11]. (1) Device selection is NP-hard : The task of choosing which quan-tum accelerator to use for a set of programs can be described as a scheduling problem—each program (job) has a “cost” (e.g., fidelity, runtime, or resource use) and each device has limited capacity. Assigning an arbitrary program to a target device for optimizing makespan or throughput is a classical scheduling problem, known to be NP-hard [12]. In particular, we can reduce the NP-complete Partition problem to device selection: given integers 𝑎 1, . . . , 𝑎 𝑛 . By normalizing them with the linear function 𝑎 ∗ 
+
+> 𝑖
+
+= 𝑎 𝑖 /𝑎 𝑚𝑎𝑥 , the values get mapped to the interval [0, 1]. Since 𝑎 𝑚𝑎𝑥 is part of the input, encod-ing each normalized value 𝑎 ∗ 
+
+> 𝑖
+
+—and hence the calibration of the associated operation— requires precision logarithmic in 
+
+𝑎 𝑚𝑎𝑥 , so the constructed programs remain polynomial in the input size. Analogously to the 𝑛 integers create 𝑛 programs whose costs 1 − 𝐹 𝐻 (1) are 𝑎 ∗
+
+> 1
+
+, . . . , 𝑎 ∗ 
+
+> 𝑛
+
+. We use two identical quantum devices as the partitioned multi-sets. By assuming theoretical devices with 𝑛 arbitrary calibrated native oper-ations, one can construct the necessary cost values. Each 
+
+> 2
+
+program for a value is then just the associated calibrated operation. Furthermore, we assume that all programs have the same fidelity across the devices. While this does not hold physically, it describes a valid special case. Deciding whether the programs can be split into two subsets with total cost exactly Í𝑖 𝑎 ∗ 
+
+> 𝑖
+
+/2 is the Partition question. Thus, optimal de-vice allocation solves Partition , implying device selection is NP-hard. (2) Phase or pass ordering problem is NP-hard : Finding the best or-der of compiler optimization passes is itself a classic NP-hard problem. Wang et al. prove it by reducing Phase ordering to the halting problem and also prove undecidability [9]. Both reductions show that device selection and phase ordering are NP-hard. The combined problem is also NP-hard, as device selec-tion is the special case with only one available phase combination, and vice versa; limiting to only one device resolves to the Phase ordering problem. Therefore, the combined problem is at least as hard as NP-hard. 
+
+□
+
+In practice, this NP-hardness translates into a range of hardware-dependent challenges in quantum program compilation, including: 
+
+• Translating input program to a required exchange format. 
+
+• Optimizing the overall program depth respecting coherence constraints from the device. 
+
+• Decomposing quantum instructions into native gate sets. 
+
+• Mapping the program to device-specific qubit connectivity constraints. 
+
+• Reducing the total number of operations in a program. Managing these tasks requires applying various compilation and optimization passes that are compatible with a target quantum device. However, not all passes are beneficial for arbitrary quan-tum programs; in fact, certain combinations of passes can degrade performance. Therefore, it is necessary to treat each quantum job as an instance of a specific program class and to determine a tai-lored pass sequence that optimizes compilation while yielding a quantum program compliant with the target device’s underlying architecture. The task of the selector in quantum program execution is ef-fectively a Design Space Exploration (DSE), as illustrated in Fig. 1. Given an input quantum program, we assume that relevant circuit-level features are extracted prior to making decisions about device selection or phase ordering . These features define the design space that may include metrics such as the number of qubits, program depth, and other static properties, as proposed by Tomesh et al. in SupermarQ [13]. Based on this design space, a unified sched-uler must choose a target quantum accelerator ( device selection )and a suitable sequence of compilation passes ( phase ordering ), to-gether forming the search space. Each combination of decisions leads to outcomes characterized by execution objectives, such as compilation time and expected fidelity. These objectives can be treated separately or aggregated into a unified evaluation metric for decision-making. In general, we formalize the joint device selec-tion and phase ordering across the following key dimensions: (1) Jobs : Incoming quantum programs with varying structures and resource requirements. (2) Device Specs : Dynamic backend information including queue lengths, calibration data, and noise characteristics. (3) Passes : Available compiler transformations and program op-timization strategies. (4) Objectives : Measurable performance indicators such as cir-cuit depth, execution fidelity. As shown in Theorem 1, the proposed joint device selection and 
+
+phase ordering scheme can be mapped to a variant of the Partition 
+
+problem. Moreover, since the Partition problem is NP-complete, exact solutions do not scale, whereas heuristic and approximation algorithms can efficiently find Pareto-optimal candidate solutions. This interdependence between the device selection and the phase ordering problems is also referred to as a bootstrapping dilemma, and is also known in programming languages [14]. The mutual dependency complicates modular optimization and motivates our proposal for a unified selector that jointly reasons over both de-vice compatibility and compiler pass strategies within a single decision-making framework. In this paper, we argue that such a unified approach, driven by RL models, is essential to navigating the multi-objective and dynamically changing quantum execution landscape. This selector is toward Pareto-efficient configurations that outperform sequential or isolated heuristics. 
+
+## 3 Related Work 
+
+A recent survey illustrates the wide range of applications for RL algorithms in the domain of quantum technology [15]. RL algo-rithms are already used to learn compiler optimization decisions in production compilers for classical programs, as demonstrated by MLGO [16] for LLVM. Another such project is AutoPhase [17], in which an RL agent learns to solve the phase ordering problem for LLVM. Bacher et al. [18] discuss the gap in the treatment of quantum resources within HPC resource management systems and introduce a Slurm plugin that makes quantum backends schedulable alongside classical compute nodes. Kulkarni and Chaudhary [19] show the importance of scheduling in distributed quantum systems. It is for such settings that we develop the unified scheduler, which distributes and compiles a task such that, for example, the expected fidelity is maximized. Furthermore, several studies have explored Machine Learning (ML) and RL approaches to optimize quantum circuit compilation and device selection. Fösel et al. [20] propose a deep RL agent that learns hardware-aware circuit transforma-tions, achieving notable reductions in gate count and circuit depth. Quetschlich et al. address similar challenges in two complementary works: first, by predicting favorable compilation options via super-vised learning [21], and second, by employing RL to discover opti-mized pass sequences across multiple compilers [22]. TuniQ [23] is an RL-based project for compilation that accounts for compi-lation time and fidelity, but it is based on Qiskit. TuniQ follows a divide-and-conquer strategy that separates the phase ordering problem into subproblems, addressing mapping, decomposition, optimization, and further compilation stages, thereby limiting the available passes at each stage. More recently, the Munich Quantum Toolkit (MQT) Predictor 
+
+framework proposed device selection with phase ordering customiza-tion, demonstrating improved fidelity and reduced depth perfor-mance on diverse quantum backends [10]. MQT Predictor focuses 
+
+> 3
+
+on a hybrid scheduling pipeline where device selection and phase ordering optimization are treated as two separate learning tasks. A supervised model is trained for device selection , while a distinct RL agent is trained for phase ordering . While effective in their re-spective domains, these components operate independently and are trained in isolation. Furthermore, MQT Predictor does not incor-porate dynamic backend conditions, such as queue length, device availability, or runtime calibration data, in real-time systems. For the intermediate representation, several MLIR [6] dialects exist. QSSA [24] and QIRO [25] expose the quantum data flow explicitly, while further dialects are provided by the Catalyst compiler [26] and by CUDA-Q in the form of the Quake dialect [27]. In our work, we build on the Quake dialect, rather than using existing quantum pass pipelines. The approaches discussed above motivate a unified selector, which jointly optimizes phase ordering and device selection .This allows our scheduler to reason over compiler transformations and hardware constraints, while also adapting to live system status. Our paper motivates multi-objective optimization across fidelity, execution latency, and compilation effort, targeting more effective quantum execution strategies by addressing the tasks as a combined challenge. 
+
+## 4 A Software Approach Toward Unified Scheduling Framework 
+
+In this section, we present our approach towards a unified schedul-ing framework for optimizing the execution of quantum programs on NISQ devices. While the long-term vision is to integrate De-vice selection and Phase ordering into a single intelligent system, currently we have two separate components that are planed to be integrated. This module uses supervised learning techniques to make informed decisions about which quantum device to target, taking into account both program features and real-time device conditions. This is our foundational building block in the broader goal of constructing a unified scheduler, which is capable of making decisions across the entire quantum execution pipeline. In the fol-lowing subsections, we first describe the supervised learning-based 
+
+device selection module and then outline our conceptual design and strategy for extending this work into a unified scheduling frame-work. 
+
+## 4.1 Device-selection Component 
+
+We collected a training dataset for our ML-based device selection 
+
+module. Each of the data set’s entries consists of the execution data of each input program on available devices, shot distribution results, and execution time on each device. Additionally, the program is sim-ulated extensively on a simulator to calculate its noiseless reference distribution. To compute fidelity for labeling, we compare noisy execution results against the noiseless simulation using Hellinger fidelity [28], shown in Eq. 1, which is divided by the execution time duration. In detail, we assume K to be the set of all discrete outcome indices (e.g., measurement bitstrings). The following equations show how the outputs are calculated and labeled for training the target device selection component. 
+
+𝐹 𝐻 (𝑃, 𝑄 ) = 1 − 𝐻 (𝑃, 𝑄 )2 =∑︁  
+
+> 𝑘 ∈ K
+
+√ 𝑝 𝑘 𝑞 𝑘 . (1) where: 
+
+• The Hellinger distance between 𝑃 and 𝑄 is defined as 
+
+𝐻 (𝑃, 𝑄 ) = 1
+
+√2√︄∑︁ 𝑘 ∈ K 
+
+ √𝑝 𝑘 − √𝑞 𝑘 
+
+2, (2) which quantifies the dissimilarity between two discrete prob-ability distributions [28]. 
+
+• 𝑝 𝑘 = 𝑆𝐷 𝑃 [𝑘 ] 
+
+> 𝑁 𝑃
+
+and 𝑞 𝑘 = 𝑆𝐷 𝑄 [𝑘 ] 
+
+> 𝑁 𝑄
+
+are the normalized empirical probabilities for each outcome 𝑘 .
+
+• 𝑆𝐷 𝑃 [𝑘 ] and 𝑆𝐷 𝑄 [𝑘 ] are the raw shot distributions of out-come 𝑘 ∈ K from two probability distributions 𝑃 and 𝑄 
+
+respectively (in this case 𝑃 is a device and 𝑄 is the noiseless simulation). 
+
+• 𝑁 𝑃 = Í𝑘 ∈ K 𝑆𝐷 𝑃 [𝑘 ] and 𝑁 𝑄 = Í𝑘 ∈ K 𝑆𝐷 𝑄 [𝑘 ] are the total number of samples (shots) collected for 𝑃 and 𝑄 .
+
+• 𝑡 exec is the total execution time (e.g., runtime of the quantum program on hardware). 
+
+• The final score is defined as the tuple fidelity and execution time: 
+
+score = (𝐹 𝐻 (𝑃, 𝑄 ), 𝑡 exec ).
+
+The component’s goal is to predict the Hellinger fidelity for each device and rank them by suitability for executing the program. Our 
+
+device selection component applies various ML methods, including Multi-Layer Perceptrons (MLP), Random Forest (RF), K Nearest Neighbors (KNN), and Support Vector Machine (SVM). The device selection component is structured into subroutines for dynamic labeling, training, and model evaluation. This design enables flexible, efficient adaptation of models and labeling strate-gies with minimal overhead. Importantly, the exact value of the Hellinger fidelity is of secondary concern. The key objective is to preserve the relative structure across devices. Systematic prediction errors that scale all outputs by a common factor 𝜂 are acceptable, as long as the ranking of devices and relative score ratios (e.g., the Hellinger fidelity for a given program and device, for a set of devices 
+
+{𝑑 𝑖 }: 𝐹 𝐻𝑑 1 > 𝐹 𝐻𝑑 2 and 𝐹 𝐻𝑑 1 /𝐹 𝐻𝑑 2 ) remain consistent. We discuss the experimental results of our device selection in Section 5. 
+
+## 4.2 MQSS Pass Suite 
+
+We extend the MQSS compilation pass suite with a significantly ex-panded set of passes and make our fork openly available under 1. To-gether with the pass selector, this yields a clean separation between action selection and execution across two languages: the passes are implemented in C++, while the pybind11 interface exposed by the selector allows selection policies to be developed in Python, independently of the underlying pass implementations. This de-sign enables reproducible phase-ordering experiments. Passes are categorized into three types: 
+
+• Cancellations: Passes that simplify operation sequences by reducing them to the identity operation. 
+
+> 1https://anonymous.4open.science/r/XXXX-Passes-Suite-614D/README.md
+> 4
+
+• Transformations: Passes that structurally rewrite the pro-gram while preserving its computational semantics (e.g., qubit mapping and control flow mutations). 
+
+• Decompositions: Passes that decompose operations into equivalent sequences of more primitive operations. At the data generation time the suite had in total 92 passes, for supporting all necessary operations in the Quake dialect of CUDA-Q [27] and a mapping pass. As the git project is under development the total number of passes may change. 
+
+## 4.3 Phase-ordering Component 
+
+Manual optimization of compilation passes across many programs and devices is infeasible, especially in dynamic environments where devices change or new compilation passes are introduced. Each such change would require re-running an exhaustive DSE, making the approach impractical at scale. RL offers a possible solution by learning generalizable strategies that adapt to both program characteristics and backend configurations. Our RL implementation focuses on the Actor-Critic algorithm [29]. The model’s architecture comprises two neural networks: 
+
+• Actor network: predicts the next compilation pass by ap-plying a policy 
+
+𝜋 (𝑠 𝑡 , 𝑎 𝑡 ) ,
+
+where 𝑠 denotes the current state and 𝑎 is the chosen pass action. This learns the policy 𝜋 (𝑠, 𝑎 ) that maps a given state 
+
+𝑠 (e.g., program representation and selected device context) to the action 𝑎 corresponding to the next compilation pass to apply. Additionally, the actor has the action "Finish" in which the actor stops the compilation by choice and claims no further optimization is necessary. 
+
+• Critic network: estimates the state-value function 
+
+𝑉 (𝑠 𝑡 ) ,
+
+which acts as feedback, by evaluating how advantageous it is to transition from state 𝑠 to the next state 𝑠 ′. Specifically, this network estimates the value function 𝑉 (𝑠 ) to predict how promising the current state is in terms of achieving long-term rewards, given the current policy (e.g., program fidelity, compilation time, or depth). Since the critic’s target values depend on the current policy, which is itself being updated by the actor, both networks are effectively chasing a moving target — a key source of training instability in Actor-Critic methods. Both models’ input state includes a representation of the program (e.g., in an Intermediate Representation (IR) or feature-based format) and a list of candidate devices selected by a prior device selection 
+
+module. The output is the next compilation pass best suited to the given device and program characteristics, according to the actor’s learned policy. The RL environment is defined by the set of currently avail-able quantum devices and the collection of implemented compiler passes. This environment provides feedback (reward signals) based on the performance of the compiled program under different pass se-quences, targeting objectives like fidelity, program depth, operation count, compilation time, or execution time. The state space defined by all devices, arbitrary quantum programs, and different stages in the pass sequence is, in practice, infinitely large. To obtain stable and sample-efficient advantage estimates during critic training, we use General Advantage Estimation (GAE) [29]. In actor-critic and other policy-gradient methods, a reliable estimate of the advantage function improves sample efficiency and stabilizes learning. The one-step Temporal Difference (TD) -residual is defined as: 
+
+𝛿 𝑡 = 𝑟 𝑡 + 𝛾𝑉 (𝑠 𝑡 +1) − 𝑉 (𝑠 𝑡 ).
+
+The GAE (𝛾, 𝜆 ) estimator mixes multi-step TD errors as ˆ𝐴 GAE (𝛾,𝜆 ) 
+
+> 𝑡
+
+=
+
+> ∞
+
+∑︁ 
+
+> 𝑙 =0
+
+(𝛾𝜆 )𝑙 𝛿 𝑡 +𝑙 .
+
+and provides a tunable bias–variance trade-off via 𝜆 ∈ [ 0, 1]. In practice, GAE is commonly used with actor-critic algorithms and combined with advantage normalization and value-function regu-larization. 
+
+4.3.1 Reward Functions. The reward function design is grounded in three desirable properties. These properties formalize our ex-pectations of a compilation policy with respect to executability, structural reduction, and compilation efficiency. 
+
+Executability. An environment state 𝑠 is executable if all con-straints imposed by the target hardware are satisfied, formally: 
+
+𝑒 (𝑠 ) = 1 ⇐⇒ 𝑢 (𝑠 ) = 0 ∧ 𝑚 (𝑠 ) = 1,
+
+where 𝑢 (𝑠 ) denotes the number of non-native operations and 𝑚 (𝑠 )
+
+indicates whether the program has a valid physical mapping. A reward function satisfies this property if executable states have a higher reward value than non-executable states. 
+
+Early stopping. A reward function satisfies the early stopping property if, for any two rollout runs, reaching a terminal state at steps 𝑡 < 𝑡 ′ respectively, with equivalent executable final states 
+
+𝑠 𝑡 = 𝑠 𝑡 ′ , the terminal rewards satisfy: 
+
+𝑟 done ,𝑡 > 𝑟 done ,𝑡 ′ .
+
+This encodes the preference for shorter compilation paths when the final compiled program is equivalent. 
+
+Structural optimization. A reward function satisfies the structural optimization property if it induces monotonic improvement with respect to a set of metrics. Namely, operation count and depth. Let 
+
+𝑑 (𝑠 ) denote program depth and 𝑔 (𝑠 ) the total operation count. Then improvements are defined as: 
+
+ 𝑑 (𝑠 𝑡 +1) < 𝑑 (𝑠 𝑡 ) ∨ 𝑔 (𝑠 𝑡 +1) < 𝑔 (𝑠 𝑡 )
+
+∧  𝑢 (𝑠 𝑡 +1) = 𝑢 (𝑠 𝑡 ) ⇒ 𝑟 𝑡 +1 > 𝑟 𝑡 
+
+(3) where 𝑢 (𝑠 ) denotes the number of unsupported operations. Con-versely, degradations in either metric do not yield positive reward contributions.  𝑑 (𝑠 𝑡 +1) ≥ 𝑑 (𝑠 𝑡 ) ∧ 𝑔 (𝑠 𝑡 +1) ≥ 𝑔 (𝑠 𝑡 )
+
+∧  𝑢 (𝑠 𝑡 +1) = 𝑢 (𝑠 𝑡 ) ⇒ 𝑟 𝑡 +1 ≤ 𝑟 𝑡 
+
+(4) 
+
+𝑅 𝑡 = 𝜙 𝑡 − 𝜙 𝑡 −1 + 𝑟 𝑑𝑜𝑛𝑒 (5) Based on these properties, several reward functions were tested. The group of functions with the best result was the potential functions.  
+
+> 5(a) (b)
+
+Figure 2: a) Conceptual design of the unified scheduler (V1) - Hybrid Supervised + RL, where device selection and phase ordering 
+
+are handled by interlinked modules. b) Conceptual design of the unified scheduler (V2) - Fully RL-based, combining device selection and phase ordering into a single action space for RL training. 
+
+This principle is that these functions assign at each step a score to the state. The reward value is defined by Equation 5. In this group of potential reward functions, the best-performing candidate tested is given by 
+
+𝜙 𝑡 = 𝑐 0
+
+
+
+1 − 𝑑 𝑡  
+
+> 𝑐 𝑑 𝑑 init
+
+
+
++ 𝑐 1
+
+
+
+1 − 𝑔 𝑡 
+
+> 𝑐 𝑔 𝑔 init
+
+
+
++ 𝑐 2
+
+
+
+1 − 𝑢 𝑡 
+
+> 𝑢 init
+
+
+
+(6) 
+
+𝜙 max = 𝑐 0
+
+
+
+1 − 1
+
+> 𝑐 𝑑
+
+
+
++ 𝑐 1
+
+
+
+1 − 1
+
+> 𝑐 𝑔
+
+
+
++ 𝑐 2 (7) effort 𝑡 = 1 − step 𝑡  
+
+> step max
+
+(8) 
+
+𝑟 done =
+
+
+
+𝜙 𝑡 + effort 𝑡 
+
+𝜙 max 
+
+× 5 𝑓 =1, 𝑒 (𝑡 ) =1
+
+−3 𝑓 =1, 𝑒 (𝑡 ) =00 otherwise (9) where 𝑑 𝑡 , 𝑔 𝑡 , and 𝑢 𝑡 denote the program depth, total operation count, and unsupported operation count at step 𝑡 , respectively. 
+
+𝑓 ∈ { 0, 1} indicates whether the actor selected the finish action, and 𝑒 ∈ { 0, 1} indicates whether the resulting program is executable. The coefficients 𝑐 0, 𝑐 1, 𝑐 2, 𝑐 𝑑 , 𝑐 𝑔 are heuristically derived scaling fac-tors used to balance the contribution of each term. The condition 
+
+𝑢 (𝑠 𝑡 +1) = 𝑢 (𝑠 𝑡 ) ensures that structural improvements are attributed independently of changes in executability, preventing conflation of the two reward contributions. Since actor-critic networks are separated, different hyperparame-ters and architectures offer room for further optimization. RNN and LSTM models may improve predictions compared to standard MLPs due to their ability to retain sequential state information. However, a baseline implementation using a standard MLP will serve as our starting point for the evaluation. It is now possible to estimate the lower bound of the probability for a successful compilation run, given a quantum program 𝑛 with unsupported operation types. The actor can decide from a set of 94 actions: the 92 compilation passes, a mapping pass that fits the program to the physical constraints of the target device, and an action by which the actor signals it has finished its compilation. The mapping pass is listed separately because it is the only pass that takes input parameters, namely the connectivity constraints of the target device. With this set, the actor can compile for an arbitrary device and every native gate set that is supported by the Quake dialect. For tractability of the estimation, the pass count is rounded up to 100. A successful compilation is defined by being executable, as only if the program is executable, then the Finish action is positively rewarded. It is also assumed that the 𝑛 + 1 actions are order-independent, which holds except for a small number of passes with explicit ordering dependencies, such as the Map → SwapToCxCxCx sequence. For a rollout length of 𝑘 with 𝑘 ≥ 𝑛 + 2, the probability of a successful rollout is given by Eq. 10. 
+
+𝑃 success ≈ 
+
+> 𝑘 −𝑛 −2
+
+∑︁ 
+
+> 𝑥 =0
+> 𝑛
+
+Ö
+
+> 𝑖 =0
+
+𝑛 + 1 − 𝑖 
+
+100 
+
+| {z }
+
+> 𝑃 decomposition+map
+
+·
+
+ 100 − ( 𝑛 + 2)
+
+100 
+
+𝑥 
+
+| {z }
+
+> 𝑃 other Passes
+
+· 1100 
+
+|{z} 
+
+> 𝑃 finish
+
+(10) This equation highlights how unlikely a successful compilation rollout is under random action selection, which is a reasonable assumption for an untrained actor, thereby making the terminal reward signal difficult to discover through exploration alone. To address this issue, we propose the DAEP approach. In general, during a RL approach, exploration and exploitation compete in order to find a near-optimal policy. We add a third competitor, a guidance term in the loss function, which decays faster than the two other components and induces a constraint in the search space for policies. In regular Actor-Critic schemes, the total actor loss is calculated from the policy-gradient term, which is scaled by the critic-based advantage estimate, and an entropy term. The entropy term is calculated from the action distribution’s entropy weighted by a coefficient 𝛼 𝐻 . Both the entropy coefficient and the learning rate 𝜂 
+
+decay during training so that the actor can converge on a policy. The new guidance component is integrated via two different coefficients: one determines the trigger probability during a rollout, 𝑝 𝐷𝐴𝐸𝑃 ,the other, 𝛼 𝐷𝐴𝐸𝑃 , is the magnitude coefficient. Both decay on a faster schedule than the learning rate. During a rollout, the actor’s selection gets overwritten according to a predefined guidance policy with probability 𝑝 𝐷𝐴𝐸𝑃 . This introduces a new loss component, namely a negative log-likelihood term, which is evaluated only on those steps at which the guidance policy actually replaced the 
+
+> 6
+
+Agent         
+
+> DAEP (Guidance)
+> 𝑝 𝐷𝐴𝐸𝑃 →0
+> 𝛼 𝐷𝐴𝐸𝑃 →0
+> Entropy (Exploration)
+> 𝛼 𝐻 →0
+> Advantages (Exploitation)
+> 𝜂 →𝛿
+
+Figure 3: Decay schedules over training epochs. The DAEP trigger probability 𝑝 𝐷𝐴𝐸𝑃 , the DAEP magnitude coefficient 
+
+𝛼 𝐷𝐴𝐸𝑃 and the entropy coefficient 𝛼 𝐻 decay to zero, so that guidance and exploration vanish and the actor converges on exploiting the critic’s estimates. The learning rate 𝜂 decays to a 𝛿 > 0 and thus remains active throughout training. 
+
+actor’s selection, and which is added to the total loss with the coefficient 𝛼 𝐷𝐴𝐸𝑃 , analogous to standard behavior cloning. The two coefficients separate how often guidance is applied from how strongly the policy is pulled towards it. A guided action is therefore always executed, but not necessarily reinforced: as 𝛼 𝐷𝐴𝐸𝑃 decays, the imitation signal weakens relative to the advantage term, and the actor may assign a higher probability to a different action than the one prescribed by the guidance policy. This yields a gradual transition away from the guidance policy rather than the abrupt one a single coefficient would produce. 
+
+## 4.4 Unified Scheduling Framework 
+
+To address the bootstrapping dilemma, described in Section 2, we propose a unified scheduling framework with two trial-error boot-strapping schemes in which both device selection and pass selection are optimized jointly. The overall idea is to frame the problem as a RL task, where the agent interacts with an environment defined by: 
+
+• State : quantum program-related features (e.g., qubit count, depth), current backend status (e.g., calibration data, queue length), and any intermediate compilation results. 
+
+• Action : device selection , pass selection , or both simultaneously. 
+
+• Reward : performance metrics such as execution fidelity, com-pilation overhead, and latency. In this context, we can let target devices be selected randomly at the starting stage, then get feedback from the RL environment. In later stages, we can reuse input data and update the estimated label. The RL agent is implemented as an actor–critic model, with the actor 
+
+network learning a policy to select the next action (device and/or pass) and the critic network estimates the value of the current state. We currently consider two conceptual schemes for developing such a unified scheduler: 
+
+• Approach 1 – Hybrid Supervised + RL: shown in Fig. 2a, both 
+
+device selection and pass selection are delegated to different sub-architectures. The intermediate results from one com-ponent ( device selection or pass selection ) are used to refine the training data at each training epoch. The output of the trained device selection module is provided as part of the state input to another RL-based module tailored for phase ordering .
+
+• Approach 2 – Fully RL-based: shown in Fig. 2b, device selection 
+
+and phase ordering are combined directly to form a new, larger action set. The RL agent then learns to choose from this combined action set. Overall, they illustrate two possible paths toward a unified sched-uler: one retaining modular specialization between device selection 
+
+and phase ordering (Approach 1) and one performing joint optimiza-tion in a single policy (Approach 2). 
+
+## 5 Experiments 5.1 Device selection 
+
+For the initial experiments on device selection , we use two differ-ent data sets. The first set consists of 128 programs generated by 
+
+MQTBench [30], a component of MQT. These programs were exe-cuted on twelve mock devices from ibm-fake-backend provider, with different connectivity characteristics and native gate sets. The second set contains 2,880 random benchmarking programs for the qubits 1-12, 6 folds and various samples on two real devices. For both sets, we use an already optimized compiler for program compilation, and we use a set of models to determine good candi-dates for the model. In particular, we chose an MLP, an RF, a SVM, and a KNN. For each ML approach, we use a short grid search for optimization. By analyzing the output of the basic_MLP it could be seen that one challenge was to predict programs that are infeasible to execute on the respective mock device (e.g., when the job needs more qubits than available on the device). One of two approaches for improvement consists of modifying the loss function of the 
+
+masked_loss_MLP , by adding weights to the loss with respect to the ground truth labels. The second is a dual_headed approach, here one head predicts feasibility and the other head predicts the expected Hellinger fidelity shown in Eq. 1. Eq. 11 displays the Mean Absolute Error (MAE) for each model’s prediction. Note that MAE alone is not expressive enough, as it averages errors and does not distinguish between many small errors and few large deviations. MAE = 1
+
+𝑛 
+
+> 𝑛
+
+∑︁ 
+
+> 𝑖 =1
+
+|𝑦 𝑖 − ˆ𝑦 𝑖 | (11) Therefore, we additionally use the 𝑅 2 Eq. 12 metric. It takes larger deviations on single samples into account by calculating the ratio of Mean Square Error (MSE) to variance. 
+
+𝑅 2 = 1 −
+
+Í𝑛 𝑖 =1 (𝑦 𝑖 − ˆ𝑦 𝑖 )2
+
+Í𝑛 𝑖 =1 (𝑦 𝑖 − ¯𝑦 )2 , (12) where: 
+
+• 𝑦 𝑖 : The true value for the 𝑖 -th sample. 
+
+• ˆ𝑦 𝑖 : The predicted value for the 𝑖 -th sample. 
+
+• ¯𝑦 = 1
+
+> 𝑛
+
+Í𝑛 𝑖 =1 𝑦 𝑖 : The mean of the true values. 
+
+> 7
+
+Random_Forest SVM KNN basic_MLP masked_loss_MLP dual_head_MLP 
+
+Models 
+
+fake_almaden fake_athens fake_auckland fake_belem fake_brooklyn fake_cairo fake_casablanca fake_cambridge fake_guadalupe fake_melbourne fake_prague fake_yorktown 
+
+> Backends
+
+MAE: 0.115 R²: 0.757 MAE: 0.094 R²: 0.873 MAE: 0.050 R²: 0.945 MAE: 0.103 R²: 0.801 MAE: 0.106 R²: 0.801 MAE: 0.113 R²: 0.757 MAE: 0.014 R²: 0.992 MAE: 0.144 R²: 0.786 MAE: 0.088 R²: 0.781 MAE: 0.041 R²: 0.965 MAE: 0.341 R²: -0.481 MAE: 0.035 R²: 0.970 MAE: 0.087 R²: 0.828 MAE: 0.083 R²: 0.891 MAE: 0.041 R²: 0.954 MAE: 0.072 R²: 0.870 MAE: 0.071 R²: 0.878 MAE: 0.075 R²: 0.847 MAE: 0.010 R²: 0.995 MAE: 0.145 R²: 0.782 MAE: 0.091 R²: 0.773 MAE: 0.043 R²: 0.966 MAE: 0.372 R²: -0.600 MAE: 0.036 R²: 0.967 MAE: 0.093 R²: 0.818 MAE: 0.087 R²: 0.885 MAE: 0.042 R²: 0.954 MAE: 0.073 R²: 0.861 MAE: 0.075 R²: 0.862 MAE: 0.077 R²: 0.866 MAE: 0.195 R²: 0.622 MAE: 0.187 R²: 0.652 MAE: 0.123 R²: 0.738 MAE: 0.257 R²: 0.453 MAE: 0.337 R²: -0.428 MAE: 0.254 R²: 0.393 MAE: 0.020 R²: 0.992 MAE: 0.145 R²: 0.792 MAE: 0.121 R²: 0.742 MAE: 0.081 R²: 0.934 MAE: 0.224 R²: 0.413 MAE: 0.077 R²: 0.925 MAE: 0.110 R²: 0.801 MAE: 0.090 R²: 0.886 MAE: 0.069 R²: 0.916 MAE: 0.104 R²: 0.813 MAE: 0.104 R²: 0.806 MAE: 0.118 R²: 0.757 MAE: 0.091 R²: 0.828 MAE: 0.090 R²: 0.886 MAE: 0.042 R²: 0.956 MAE: 0.077 R²: 0.860 MAE: 0.080 R²: 0.855 MAE: 0.091 R²: 0.785 MAE: 0.104 R²: 0.784 MAE: 0.083 R²: 0.892 MAE: 0.051 R²: 0.942 MAE: 0.106 R²: 0.793 MAE: 0.107 R²: 0.788 MAE: 0.113 R²: 0.747 MAE: 0.066 R²: 0.890 MAE: 0.079 R²: 0.887 MAE: 0.036 R²: 0.945 MAE: 0.058 R²: 0.916 MAE: 0.051 R²: 0.934 MAE: 0.049 R²: 0.930 MAE: 0.016 R²: 0.986 MAE: 0.133 R²: 0.784 MAE: 0.081 R²: 0.770 MAE: 0.038 R²: 0.971 MAE: 0.349 R²: -0.581 MAE: 0.027 R²: 0.979 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0 
+
+> R² Score
+
+Figure 4: Prediction analysis on initial models for the 128 MQT-Bench program set 
+
+Fig. 4 shows the results on the MQT dataset. It displays the model’s fidelity predictions for the 128 MQT-bench programs on the chosen twelve backends. The results show a worse performance by MLP, compared to the other models. We expect fine tuning to improve the predictions. While SVM and KNN show good results for fidelity predictions, they may not be a fitting choice for algorithms in the unified scheduler. Their good performance is based on the limited data set. In a full deployment, we expect an even more diverse program set and a huge variance in program depths and, hence, we anticipate that these algorithms will perform less well in the scheduler in practice than they did in these experiments. That makes RF the currently most suitable candidate on this program set. Fig. 5 shows the result gained from executing the second data set on two real devices installed at our local compute center. We can see that here all models perform nearly equally in MAE and 𝑅 2. The reason for this is that all programs of the set could be executed on all devices making the training better suited. This can be seen in the fact that there is nearly no change between basic, masked_loss and dual_head MLP. The difference across the devices can be related to device properties and environmental influences of the real devices. 
+
+## 5.2 Pass selection 
+
+In order to train and evaluate the Pass selection component we used a data set containing the Hamiltonians of chemical molecules encoded in quantum programs. This data set had 1548 samples and 10% are used as validation sample. Furthermore to ascertain that this device1 device2 
+
+> Real Backends installed at Our Local Compute Center
+> Random_Forest SVM KNN basic_MLP masked_loss_MLP dual_head_MLP
+> Models
+> MAE: 0.051 R²: 0.942 MAE: 0.032 R²: 0.985 MAE: 0.063 R²: 0.940 MAE: 0.052 R²: 0.973 MAE: 0.053 R²: 0.939 MAE: 0.034 R²: 0.983 MAE: 0.051 R²: 0.944 MAE: 0.032 R²: 0.986 MAE: 0.061 R²: 0.937 MAE: 0.048 R²: 0.975 MAE: 0.048 R²: 0.945 MAE: 0.029 R²: 0.986
+> 0.94 0.96 0.98 1.00
+> R² Score
+
+Figure 5: Prediction analysis on initial models for the 2,880 RB program set 
+
+is no special case the models were trained for two different Devices with different mappings and native operation sets. A comparison with other compilers such as Qiskit would only be meaningful at this stage if the action set mirrors the exact pass set available for such a compiler. Therefore we introduce a tailored set of metrics to evaluate the actor and critic networks. The actor can decide when it is finished with the compilation on a quantum program by calling the finish action, based on the executability either a positive reward is awarded or a negative reward if the program is not executable when the actor finishes. Based on this we can 
+
+> 8
+
+Category Metric Guidance (DAEP) No Guidance Finish Action Analysis 
+
+Samples 154 154 Avg. total rewards 4.32 0.44 Finish called 153/154 0/154 Finish + 146 0Finish − 7 0Executable programs 95.5% 42.1% 
+
+Depth and Operations 
+
+Avg. Depth change +115.28 +134.52 Avg. Operation change +324.62 +375.80 Depth reduced 87/154 8/154 Ops. reduced 93/154 15/154 
+
+Action Classification 
+
+TP 253 870 FP 9 1044 TN 38 1688 FN 881 765 Precision 96.56% 45% Recall 22.31% 53% F1 36.25% 49% 
+
+Table 1: Chemistry Dataset – Validation Summary comparing DAEP and No Guidance models 
+
+measure how efficient the actor is, as it illustrates the actor’s ability to recognize whether this core requirement is fulfilled. The next part of the metric set captures information on how much the programs increase on average in depth and operation count. Additionally it shows in how many samples action were taken that reduced the operation count or the depth. Thereby revealing how many actions the actor took that optimized the program. A final metric is a pseudo classification of the critic’s output. By comparing the critic’s output with the analytical value calculated via GAE algorithm and the reward values, it is possible to define the class True positive (TP). Every prediction that only deviates by a small constant 𝛿𝑑 from the analytical value is in this class, as long as the signs match. If the deviation is larger than the constant the prediction is categorized as True negative (TN). For mismatching signs accordingly False negative (FN) is a negative prediction for a positive value and vice versa False positive (FP). The previously mentioned constant 𝛿𝑑 is not defined over a fraction of the ground truth value as these values can fluctuate depending on the position of the sequence. Therefore we chose a constant value, the disadvantage of this approach lies in the sensitivity for the classes not only in cases where the sign mismatches but in general. It directly determines the boundaries for each class. Together this set of metrics informs about actor’s and critic’s performance over all verification samples. Table 1 shows the results of our Pass selection component achieved according to the metric set on data set of Hamiltonians of molecules encoded in quantum programs. The actor learned to terminate when further pass application was not expected to improve the program. In the one remaining sample, the finish action was not called, which can be attributed to the action horizon limit — rollouts exceeding 20 steps are truncated. Similarly in 7 cases, samples used gates which the actor was not familiar. This can be explained by the limited number of samples in data set (1548). Furthermore the actor with the DAEP approach yields better compilation performance, as reflected in the smaller resulting depth and operation count on average. This is shown by comparing the values in the table’s columns. Another fact illustrated is, that the critic needs more training. In the guided model the action classification is very conservative, but compared to the model without guidance the critic performs better. A reason for this can be found in the number of actions taken, this leads to more training for the critic. The fundamental reason is that with guidance the actor learns to finish efficiently with the least amount of actions, whereas in the other case the rollouts nearly always run until the end of the action horizon. 
+
+## 6 Conclusions 
+
+In this work, we introduced the concept of a unified scheduler and presented our approach for its implementation. Our theoretical analysis demonstrated the feasibility of jointly selecting a Pareto-optimal combination of a quantum device together with a sequence of compilation and optimization passes for heterogeneous HPCQC software stacks. To achieve an efficient and practical solution, our approach leverages ML algorithms. We presented experimental results that demonstrate the feasibility of both the ML component on device selection and the component on pass selection .The data provided empirical evidence that device selection can be effectively addressed using ML techniques. In contrast, the ex-perimental data on the pass selection component suggests that RL without additional methods is not a viable approach for training a 
+
+> 9
+
+network for compilation, at least not under the resource constraints considered here. Training the pass selection networks for different devices, suggest that this approach does not only work for spe-cific native operation sets or physical constraints. By introducing a decaying guidance component during training — overwriting the actor’s actions with decreasing probability and magnitude — DAEP accelerates convergence and improves reward exploitation. Through the properties we defined, we can be certain that the actor learns a policy that leads to our intended objective. The data also reveals the need for more extensive training for the pass selection component. The combination into a unified scheduler introduces additional complexity, but also a key opportunity: by exploiting the interdependency between device selection and compilation, the unified approach has the potential to outperform pipelines that optimize each stage independently. Furthermore, the ML-based unified scheduler supports continuous improvement of predictions through online training on new data acquired during execution. 
+
+## Acknowledgments 
+
+This work is supported by the German Federal Ministry of Re-search, Technology and Space (BMFTR) with the grants 13N15689 (DAQC), 13N16063 (Q-Exa), 13N16078 (MUNIQC-Atoms), 13N16187 (MUNIQC-SC), 13N16690 (Euro-Q-Exa), 13N16894 (MAQCS), Euro-pean fundings 101136607 (CLARA), 101114305 (Millenion), 101113946 (OpenSuperQPlus), 101194491 (QEX), and the Bavarian State Min-istry of Science and the Arts through funding, as part of MQV, Q-DESSI. We would also like to express our gratitude to Aleksandra Swierkowska for her support. 
+
+> 10
+
+## References 
+
+[1] Matt Swayne. 2025. IBM and RIKEN Unveil First IBM Quantum System Two Outside of the U.S. https://thequantuminsider.com/2025/06/24/ibm-riken-system-two/ Accessed: 2025-08-16. [2] Chicago Quantum Exchange. 2025. Advancing Research, Discovery, and Im-pact . https://chicagoquantum.org/advancing-research-discovery-and-impact Accessed: 2025-08-16. [3] X. Fu, L. Riesebos, L. Lao, C. G. Almudever, F. Sebastiano, R. Versluis, E. Charbon, and K. Bertels. 2016. A heterogeneous quantum computer architecture. In Pro-ceedings of the ACM International Conference on Computing Frontiers (Como, Italy) 
+
+(CF ’16) . Association for Computing Machinery, New York, NY, USA, 323–330. doi:10.1145/2903150.2906827 [4] Martin Schulz, Laura Schulz, Martin Ruefenacht, and Robert Wille. 2023. Towards the Munich Quantum Software Stack: Enabling Efficient Access and Tool Support for Quantum Computers. In 2023 IEEE International Conference on Quantum Computing and Engineering (QCE) , Vol. 02. 399–400. doi:10.1109/QCE57702.2023. 10301 [5] Andy B. Yoo, Morris A. Jette, and Mark Grondona. 2003. SLURM: Simple Linux Utility for Resource Management. In Job Scheduling Strategies for Parallel Pro-cessing (JSSPP) . Seattle, WA, USA, 44–60. https://doi.org/10.1007/10968987_3 [6] Chris Lattner, Mehdi Amini, Uday Bondhugula, Albert Cohen, Andy Davis, Jacques Pienaar, River Riddle, Tatiana Shpeisman, Nicolas Vasilache, and Olek-sandr Zinenko. 2020. MLIR: A Compiler Infrastructure for the End of Moore’s Law. arXiv preprint arXiv:2002.11054 (2020). https://arxiv.org/abs/2002.11054 [7] John Preskill. 2018. Quantum Computing in the NISQ era and beyond. Quantum 
+
+2 (2018), 79. doi:10.22331/q-2018-08-06-79 [8] Siddharth Dangwal, Gokul Subramanian Ravi, Lennart Maximilian Seifert, Poulami Das, James Sud, and Frederic T. Chong. 2024. COMPASS: Compiler Pass Selection For Improving Fidelity Of NISQ Applications. In 2024 IEEE Inter-national Conference on Rebooting Computing (ICRC) . IEEE, 1–14. doi:10.1109/ ICRC64395.2024.10937002 [9] Yu Wang, Hongyu Chen, and Ke Wang. 2024. Beyond the Phase Order-ing Problem: Finding the Globally Optimal Code w.r.t. Optimization Phases. arXiv:2410.03120 [cs.PL] https://arxiv.org/abs/2410.03120 [10] Nils Quetschlich, Lukas Burgholzer, and Robert Wille. 2025. MQT Predictor: Automatic Device Selection with Device-Specific Circuit Compilation for Quan-tum Computing. ACM Transactions on Quantum Computing 6, 1 (14 Jan. 2025). doi:10.1145/3673241 [11] Stephan Mertens. 2003. The Easiest Hard Problem: Number Partitioning. arXiv:cond-mat/0310317 [cond-mat.dis-nn] https://arxiv.org/abs/cond-mat/ 0310317 [12] Philipp Seitz, Manuel Geiger, Christian Ufrecht, Axel Plinge, Christopher Mutschler, Daniel D. Scherer, and Christian B. Mendl. 2024. SCIM MILQ: An HPC Quantum Scheduler. In 2024 IEEE International Conference on Quantum Computing and Engineering (QCE) . IEEE, 292–298. doi:10.1109/QCE60285.2024.10294 [13] Teague Tomesh, Pranav Gokhale, Victory Omole, Gokul Subramanian Ravi, Kaitlin N. Smith, Joshua Viszlai, Xin-Chuan Wu, Nikos Hardavellas, Margaret R. Martonosi, and Frederic T. Chong. 2022. SupermarQ: A Scalable Quantum Benchmark Suite . In 2022 IEEE International Symposium on High-Performance Computer Architecture (HPCA) . IEEE Computer Society, Los Alamitos, CA, USA, 587–603. doi:10.1109/HPCA53966.2022.00050 [14] John H. Reynolds. 2003. Bootstrapping a self-compiling compiler from machine X to machine Y. J. Comput. Sci. Coll. 19, 2 (2003). [15] Marin Bukov and Florian Marquardt. 2026. Reinforcement Learning for Quantum Technology. arXiv:2601.18953 [quant-ph] https://arxiv.org/abs/2601.18953 [16] Mircea Trofin, Yundi Qian, Eugene Brevdo, Zinan Lin, Krzysztof Choromanski, and David Li. 2021. MLGO: a Machine Learning Guided Compiler Optimizations Framework. arXiv:2101.04808 [cs.PL] https://arxiv.org/abs/2101.04808 [17] Qijing Huang, Ameer Haj-Ali, William Moses, John Xiang, Ion Stoica, Krste Asanovic, and John Wawrzynek. 2020. AutoPhase: Juggling HLS Phase Orderings in Random Forests with Deep Reinforcement Learning. arXiv:2003.00671 [cs.DC] https://arxiv.org/abs/2003.00671 [18] Utz Bacher, Mark Birmingham, Christopher D. Carothers, Andrew Damin, Carlos D. Gonzalez Calaza, Ashwin Kumar Karnad, Stefano Mensa, Matthieu Moreau, Aurelien Nober, Munetaka Ohtani, Max Rossmannek, Philippa Ru-bin, M. Emre Sahin, Oscar Wallis, Amir Shehata, Iskandar Sitdikov, and Alek-sander Wennersteen. 2025. Quantum resources in resource management systems. arXiv:2506.10052 [quant-ph] https://arxiv.org/abs/2506.10052 [19] Vinooth Rao Kulkarni and Vipin Chaudhary. 2026. Distributed Scheduling for Modular Quantum Computing in Cloud. In Proceedings of the 35th International Symposium on High-Performance Parallel and Distributed Computing (HPDC ’26) .Association for Computing Machinery, New York, NY, USA, 572–574. doi:10. 1145/3806645.3820071 [20] Thomas Fösel, Murphy Yuezhen Niu, Florian Marquardt, and Li Li. 2021. Quantum circuit optimization with deep reinforcement learning. arXiv:2103.07585 [quant-ph] https://arxiv.org/abs/2103.07585 [21] Nils Quetschlich, Lukas Burgholzer, and Robert Wille. 2023. Predicting Good Quantum Circuit Compilation Options. In 2023 IEEE International Conference on Quantum Software (QSW) . IEEE, 43–53. doi:10.1109/qsw59989.2023.00015 [22] Nils Quetschlich, Lukas Burgholzer, and Robert Wille. 2023. Compiler Opti-mization for Quantum Computing Using Reinforcement Learning. In 2023 60th ACM/IEEE Design Automation Conference (DAC) . IEEE, 1–6. doi:10.1109/dac56929. 2023.10248002 [23] Mohammad Abrarul Hasanat, Jason Ludmir, Tirthak Patel, and Rohan Basu Roy. 2026. TuniQ: Autotuning Compilation Passes for Quantum Workloads at Scale for Effectiveness and Efficiency. In Proceedings of the 40th ACM International Conference on Supercomputing (ICS ’26) . ACM, 1322–1336. doi:10.1145/3797905. 3807862 [24] Anurudh Peduri, Siddharth Bhat, and Tobias Grosser. 2022. QSSA: an SSA-based IR for Quantum computing. In Proceedings of the 31st ACM SIGPLAN International Conference on Compiler Construction (CC ’22) . ACM, 2–14. doi:10.1145/3497776. 3517772 [25] David Ittah, Thomas Häner, Vadym Kliuchnikov, and Torsten Hoefler. 2022. QIRO: A Static Single Assignment-based Quantum Program Representation for Optimization. ACM Transactions on Quantum Computing 3, 3, Article 14 (June 2022). doi:10.1145/3491247 [26] Xanadu Quantum Technologies. 2026. Catalyst: A JIT Compiler for Hybrid Quantum Programs. https://docs.pennylane.ai/projects/catalyst/. Accessed: 2026-08-04. [27] NVIDIA. 2024. Quake Dialect — CUDA-Q Documentation. https://nvidia.github. io/cuda-quantum/latest/specification/quake-dialect.html. Accessed: 2026. [28] Marcin Jarzyna and Jan Kołodynski. 2020. Geometric approach to quantum statistical inference. arXiv preprint arXiv:2008.09129 (2020). https://arxiv.org/ abs/2008.09129 [29] Kevin P. Murphy. 2023. Probabilistic Machine Learning: Advanced Topics . MIT Press, Cambridge, MA. [30] Nils Quetschlich, Lukas Burgholzer, and Robert Wille. 2023. MQT Bench: Bench-marking Software and Design Automation Tools for Quantum Computing. Quan-tum (2023). MQT Bench is available at https://www.cda.cit.tum.de/mqtbench/.

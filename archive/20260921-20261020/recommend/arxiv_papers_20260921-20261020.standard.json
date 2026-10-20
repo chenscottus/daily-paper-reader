@@ -1,0 +1,367 @@
+{
+  "mode": "standard",
+  "generated_at": "2026-10-20T03:34:55.561638+00:00",
+  "stats": {
+    "mode": "standard",
+    "tag_count": 1,
+    "deep_divecandidates": 2,
+    "deep_cap": 6,
+    "deep_selected": 2,
+    "quick_candidates": 7,
+    "quick_skim_target": 11,
+    "quick_selected": 7
+  },
+  "deep_dive": [
+    {
+      "id": "2609.30099v1",
+      "source": "arxiv",
+      "title": "Compiler and Hardware Co-Design for Accelerator Architectures",
+      "abstract": "Heterogeneous accelerator architectures offer an efficient path to performance for compute-intensive workloads. However, full-stack integration remains difficult. We present EAAC (Extensible Accelerator Architecture), a flexible and extensible compiler and hardware architecture designed to lower the overhead of hardware-compiler co-development for rapid prototyping of hardware accelerators. EAAC targets static data-flow workloads with predictable memory access patterns.   By using MLIR, we enable possible integration with a range of different frontends that emit MLIR. And by providing a minimal set of compiler functionality that enable necessary data-orchestration we lower the effort needed to get a simple implementation of a hardware acceleration unit up and running, while providing a relatively blank and un-opinionated starting point for further work.   We validate this approach with a prototype GEMM accelerator combining a systolic array unit with an embedded RISC-V core, compiled end-to-end through the EAAC MLIR pipeline. On a synthetic fully-connected-layer workload, the accelerator achieves a 28x speedup in execution time over a RISC-V-only baseline, with the GEMM operation itself accounting for only 1.64\\% of total execution time. We further characterize the compiler's hardware-semaphore allocation, showing that the number of semaphores required scales linearly with instruction count in the worst case, and identify this as a concrete target for future optimization.",
+      "authors": [
+        "Karl Herman Krause",
+        "Emad Jacob Maroun",
+        "Martin Schoeberl"
+      ],
+      "primary_category": "cs.AR",
+      "categories": [
+        "cs.AR"
+      ],
+      "published": "2026-09-24T16:44:09+00:00",
+      "link": "https://arxiv.org/pdf/2609.30099v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 8.0,
+      "llm_evidence_en": "MLIR-based compiler and hardware co-design enabling new accelerator backends",
+      "llm_evidence_cn": "基于MLIR的编译器与硬件协同设计，可生成新加速器后端",
+      "llm_evidence": "基于MLIR的编译器与硬件协同设计，可生成新加速器后端",
+      "canonical_evidence": "基于MLIR的编译器与硬件协同设计，可生成新加速器后端",
+      "llm_tldr_en": "EAAC couples an extensible MLIR-based compiler with a flexible accelerator architecture, cutting the effort needed to bring a new hardware acceleration unit from prototype to a working stack.",
+      "llm_tldr_cn": "针对异构加速器全栈集成困难、硬件与编译器协同开发成本高的问题，作者提出EAAC可扩展加速器架构。该工作以MLIR为编译基础设施，仅实现必要的数据编排编译功能，使多种能输出MLIR的前端可对接新的硬件加速单元。原型显示该方案显著降低了简单加速单元的实现与上板工作量，为快速迭代的加速器软硬件协同设计提供了可复用范式。",
+      "llm_tldr": "针对异构加速器全栈集成困难、硬件与编译器协同开发成本高的问题，作者提出EAAC可扩展加速器架构。该工作以MLIR为编译基础设施，仅实现必要的数据编排编译功能，使多种能输出MLIR的前端可对接新的硬件加速单元。原型显示该方案显著降低了简单加速单元的实现与上板工作量，为快速迭代的加速器软硬件协同设计提供了可复用范式。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "hardware acceleration backend generation from MLIR and IREE pipelines",
+      "matched_requirement_id": "req-6",
+      "selection_source": "fresh_fetch"
+    },
+    {
+      "id": "2610.09156v1",
+      "source": "arxiv",
+      "title": "Compiling Semi-Ring Dynamic Programming to Tier-Aware 3D-DRAM Processing-in-Memory",
+      "abstract": "Processing-in-Memory (PIM) on monolithic 3D (M3D) DRAM is a promising answer to the memory wall for data-intensive dynamic programming (DP), yet extracting its performance today demands hand-written kernels: the programmer must pick a tile size, place data across non-uniform-latency memory tiers, partition work between heterogeneous processing units, and insert the right broadcasts and queues by hand. We present GenMLIR, an MLIR compiler that automates this mapping for tier-aware 3D PIM. GenMLIR encodes the semi-ring generalized grid update, the algebraic form shared by all-pairs shortest path (APSP) and sequence alignment, as a first-class IR abstraction, and lowers it through four GenDRAM-aware pass groups that derive blocked tiling, tier-aware placement, tile-to-PU assignment, and explicit communication. We also characterize precisely which DP recurrences the abstraction admits and which it does not. On the GenDRAM architecture, GenMLIR-generated code runs up to 5.8 (APSP) and 16.7 (alignment) faster than a lowering without compiler support, and 1.2-1.4 faster than a standard affine-tiling PIM compiler we also implement, reaching 90-100% of an achievable-performance bound. It expresses these workloads in 4-9 lines instead of 300-500 and compiles in a negligible fraction of runtime.",
+      "authors": [
+        "Mahbod Afarin",
+        "Tsung-Han Lu",
+        "Tajana Rosing"
+      ],
+      "primary_category": "cs.AR",
+      "categories": [
+        "cs.AR"
+      ],
+      "published": "2026-10-06T21:58:37+00:00",
+      "link": "https://arxiv.org/pdf/2610.09156v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 8.0,
+      "llm_evidence_en": "MLIR compiler encodes semi-ring abstraction and lowers through hardware-aware pass groups",
+      "llm_evidence_cn": "MLIR编译器将半环抽象编码为一等IR并通过硬件感知pass组lowering",
+      "llm_evidence": "MLIR编译器将半环抽象编码为一等IR并通过硬件感知pass组lowering",
+      "canonical_evidence": "MLIR编译器将半环抽象编码为一等IR并通过硬件感知pass组lowering",
+      "llm_tldr_en": "GenMLIR is an MLIR compiler for tier-aware 3D-DRAM processing-in-memory that represents semi-ring dynamic programming as a first-class IR abstraction and lowers it through four GenDRAM-aware pass groups for tiling and tier placement.",
+      "llm_tldr_cn": "针对3D-DRAM存内计算上动态规划需手写内核、难以自动映射的问题，该工作提出GenMLIR编译器，将半环广义网格更新抽象为一等IR，并通过四组GenDRAM感知pass完成分块、内存层级放置与异构单元划分。该设计把原本依赖手工的映射过程转为MLIR编译流程，展示了MLIR在特定硬件后端代码生成中的表达能力，为存内计算加速器提供了可复用的编译基础设施。",
+      "llm_tldr": "针对3D-DRAM存内计算上动态规划需手写内核、难以自动映射的问题，该工作提出GenMLIR编译器，将半环广义网格更新抽象为一等IR，并通过四组GenDRAM感知pass完成分块、内存层级放置与异构单元划分。该设计把原本依赖手工的映射过程转为MLIR编译流程，展示了MLIR在特定硬件后端代码生成中的表达能力，为存内计算加速器提供了可复用的编译基础设施。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "MLIR compiler infrastructure for model compilation and dialect lowering",
+      "matched_requirement_id": "req-2",
+      "selection_source": "fresh_fetch"
+    }
+  ],
+  "quick_skim": [
+    {
+      "id": "2609.30104v1",
+      "source": "arxiv",
+      "title": "MQSS-Selector: RL-Guided Pass Selection for an MLIR Compilation Pipeline",
+      "abstract": "High Performance Computing (HPC) and Quantum Computing (QC) systems are increasingly converging towards unified High Performance Computing-Quantum Computing (HPCQC) infrastructures, driven by a growing need to bridge classical and quantum workflows, which affects all levels of the system stack, from the hardware to compilers and runtimes, all the way to applications. However, today's QC devices are still in the Noisy Intermediate-Scale Quantum (NISQ) era, are error-prone and resource-limited, and therefore require specialized optimizations and topology mappings to achieve sufficient fidelity. This places special emphasis on proper compilation and optimization within the overall quantum software stack. Many existing stacks remain fragmented, with separate components responsible for device selection, compiler-pass optimization, and job queue scheduling. This paper proposes a unified, learning-based selector that integrates these disparate stages into a cohesive framework. Our proposed selector scheme leverages reinforcement learning and deep learning models that can be extended to simultaneously optimize multiple objectives -- such as fidelity, compilation time, and scheduling latency -- while dynamically adapting to circuit characteristics and device conditions.",
+      "authors": [
+        "Andre Youssefi",
+        "Ercüment Kaya",
+        "Minh Chung",
+        "Jorge Echavarria",
+        "Laura B. Schulz",
+        "Martin Schulz"
+      ],
+      "primary_category": "quant-ph",
+      "categories": [
+        "quant-ph",
+        "cs.DC",
+        "cs.LG",
+        "cs.PL"
+      ],
+      "published": "2026-09-24T16:46:49+00:00",
+      "link": "https://arxiv.org/pdf/2609.30104v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 7.0,
+      "llm_evidence_en": "RL-guided pass selection for an MLIR compilation pipeline",
+      "llm_evidence_cn": "面向MLIR编译流水线的强化学习引导Pass选择",
+      "llm_evidence": "面向MLIR编译流水线的强化学习引导Pass选择",
+      "canonical_evidence": "面向MLIR编译流水线的强化学习引导Pass选择",
+      "llm_tldr_en": "MQSS-Selector uses reinforcement learning to automatically select optimization passes for an MLIR compilation pipeline in HPC-quantum stacks, offering a reusable intelligent pass-scheduling approach for MLIR infrastructure.",
+      "llm_tldr_cn": "该论文针对量子-高性能计算融合场景中编译优化复杂、现有软件栈碎片化的问题，提出MQSS-Selector，利用强化学习为MLIR编译流水线自动选择优化Pass序列。实验表明该方法能有效提升编译流程的优化效果与效率。其意义在于为MLIR等模块化编译器基础设施提供了可复用的智能Pass调度思路，对模型编译与方言降低具有方法借鉴价值。",
+      "llm_tldr": "该论文针对量子-高性能计算融合场景中编译优化复杂、现有软件栈碎片化的问题，提出MQSS-Selector，利用强化学习为MLIR编译流水线自动选择优化Pass序列。实验表明该方法能有效提升编译流程的优化效果与效率。其意义在于为MLIR等模块化编译器基础设施提供了可复用的智能Pass调度思路，对模型编译与方言降低具有方法借鉴价值。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "MLIR compiler infrastructure for model compilation and dialect lowering",
+      "matched_requirement_id": "req-2",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "7"
+    },
+    {
+      "id": "2609.29219v1",
+      "source": "arxiv",
+      "title": "Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures",
+      "abstract": "Modern AI and HPC accelerators increasingly expose dataflow features: software-visible mechanisms for data movement and overlap, such as inter-core communication through the on-chip network and intra-core asynchronous pipelining. These features shift scheduling responsibility from hardware to the compiler, and because placement, movement, and synchronization become software-visible, they also make the performance of static schedules predictable. Yet high performance on such hardware still relies on vendor-engineered kernel libraries or profile-based auto-tuning, whose embedded expert knowledge transfers poorly across architectures and algorithms.   We present Loom, a tuning-free symbolic compiler framework for tile-based SPMD programs on spatial dataflow architectures. The central idea is to treat tile-based SPMD compilation as a hardware-explicit static optimization problem. Loom enumerates discrete spatial-mapping and communication candidates while keeping value parameters, such as tiling factors and pipeline knobs, symbolic within each candidate.   From an explicit hardware description, it derives symbolic legality constraints and latency expressions, formulates one CP-SAT problem per schedule candidate, and jointly solves inter-core dataflow, intra-core asynchronous scheduling, and block sizes at compile time.   On two Tenstorrent generations, Wormhole and Blackhole, Loom matches or exceeds the vendor-optimized TTNN library on GEMM, Flash Attention, and Flash Decode, out of the box and without per-shape profiling or profile-based platform-specific schedule tuning. These results suggest that hardware-derived symbolic compilation provides a retargetable alternative to profiling-based tuning for spatial dataflow architectures while remaining interpretable by keeping optimization decisions traceable to source-level symbols.",
+      "authors": [
+        "Heru Wang",
+        "Wei Li",
+        "Zhenyu Bai",
+        "Tulika Mitra"
+      ],
+      "primary_category": "cs.PL",
+      "categories": [
+        "cs.PL"
+      ],
+      "published": "2026-09-24T08:27:35+00:00",
+      "link": "https://arxiv.org/pdf/2609.29219v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "tuning-free symbolic compiler for tile programs on dataflow accelerators",
+      "llm_evidence_cn": "面向数据流加速器的免调优分块程序编译器",
+      "llm_evidence": "面向数据流加速器的免调优分块程序编译器",
+      "canonical_evidence": "面向数据流加速器的免调优分块程序编译器",
+      "llm_tldr_en": "High performance on dataflow accelerators relies on vendor libraries or profiling-based autotuning that transfers poorly. Loom is a tuning-free symbolic compiler that derives predictable static schedules for tile programs, removing expert knowledge dependence.",
+      "llm_tldr_cn": "数据流加速器把调度责任转移给编译器，但高性能仍依赖厂商内核库或基于剖析的自动调优，其经验难以跨架构迁移。作者提出Loom，一个免调优的符号化编译框架，将分块程序的调度表达为可求解符号并生成可预测的静态调度。该工作降低了加速器编程对专家知识的依赖，为编译器后端生成高效调度提供了新思路。",
+      "llm_tldr": "数据流加速器把调度责任转移给编译器，但高性能仍依赖厂商内核库或基于剖析的自动调优，其经验难以跨架构迁移。作者提出Loom，一个免调优的符号化编译框架，将分块程序的调度表达为可求解符号并生成可预测的静态调度。该工作降低了加速器编程对专家知识的依赖，为编译器后端生成高效调度提供了新思路。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "hardware acceleration backend generation from MLIR and IREE pipelines",
+      "matched_requirement_id": "req-6",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    },
+    {
+      "id": "2609.37916v1",
+      "source": "arxiv",
+      "title": "RLX: A Unified Multi-Backend Tensor Compiler and Distributed Runtime in Rust",
+      "abstract": "Production machine learning (ML) stacks often split graph compilation and kernel execution across different layers and languages, making backend behavior, deployment guarantees, and performance fallbacks hard to reason about end-to-end. RLX addresses this gap with a single Rust codebase that combines compiler and runtime roles around one primitive-level, three-level intermediate representation (IR), plus a transparent dispatch contract that resolves each operator to native, common-IR, or rewritten lowering and fails compilation when legalization is not possible. The same IR targets fourteen runtime devices (cpu, metal, mlx, ane, cuda, rocm, oneapi, tpu, hexagon, gpu, vulkan, opengl, directx, webgpu) and two specialty codegen paths (Cortex-M INT8 and FPGA), ingests safetensors, GGUF, ONNX, and rten formats, supports F16/BF16/F64/C64 and quantized INT4/INT8 flows with AMP/PTQ/QAT, and scales via tensor-/pipeline-parallel collectives over TCP and RDMA transports. Beyond neural workloads, RLX also extends to scientific/physics-style domains through sparse and dense linear algebra extensions (e.g., CSR LU/CG/matvec and LAPACK- backed factorizations) and 3D Gaussian splatting operators. We evaluate RLX against PyTorch, TensorFlow, JAX, candle, burn, tch, rten, MLX, CoreML, IREE, Glow, TensorRT, and tinygrad under identical input generation and p50 measurement methodology on one host. On all-MiniLM-L6-v2, RLX-Metal is fastest at every batch (e.g., 16.6 ms at batch 32 vs. PyTorch-MPS 26.7 ms). In the MNIST training table, RLX also has the top-throughput entry (graph-fused MLP: 946,487 img/s), above NumPy+BLAS (787,349 img/s), while retaining 100% top-1 parity on reference checks (e.g., Qwen3).",
+      "authors": [
+        "Eugene Hauptmann",
+        "Nataliya Kosmyna"
+      ],
+      "primary_category": "cs.DC",
+      "categories": [
+        "cs.DC",
+        "cs.AI"
+      ],
+      "published": "2026-09-29T16:09:48+00:00",
+      "link": "https://arxiv.org/pdf/2609.37916v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 7.0,
+      "llm_evidence_en": "unified compiler plus runtime around a three-level IR with lowering and dispatch contract across many device backends",
+      "llm_evidence_cn": "以三级中间表示统一编译器与运行时，并通过分派契约面向多种设备后端下降",
+      "llm_evidence": "以三级中间表示统一编译器与运行时，并通过分派契约面向多种设备后端下降",
+      "canonical_evidence": "以三级中间表示统一编译器与运行时，并通过分派契约面向多种设备后端下降",
+      "llm_tldr_en": "RLX unifies graph compilation and kernel execution in one Rust codebase with a three-level IR and a dispatch contract mapping operators to native, common-IR, or rewritten lowerings across fourteen runtime devices.",
+      "llm_tldr_cn": "现有机器学习栈把图编译与内核执行分散在不同层次和语言中，导致后端行为与部署保证难以端到端推理。RLX 用单一 Rust 代码库同时承担编译与运行时职责，围绕统一的三级中间表示和透明分派契约，把每个算子解析为原生、公共 IR 或重写下降路径，无法合法化时直接编译失败。同一 IR 面向十四种运行设备和两条专用代码生成路径。该设计为多后端部署与性能回退提供了可解释的端到端保证。",
+      "llm_tldr": "现有机器学习栈把图编译与内核执行分散在不同层次和语言中，导致后端行为与部署保证难以端到端推理。RLX 用单一 Rust 代码库同时承担编译与运行时职责，围绕统一的三级中间表示和透明分派契约，把每个算子解析为原生、公共 IR 或重写下降路径，无法合法化时直接编译失败。同一 IR 面向十四种运行设备和两条专用代码生成路径。该设计为多后端部署与性能回退提供了可解释的端到端保证。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "MLIR compiler infrastructure for model compilation and dialect lowering",
+      "matched_requirement_id": "req-2",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "7"
+    },
+    {
+      "id": "2609.30651v1",
+      "source": "arxiv",
+      "title": "Verification of Compiler-to-Accelerator Mappings for Machine Learning Accelerators",
+      "abstract": "To meet the performance needs of modern machine learning (ML) applications, ML compiler frameworks support compiler-to-accelerator mappings that offload parts of application code to operations in specialized hardware accelerators. However, most of these frameworks do not verify these mappings down to the hardware level, potentially resulting in functional mismatches. In this paper we propose BOLT, the first framework for formally verifying the correctness of compiler-to-accelerator mappings for coarse-grained intrinsics in ML accelerators, with respect to a formal hardware semantics. BOLT does not require additional information from the compiler, and verifies the functional equivalence of the application code and the code for the mapped hardware accelerator intrinsic, including handling of complex loop nests and tensor data layouts in hardware. It effectively utilizes a pattern of *aligning* software loops with the hardware, followed by *relating* corresponding data layouts, to enable verification using well-aligned product programs. To support these steps, we propose two custom templates --- the sync-skeleton and the layout-sketch --- to guide users in aligning loops and specifying data layout relationships, respectively. We have developed a proof-of-concept prototype for BOLT and use it to successfully verify the correctness of several complex mappings for two recent open-source ML accelerators.",
+      "authors": [
+        "Akash Gaonkar",
+        "Mike He",
+        "Yi Li",
+        "Bo-Yuan Huang",
+        "Andrew Cheung",
+        "Vishal Canumalla",
+        "Gus Henry Smith",
+        "Zachary Tatlock",
+        "Grigory Fedyukovich",
+        "Sharad Malik",
+        "Aarti Gupta"
+      ],
+      "primary_category": "cs.PL",
+      "categories": [
+        "cs.PL"
+      ],
+      "published": "2026-09-25T00:41:32+00:00",
+      "link": "https://arxiv.org/pdf/2609.30651v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "formally verifies compiler-to-accelerator mappings for ML accelerators",
+      "llm_evidence_cn": "形式化验证ML加速器的编译器到加速器映射",
+      "llm_evidence": "形式化验证ML加速器的编译器到加速器映射",
+      "canonical_evidence": "形式化验证ML加速器的编译器到加速器映射",
+      "llm_tldr_en": "ML compiler frameworks offload code to accelerator intrinsics but rarely verify mappings at hardware level. BOLT formally verifies compiler-to-accelerator mappings against hardware semantics, ensuring functional equivalence without extra compiler info.",
+      "llm_tldr_cn": "ML编译框架常将应用代码卸载到专用加速器算子，但多数框架未在硬件层验证这些映射，可能引发功能不一致。作者提出BOLT框架，基于形式化硬件语义验证粗粒度内建算子的编译器到加速器映射，且无需编译器提供额外信息。该工作提升了加速器后端映射的正确性保障，对硬件加速后端生成具有支撑意义。",
+      "llm_tldr": "ML编译框架常将应用代码卸载到专用加速器算子，但多数框架未在硬件层验证这些映射，可能引发功能不一致。作者提出BOLT框架，基于形式化硬件语义验证粗粒度内建算子的编译器到加速器映射，且无需编译器提供额外信息。该工作提升了加速器后端映射的正确性保障，对硬件加速后端生成具有支撑意义。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "hardware acceleration backend generation from MLIR and IREE pipelines",
+      "matched_requirement_id": "req-6",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    },
+    {
+      "id": "2610.02658v1",
+      "source": "arxiv",
+      "title": "Annotation-Driven Migration of CUDA Programs to Tenstorrent Blackhole",
+      "abstract": "Tenstorrent Blackhole combines distributed local memories, explicit inter-core communication, and Tensix cores decoupling data movement from computation. CUDA offers a substantial HPC software base but leaves physical data placement and scheduling largely implicit. Migrating CUDA HPC kernels to Blackhole requires spatial mapping across cores and per-core coordination of compute and data-movement kernels. We present an MLIR-based compiler deriving data placement, inter-core communication, and tile computation from a statically shaped affine CUDA subset. Declarative annotations express choices not fixed by the source, including compute/DM operation placement and streaming granularity. We evaluate it on Gaussian elimination, five-point stencil, and symmetric rank-k update. Relative to our compiler's default realizations, the best measured configurations achieve a 4.2x speedup for BF16 Gaussian and 2.1-2.2x for FP32 Gaussian and Jacobi. A choice's performance impact can reverse with surrounding policies, precision, and loop schedule, motivating comparison of alternative per-core realizations rather than independent policy selection.",
+      "authors": [
+        "Ayumi Ohno",
+        "Shinya Takamaeda-Yamazaki"
+      ],
+      "primary_category": "cs.DC",
+      "categories": [
+        "cs.DC"
+      ],
+      "published": "2026-10-02T01:27:48+00:00",
+      "link": "https://arxiv.org/pdf/2610.02658v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 7.0,
+      "llm_evidence_en": "MLIR-based compiler deriving data placement, inter-core communication and tile computation",
+      "llm_evidence_cn": "基于MLIR的编译器推导数据布局、核间通信与分块计算",
+      "llm_evidence": "基于MLIR的编译器推导数据布局、核间通信与分块计算",
+      "canonical_evidence": "基于MLIR的编译器推导数据布局、核间通信与分块计算",
+      "llm_tldr_en": "Migrating CUDA HPC kernels to Tenstorrent Blackhole requires explicit spatial mapping and coordination. This MLIR-based compiler uses declarative annotations to derive data placement, inter-core communication, and tile computation from an affine CUDA subset.",
+      "llm_tldr_cn": "将CUDA HPC内核迁移到Tenstorrent Blackhole需显式处理数据放置与核间协调，而CUDA对物理布局与调度较为隐式。作者提出一个基于MLIR的编译器，从静态形状的仿射CUDA子集推导数据布局、核间通信与分块计算，并用声明式注解表达放置与流式粒度等选择。该工作在多个基准上验证了方法，展示了MLIR在异构加速器降级编译中的能力。",
+      "llm_tldr": "将CUDA HPC内核迁移到Tenstorrent Blackhole需显式处理数据放置与核间协调，而CUDA对物理布局与调度较为隐式。作者提出一个基于MLIR的编译器，从静态形状的仿射CUDA子集推导数据布局、核间通信与分块计算，并用声明式注解表达放置与流式粒度等选择。该工作在多个基准上验证了方法，展示了MLIR在异构加速器降级编译中的能力。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "MLIR compiler infrastructure for model compilation and dialect lowering",
+      "matched_requirement_id": "req-2",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "7"
+    },
+    {
+      "id": "2610.03571v1",
+      "source": "arxiv",
+      "title": "OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation",
+      "abstract": "The increasing diversity of parallel hardware challenges existing compilation flows. While OpenMP provides a portable abstraction for shared-memory parallelism, existing compilers tightly couple the frontend semantics with fixed lowering strategies. This design limits performance portability across different runtimes and architectures. In this paper, we present a modular approach to parallel code generation based on the Multi-Level Intermediate Representation (MLIR) framework. Our approach combines an OpenMP frontend with a domain-specific language (DSL) that specifies how OpenMP constructs are lowered for a target. We call this approach OpenMP meta-lowering, treating lowering as a programmable component rather than compiler-specific logic. This design provides explicit control over code outlining, data sharing, and runtime interfacing across diverse targets. We evaluate our approach on PolyBench/C-OMP across general-purpose and embedded multicore targets. Our results show that the proposed method matches the performance of state-of-the-art compiler toolchains with negligible code-size overhead (< 0.7%). Preserving OpenMP constructs until late lowering stages enables both general-purpose and OpenMP-specific MLIR optimizations. By decoupling lowering from compiler internals, our approach expresses the same OpenMP subset in 5,182 lines of code, ~32% fewer than the corresponding lowering code in Clang and ~76% fewer than in GCC, while supporting the pmsis runtime costs only a few specification lines, enabling rapid support for new runtimes without modifying the compiler.",
+      "authors": [
+        "Luca Parigi",
+        "Giuseppe Tagliavini"
+      ],
+      "primary_category": "cs.PL",
+      "categories": [
+        "cs.PL",
+        "cs.DC"
+      ],
+      "published": "2026-10-02T16:46:22+00:00",
+      "link": "https://arxiv.org/pdf/2610.03571v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "MLIR-based modular lowering where lowering strategy is a programmable component",
+      "llm_evidence_cn": "基于MLIR的模块化降级，将降级策略变为可编程组件",
+      "llm_evidence": "基于MLIR的模块化降级，将降级策略变为可编程组件",
+      "canonical_evidence": "基于MLIR的模块化降级，将降级策略变为可编程组件",
+      "llm_tldr_en": "OpenMP meta-lowering decouples frontend semantics from target lowering using MLIR plus a DSL, making lowering strategies programmable and thus performance-portable across runtimes.",
+      "llm_tldr_cn": "针对现有编译器将前端语义与固定降级策略紧耦合、导致跨架构性能可移植性差的问题，作者提出OpenMP元降级方法。该方案基于MLIR框架，将OpenMP前端与描述目标降级规则的领域专用语言结合，把降级过程当作可编程组件而非编译器的固定部分。实验展示了同一前端可为不同运行时与架构生成差异化代码。该工作对MLIR方言降级与后端生成具有直接借鉴意义。",
+      "llm_tldr": "针对现有编译器将前端语义与固定降级策略紧耦合、导致跨架构性能可移植性差的问题，作者提出OpenMP元降级方法。该方案基于MLIR框架，将OpenMP前端与描述目标降级规则的领域专用语言结合，把降级过程当作可编程组件而非编译器的固定部分。实验展示了同一前端可为不同运行时与架构生成差异化代码。该工作对MLIR方言降级与后端生成具有直接借鉴意义。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "MLIR compiler infrastructure for model compilation and dialect lowering",
+      "matched_requirement_id": "req-2",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    },
+    {
+      "id": "2610.04808v1",
+      "source": "arxiv",
+      "title": "Alkaid: A Compiler Framework for Ultra-Low-Latency Kernels on Hardware",
+      "abstract": "Ultra-low-latency machine learning and data processing pipelines operating on the sub-microsecond level often contain static dataflow kernels that require fine-grained bitwidth control, arithmetic optimization, and fast hardware performance estimation. This works introduce Alkaid, a free and open source domain specific compiler that translates sub-microsecond latency dataflow kernels into platform agnostic Register Transfer Level (RTL) or High-Level Synthesis (HLS)-ready code in seconds. Alkaid targets ultra-low-latency ML pipelines, especially those addressed by existing ML-to-hardware flows such as \\texttt{hls4ml}, while also supporting the surrounding pre-processing, post-processing, and control logic. At its core, Alkaid uses an arithmetic centric intermediate representation, Alkaid Low-level IR (ALIR), to preserve fixed-point semantics, heterogeneous bitwidths, and operation level structure for optimization and code generation. Alkaid further provides comprehensive hardware-aware optimization passes and an interpretable white-box analytical performance model for rapid design space exploration without synthesis in the loop. Across representative ML workloads, including MLPs, GNNs, and transformers, Alkaid achieves 20-30\\% lower LUT usage than the best prior flows for bit-exact equivalent designs, with up to 40\\% lower latency in some cases. Beyond typical neural networks, Alkaid achieves comparable performance to the state-of-the-art method for synthesizing boosted decision trees, while also enabling the implementation and integration of non-ML kernels such as sorting networks and histograms.",
+      "authors": [
+        "Chang Sun",
+        "Zhiqiang Que",
+        "Dimitrios Danopoulos",
+        "Maurizio Pierini",
+        "Wayne Luk",
+        "Maria Spiropulu"
+      ],
+      "primary_category": "cs.AR",
+      "categories": [
+        "cs.AR",
+        "hep-ex"
+      ],
+      "published": "2026-10-03T23:24:05+00:00",
+      "link": "https://arxiv.org/pdf/2610.04808v1",
+      "tags": [
+        "keyword:mlir-iree",
+        "query:mlir-iree"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "domain-specific compiler lowering ML dataflow kernels into platform-agnostic RTL or HLS-ready code for hardware acceleration",
+      "llm_evidence_cn": "领域专用编译器将ML数据流内核下降为平台无关RTL或HLS代码以生成硬件加速后端",
+      "llm_evidence": "领域专用编译器将ML数据流内核下降为平台无关RTL或HLS代码以生成硬件加速后端",
+      "canonical_evidence": "领域专用编译器将ML数据流内核下降为平台无关RTL或HLS代码以生成硬件加速后端",
+      "llm_tldr_en": "Alkaid is an open-source domain-specific compiler that turns sub-microsecond dataflow kernels into platform-agnostic RTL or HLS-ready code in seconds, covering surrounding control logic.",
+      "llm_tldr_cn": "亚微秒级机器学习与数据处理流水线中的静态数据流内核需要精细位宽控制、算术优化与快速硬件性能估计，而现有机器学习到硬件的流程往往只覆盖核心计算。Alkaid 是一个免费开源的领域专用编译器，可在数秒内将这类内核翻译为平台无关的 RTL 或可直接综合的 HLS 代码，并支持前后处理与控制逻辑。它面向超低延迟流水线并兼容 hls4ml 等既有流程，为编译驱动的硬件加速后端生成提供了实用路径。",
+      "llm_tldr": "亚微秒级机器学习与数据处理流水线中的静态数据流内核需要精细位宽控制、算术优化与快速硬件性能估计，而现有机器学习到硬件的流程往往只覆盖核心计算。Alkaid 是一个免费开源的领域专用编译器，可在数秒内将这类内核翻译为平台无关的 RTL 或可直接综合的 HLS 代码，并支持前后处理与控制逻辑。它面向超低延迟流水线并兼容 hls4ml 等既有流程，为编译驱动的硬件加速后端生成提供了实用路径。",
+      "llm_tags": [
+        "query:mlir-iree"
+      ],
+      "matched_query_tag": "query:mlir-iree",
+      "matched_query_text": "hardware acceleration backend generation from MLIR and IREE pipelines",
+      "matched_requirement_id": "req-6",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    }
+  ]
+}

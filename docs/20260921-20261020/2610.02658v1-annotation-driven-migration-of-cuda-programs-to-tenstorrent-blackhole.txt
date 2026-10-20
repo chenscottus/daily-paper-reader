@@ -1,0 +1,537 @@
+Title: Annotation-Driven Migration of CUDA Programs to Tenstorrent Blackhole
+
+URL Source: https://arxiv.org/pdf/2610.02658v1
+
+Published Time: Mon, 05 Oct 2026 00:27:41 GMT
+
+Number of Pages: 12
+
+Markdown Content:
+# Annotation-Driven Migration of CUDA Programs to Tenstorrent Blackhole 
+
+Ayumi Ohno 
+
+The University of Tokyo, Tokyo, Japan ayumi0130ohno@is.s.u-tokyo.ac.jp 
+
+Shinya Takamaeda-Yamazaki 
+
+The University of Tokyo and RIKEN, Tokyo, Japan shinya@is.s.u-tokyo.ac.jp 
+
+Abstract —Tenstorrent Blackhole combines distributed local memories, explicit inter-core communication, and Tensix cores decoupling data movement from computation. CUDA offers a substantial HPC software base but leaves physical data placement and scheduling largely implicit. Migrating CUDA HPC kernels to Blackhole requires spatial mapping across cores and per-core coordination of compute and data-movement kernels. We present an MLIR-based compiler deriving data placement, inter-core communication, and tile computation from a statically shaped affine CUDA subset. Declarative annotations express choices not fixed by the source, including compute/DM operation placement and streaming granularity. We evaluate it on Gaussian elimination, five-point stencil, and symmetric rank-k update. Relative to our compiler’s default realizations, the best measured configurations achieve a 4.2× speedup for BF16 Gaussian and 
+
+2.1–2.2× for FP32 Gaussian and Jacobi. A choice’s performance impact can reverse with surrounding policies, precision, and loop schedule, motivating comparison of alternative per-core realizations rather than independent policy selection. 
+
+Index Terms —CUDA, High performance computing, Manycore processors, MLIR, Pipeline processing, Tenstorrent 
+
+I. I NTRODUCTION 
+
+Spatial accelerators have emerged as hardware platforms for data-intensive computation, combining distributed local memories with explicit on-chip communication [1]. Cerebras wafer-scale engines, AMD Versal AI Engines, and Tenstorrent Tensix core arrays are prominent examples [2]–[4]. Beyond AI, such systems have also been explored for HPC workloads, including stencils and FFTs [5]–[11]. Tenstorrent Blackhole presents an additional mapping challenge: each Tensix core de-couples data movement from computation [4]. Separate RISC-V processors execute compute and data-movement (DM) ker-nels and communicate through circular buffers (CBs) in L1 memory. Mapping data and computation across Tensix cores is therefore only part of the problem: the compiler must also divide operations between the compute and DM kernels and coordinate their execution within each core. We refer to this intra-core mapping problem as per-core realization , a central focus of this work. Tenstorrent’s standard TTIR-to-TTNN path represents com-putation through tensor-level operations but does not expose the low-level data movement and synchronization choices used in optimized HPC kernels. Prior Tenstorrent HPC studies [8]– [11] optimize kernels such as stencils and FFTs in TT-Metalium, rather than provide a general compilation path for such programs. At a higher level, TileLoom [12] automates spatiotemporal mapping and inter-core dataflow for workloads such as FlashAttention and GEMM written in tile-based languages. These efforts leave open a general compilation path that exposes alternative per-core realizations for HPC workloads with varied affine access and computation patterns. A substantial body of HPC kernels and benchmark suites is available in CUDA [13], [14]. CUDA’s SIMT abstraction de-scribes computation and memory accesses over threads while leaving physical data placement, movement, and scheduling implicit. Migrating these programs to Blackhole will improve the programming experience, but requires deriving both spatial tile dataflow and a decoupled per-core realization. We present an MLIR-based compiler that performs this migration for an affine subset of CUDA whose per-core working sets fit in local L1. Given affine iteration domains and access maps together with a compact placement specification, the compiler assigns data and computation to the core grid and derives the communication required for each access. Within each core, it lowers thread-level computation to tile operations, constructs their operands using within-tile transformations, and converts guards to tile masks. It then partitions the operations between the compute and DM kernels and coordinates their execution using L1 buffers and CB synchronization. The key technical challenge in this migration is that source semantics do not determine a unique per-core realization. For example, arithmetic may run in a compute or DM kernel; a guard may become a compute-side mask or a DM-side copy; work may be divided between the two DM kernels; and CB synchronization may operate at different granularities. The performance of each choice depends on the resulting balance of compute and DM work, so assigning a fixed cost to each choice can be insufficient. We expose these choices as declarative annotations. The compiler checks their applicability, applies the corresponding IR transformations, and lowers the result without handwritten low-level kernels. We evaluate Gaussian elimination, five-point stencil, and symmetric rank-k update using CUDA programs derived from benchmark suites, subject to the scope and target-independent canonicalization of Section II-C; for each workload, all con-figurations share the same CUDA input and differ only in their annotation sets. The best measured annotation sets yield 
+
+4.2× at BF16 for gaussian and 2.1–2.2× at FP32 for 
+
+gaussian and jacobi_2d , relative to the compiler’s own default realizations, in which arithmetic runs on compute, data arXiv:2610.02658v1 [cs.DC] 2 Oct 2026 manipulation on DM, guards become compute-side masked selects, and all DM work uses a single lane. The preferred per-core realization depends on the surrounding policies, arith-metic precision, and loop schedule. II. B ACKGROUND 
+
+A. Tenstorrent Blackhole Architecture 
+
+Blackhole is a spatial architecture that integrates 140 Tensix cores on a chip, of which our evaluated device exposes a 13 × 10 logical worker grid to TT-Metalium. Each core has 1.5 MiB of L1 SRAM. Figure 1 shows the execution organization of a Tensix core. Two RISC-V DM processors issue transfers to DRAM and remote cores through the two NoC interfaces [4]. In TT-Metalium, DM and compute kernels communicate through CBs in L1 memory. The CBs stage operands and results and provide producer–consumer synchro-nization, allowing data transfer and computation to overlap. We refer to DM0, DM1, and the compute pipeline as engines .Computation on a Tensix core is organized over 32 × 32 -element tiles, each arranged as four 16 × 16 -element faces. The unpacker loads tiles from input CBs into source registers, the FPU computes from these registers into Dst registers, and the packer writes Dst tiles to an output CB. The SFPU instead performs operations on values already staged in Dst. For BF16 binary operations, the FPU is used when at least one operand is unpacked from CBs and the SFPU when both already reside in Dst. FP32 element-wise operations use the SFPU. DRAM      
+
+> NoC
+> (a) Chip: 140 Tensix cores connected by NoCs
+> DM kernel 0 DM kernel 1
+> CB CB
+> L1
+> unpacker packer
+> FPU SFPU
+> (b) Inside a Tensix core
+> Dst register
+> DRAM DRAM
+> DRAM
+> Fig. 1. Blackhole chip and Tensix core organization. The two DM processors access the NoC interfaces and exchange data with compute kernels through CBs in L1.
+
+B. Compiler Infrastructure 
+
+We use Polygeist [15] to translate CUDA programs into MLIR [16], enabling its affine-raising pass so that eligi-ble loops, conditions, and array accesses are represented in MLIR’s Affine Dialect. Our compiler ultimately emits the D2M 
+
+(Direct-to-Metal) Dialect of tt-mlir rather than the standard TTIR-to-TTNN path, because D2M can express computation over sharded tensors and core grids together with explicit engine assignment, data movement, and synchronization. 
+
+C. Target Workloads and Scope 
+
+We evaluate the compiler on three CUDA workloads: 
+
+gaussian from Rodinia [13] and jacobi_2d and syrk 
+
+from PolyBench/ACC [14]. gaussian performs the guarded elimination update Aij ← Aij − Ait /A tt · Atj over i > t and 
+
+j ≥ t. Mapping this update requires inter-core transfers and within-tile broadcasts to align the pivot-dependent operands while preserving the update domain. jacobi_2d repeatedly applies a five-point stencil to interior points, leaving the global array boundary unchanged. The stencil operands are constructed using within-tile shifts and tile-boundary fills from adjacent tiles, with inter-core transfers when those tiles reside on neighboring cores. syrk computes C ← αAA T + βC .Its reduction is realized as tile matrix multiplications with accumulated partial results and can be blocked to expose additional reuse. We use the jacobi_2d kernel body without restructuring, but manually adapt the other two inputs to limitations of the current frontend. For gaussian , we omit the update of the right-hand-side vector b because our current frontend does not support distributing rank-1 arrays. For syrk , we rewrite PolyBench’s in-place reduction using a scalar accumulator followed by a single final update, Cij = α acc + βC ij . The current frontend requires this target-independent canonicaliza-tion, which can change floating-point rounding. For all three workloads, we set the CUDA thread-block size to 32 × 32 ,because the current lowering maps the threads of one block to the elements of one Tensix tile. These adaptations add no workload-specific logic to the lowering and can be eliminated through future extensions (Section IV-F). All three are eval-uated at problem sizes whose per-core working sets remain within each core’s 1.5 MiB L1, so that the measurements are not dominated by DRAM bandwidth. 
+
+D. Prior Work on HPC Acceleration for Tenstorrent 
+
+Prior Tenstorrent stencil studies expose different data-movement bottlenecks depending on where data is kept between iterations. Brown and Barton [8] stream a 2-D 
+
+jacobi_2d stencil through device DRAM on Grayskull. Their optimizations favor fewer, larger, contiguous DRAM requests and reduce redundant local data copying. Piarulli and De Sensi [9] instead use heterogeneous CPU–Wormhole im-plementations of a 2-D five-point stencil. The CPU constructs shifted submatrices or a stencil-to-row layout, and data crosses PCIe on every iteration, making CPU-side preprocessing and transfer overhead central to their analysis. Taylor et al. [10] keep intermediate values in per-core L1 rather than DRAM and implement a 3-D seven-point stencil with halo exchange on Wormhole. Neighboring elements are aligned through tile shifts; east–west shifts require a transpose, shift, and transpose back, while tile transposition enables halo columns to be transferred as contiguous row segments. They find that local data rearrangement and computation collectively cost more than halo communication. We therefore treat within-tile transformations and arithmetic as optimization targets in the per-core realization design space. III. M APPING SIMT TO A DECOUPLED ACCELERATOR 
+
+A. From CUDA Constructs to Blackhole 
+
+Tenstorrent’s distributed L1 memories allow a global array to be sharded across cores so that each core owns part of the array, which remains in what we call persistent L1 for the entire execution. We target workloads whose per-core working sets fit in local L1. Larger working sets additionally require scheduling DRAM transfers and managing tile reuse in L1; such planning is outside our current scope and complementary to work such as TileLoom [12]. Within our scope, we follow the owner-computes rule: each output region is computed by the core that owns it. Affine accesses to data owned by other cores identify inter-core communication, which the compiler realizes as NoC transfers, using multicast where possible. Once the operands have been delivered, thread-level com-putation must be converted into per-core tile computation. The current mapping associates the two CUDA thread-index dimensions with the row and column positions of a 32 ×32 tile. A more general mapping could first express CUDA thread and block dimensions as loops and then select two loop dimensions as the tile axes, as explored by T2T [17]. The compiler then recognizes reductions and replaces them with tile-level reduction or matrix operations. Guards restrict the active ele-ments through masks, while non-identical access maps require within-tile shifts, broadcasts, transposes, or boundary patches to align each operand with its consumer. Finally, the default realization partitions the per-core pro-gram by assigning arithmetic to the compute kernel and data manipulation to the DM kernels. The compiler then inserts L1 buffers between producers and consumers and schedules their synchronization. GPUs can hide data-movement latency through warp scheduling, whereas on Blackhole the buffering and synchronization for overlap must be represented explicitly. 
+
+B. Per-Core Realization Design Space 
+
+A DM kernel is not limited to moving data: with access to L1 and a NoC, it can also transform and compute on data through RISC-V-based scalar processing and NoC-assisted bulk copies. The same operation can therefore be realized on DM in this way, or on compute as a tile operation. Table I summarizes the policy dimensions exposed by the compiler. A guard can be realized as a mask tile and a tile-wise select in the compute kernel, or as a DM-side copy that overwrites only the selected elements. A single row or column used as a tile operand can be replicated across the other tile dimension by a DM kernel, or kept as a line and expanded during compute-side consumption. Element-wise arithmetic on such a row or column need not be performed as a full-tile operation; a DM kernel can instead apply it element by element while producing the line.                     
+
+> TABLE I POLICY DIMENSIONS EXPOSED BY THE COMPILER .
+> Policy dimension Exposed alternatives
+> C1: TilePlan
+> loop scheduling reduction blocking and loop reordering predicate placement assignment of shared write predicates to the producing or consuming kernel
+> C2: TileFlow
+> arithmetic placement compute-side tile operation or DM-side scalar processing guard realization masked select on compute, a select sunk into one operand, or a partial copy by DM axis/layout realization direct shift/copy or transpose followed by a row-wise operation broadcast realization full-tile replication by DM or compute-side expansion conversion placement layout conversion before transfer at the sender or after transfer at the receiver
+> C3: Task
+> DM-lane assignment one DM lane or a split across DM0 and DM1 streaming granularity synchronization per tile (column streaming), shard row (row streaming), or full shard CB depth single or double buffering
+
+The physical tile layout creates a further choice. Row-wise shifts and copies access 16-byte-aligned contiguous segments and can use bulk NoC transfers. Direct column-wise operations access strided elements and require repeated scalar loads and stores by a DM kernel. Alternatively, a column-wise operation can be realized by transposing the tile and applying the corresponding row-wise operation, adding transposition overhead while enabling bulk transfers. Streaming granularity and CB depth jointly shape the trade-off between pipeline overlap and L1 usage. Finer granularity may expose more overlap, but it also increases synchronization frequency and can fragment bulk transfers. These policy choices can generally be specified indepen-dently by value and application site, while their performance effects can interact. We expose them as declarative annota-tions, allowing the compiler to lower different combinations without handwritten low-level kernels. IV. C OMPILER DESIGN 
+
+A. Four Compiler States and Three Policy Checkpoints 
+
+Figure 2 summarizes the compiler. It receives affine MLIR produced using Polygeist’s affine-raising pass, whose iteration domains and read/write access relations enable dependence analysis. The initial specification contains the arithmetic pre-cision, the core grid, and tensor shapes. It also classifies each tensor as externally visible or internal. Lowering realizes the target program through four compiler states:  
+
+> •
+
+TilePlan — mapping computation to cores and organiz-ing tile-level loops, with array accesses retained as affine maps to individual elements.  
+
+> •
+
+TileFlow — explicit construction of each tile operand through cross-core transfers, local reads, within-tile shifts, masks, transposes, and broadcasts. CUDA program 
+
+Affine MLIR 
+
+TilePlan 
+
+TileFlow 
+
+Task 
+
+Physical 
+
+D2M IR    
+
+> Polygeist
+> access realization
+> policy realization
+> & task formation
+> resource allocation
+> & synchronization
+> D2M emission
+> placement specification
+> (precision, core grid)
+> C1 loop schedule,
+> predicate placement
+> C2 guard, layout,
+> engine placement
+> C3 DM-lane,
+> streaming, buffer depth
+
+policy annotations   
+
+> derived by the compiler
+> given by the user Fig. 2. Four compiler states from affine MLIR to D2M IR. C1–C3 are policy checkpoints where users can add annotations and resume lowering. The remaining lowering is derived from the initial specification and annotations.
+> •
+
+Task — operations partitioned into per-engine groups connected by logical L1 buffers, with producer–consumer synchronization placed at the selected streaming level.  
+
+> •
+
+Physical — explicit Dst register-bank assignments, abso-lute L1 addresses, and CB synchronization, from which the compiler emits D2M IR. All three workloads pass through these four states without workload-specific compiler paths. The states are not disjoint dialect boundaries: their operations may coexist, sharing the 
+
+d2mtile dialect for tile computation. The TilePlan, TileFlow, and Task forms serve as policy checkpoints C1–C3 in Fig. 2. Table I lists the choices exposed at each checkpoint. At each checkpoint, the user can inspect the emitted IR and attach policy attributes to operations or loops. The compiler checks the request, applies it, and returns the transformed module to the same checkpoint. This cycle may repeat before lowering advances to the next state. Annotations are highlighted in blue in Listings 3, 4, and 5. The artifact includes complete annotation sets and application steps for the reported configurations of all three workloads. We follow the jacobi_2d west operand, W [i, j ] =
+
+A[i, j − 1] , through all four states. The gaussian and syrk 
+
+examples illustrate additional policy choices. 
+
+B. C1: TilePlan — Tiled Iteration and Computation 1) Loop Scheduling: The compiler first creates rank-2 logi-cal views and normalizes flat loads and stores into rank-2 affine accesses. While the program remains affine, loop-schedule annotations apply reduction blocking and loop reordering.                                                                   
+
+> 1(1) reduction innermost
+> 2shard_for (r,c)
+> 3temporal_for (k =0:K)
+> 4%a,%b =logical_read %A[...] shape [1,1]
+> 5%acc += matmul_block %a, transpose(%b) [1,1,1]
+> 67(2) strip-mine kby B
+> 8shard_for (r,c)
+> 9temporal_for (kb =0:K/B)
+> 10 %a,%b =logical_read %A[...] shape [1,B]
+> 11 %acc += matmul_block %a, transpose(%b) [1,1,B]
+> 12 13 (3) interchange kb outward
+> 14 temporal_for (kb =0:K/B)
+> 15 %a,%b =logical_read %A[...] shape [S,B]
+> 16 %acc[:,:] += matmul_block %a, transpose(%b) [S,S,B]
+> Listing 1. Schematic C1 schedules and logical reads for syrk .
+
+Applying these transformations in the Affine Dialect preserves affine accesses and guards and allows MLIR dependence analysis to validate loop reordering. For example, in syrk ,let K denote the number of tile-level reduction steps, B the block size in reduction tiles, and S the number of output tiles along each dimension of one core’s shard. Listing 1 shows the resulting C1 forms. Strip-mining groups operand reads into 
+
+1 × B blocks, while interchange exposes S × B reads for both operands and keeps an S × S accumulator in L1 across reduction blocks. 
+
+2) Automatic Lowering: The current lowering maps the two CUDA thread-index dimensions to the row and column positions of a 32 × 32 tile. To preserve the owner-computes rule when a CUDA kernel offsets its output indices, the compiler rebases affine accesses and guards to the destination coordinates. For gaussian , this converts Rodinia’s indices, which write A[xidx + t + 1 , y idx + t], into an output-coordinate iteration space. It then derives per-core shard loops from the tensor shapes and selected core grid. Affine loads become logical tile reads that retain their element access maps, scalar arithmetic becomes tile operations, and stores become tile writes. Affine conditions are represented as tile-region predi-cates, while sequential and reduction loops become temporal tile loops. Host-side loops around CUDA kernel launches are lifted into device-side temporal loops, with cross-core dependences enforced later through barriers. After TilePlan formation, the compiler fuses compatible kernels to eliminate intermediate buffers. For example, the two CUDA kernels of gaussian communicate the elimination factor m[i, t ] = A[i, t ]/A [t, t ] through global memory. Fusion forwards this value directly to the matrix update and eliminates the intermediate storage. In Listing 2, the west operand of jacobi_2d remains a logical read representing the global access (i, j ) 7 → (i, j − 1) ,with i, j computed from core, shard-local tile, and within-tile coordinates. Such neighbor accesses prevent fusion of the two kernels: kernel 2 would overwrite elements of A that kernel 1 has not yet read. 
+
+3) Predicate Placement Policy: In jacobi_2d , the writes in kernels 1 and 2 carry the same boundary predicates. A C1 annotation assigns each predicate to one of the two writes and removes it from the other. The compiler applies this T row shift  T back  col patch     
+
+> local tile west operand
+> default
+> Trow
+> shift
+> row
+> patch T back
+> transposed halo
+> local tile west operand
+> re alization_ basis=transposed
+
+Fig. 3. Two C2 realizations of the jacobi_2d west operand. Both express the local column shift as a row shift in the transposed basis. The default transposes back before applying the halo as a column patch, whereas 
+
+realization_basis=transposed applies the transposed halo as a row patch before transposing back. 
+
+policy only after verifying that the affine predicates, shard coordinates, and tile accesses are equivalent and that B is an internal intermediate used only by these kernels. Both placements preserve the boundary values of A.                                                                                                 
+
+> 1// host time loop raised around both CUDA kernels
+> 2device_for (%ci, %cj) in (10, 10)
+> 3temporal_for (%t) in (0, 1000) {
+> 4// kernel 1: B<-stencil(A)
+> 5shard_for (%r) axis <row> {
+> 6shard_for (%c) axis <col> {
+> 7%west =logical_read %A ... // west: (i,j) -> (i,j-1)
+> 8// %b =stencil using %west and four other operands
+> 9%g0,%g1,%g2,%g3 =
+> 10 region_predicate (i>0,i<N-1,j>0,j<N-1)
+> 11 write_if %b, %B[%r,%c]
+> 12 when(%g0,%g1,%g2,%g3) preserve %B
+> 13 }
+> 14 }
+> 15 // kernel 2: A<-B; %g0..%g3 are the same predicates
+> 16 shard_for (%r) axis <row> {
+> 17 shard_for (%c) axis <col> {
+> 18 write_if %B, %A[%r,%c]
+> 19 when(%g0,%g1,%g2,%g3) preserve %A
+> 20 }
+> 21 }
+> 22 }
+
+Listing 2. Schematic C1 form of jacobi_2d .
+
+C. C2: TileFlow — Constructing Tile Operands and Dataflow 1) Automatic Lowering: For each affine access, the com-piler factors the array coordinates against the shard and tile ge-ometry into a source core, a local tile coordinate, and a within-tile map. A core map that is identically this core resolves to a local read, and one that can select another core resolves to a transfer. The within-tile map is then normalized into the Tile-Flow forms shown in Listings 3 and 4. gaussian ’s A[t, j ],
+
+A[i, t ], and A[t, t ] become broadcasts of a row, a column, and a cell, while jacobi_2d ’s west operand becomes a within-tile shift patched at the tile boundary. Neither engine can apply a column offset efficiently, so this shift is adapted to a transpose, a row shift, and a transpose back, as illustrated in Fig. 3 and Listing 4 (1). Affine predicates are decomposed into row- and column-wise masks as applicable, and guarded writes become masked_overlay operations that preserve the previous destination value on inactive lanes. 
+
+2) Policies: a) gaussian : For arithmetic placement, annotating the reciprocal for DM execution makes the DM compute a scalar at the pivot cell and then broadcast it, rather than compute the reciprocal over the full tile, as shown in Listing 3 (2a). For guard realization, an annotation selects a mask m and a factor x in a guarded update select( A − x · y, A, m ). Under the user’s assumption that y is finite on lanes disabled by m,the compiler rewrites the update as A − select( x · y, 0, m )
+
+and sinks the select into the designated factor to obtain 
+
+A − select( x, 0, m ) · y. In Listing 3 (2b), the annotation pairs the row mask %mr with the broadcast-column factor %col ,producing %masked by zeroing inactive lanes. A further 
+
+realization_engine annotation moves this fill to DM before the broadcast, producing %masked_src in step (2c).                                                                                                                                                             
+
+> 1gaussian: A[i,j] -= (A[i,t] /A[t,t]) *A[t,j]
+> 2(1) Semantic TileFlow: derived access
+> 3%cell_src =tileflow.transfer %A[t,t]
+> 4%cell =tileflow.broadcast %cell_src <scalar>
+> 5%inv =d2mtile.unary recip %cell
+> 6{tileflow.realization_engine =dm}
+> 7shard_for (%i) axis <row> {
+> 8%col_src =tileflow.transfer %A[i,t]
+> 9%col =tileflow.broadcast %col_src <col> from (%tc)
+> 10 {tileflow.predication_target =0}
+> 11 %scale =d2mtile.binary mul %col, %inv
+> 12 shard_for (%j) axis <col> {
+> 13 // %row =row broadcast of A[t,j]
+> 14 %mr =tileflow.row_mask [...] // i>t
+> 15 %mc =tileflow.col_mask [...] // j>= t
+> 16 %out =tileflow.masked_overlay (%A[i,j]-%scale*%row)
+> 17 with %A[i,j] active (%mr,%mc)
+> 18 {tileflow.predication =<mask=0,target=0>}
+> 19 }
+> 20 }
+> 21 22 (2a) realize realization_engine on %inv
+> 23 %inv_src =d2mtile.unary recip %cell_src at cell(%tr,%tc)
+> 24 %inv =tileflow.broadcast %inv_src <scalar> from (%tr,%tc)
+> 25 26 (2b) realize the predication annotations
+> 27 %masked =tileflow.mask_fill %col active (%mr)
+> 28 {tileflow.realization_engine =dm}
+> 29 %scale =d2mtile.binary mul %masked, %inv
+> 30 %out =tileflow.masked_overlay (%A[i,j]-%scale*%row)
+> 31 with %A[i,j] active (%mc)
+> 32 33 (2c) realize realization_engine on %masked
+> 34 %masked_src =tileflow.mask_fill %col_src active (%mr)
+> 35 at col (%tc)
+> 36 %masked =tileflow.broadcast %masked_src <col> from (%tc)
+
+Listing 3. Schematic C2 transformations of the gaussian update. 
+
+For broadcast realization, a broadcast may instead be per-formed as part of compute-side consumption. The DM kernel first copies only the source line into row 0 or column 0 of a tile operand. For example, it places %col_src in column 0, and the consuming d2mtile.binary mul performs the column broadcast. For BF16, a standalone unary broadcast materializes scalar broadcasts and can also materialize row or column broadcasts when the broadcast cannot be fused into a consuming binary operation. 
+
+b) jacobi_2d : For the west operand, annotating the halo masked_overlay with 
+
+realization_basis<transposed> requests that the halo patch be applied in the transposed basis. This makes the patch a row copy followed by a transpose back, as illustrated in Fig. 3 and Listing 4 (1)–(2). An additional conversion-placement annotation selects whether the halo transpose is performed at the sender or receiver. Under the current global-semaphore scheme, sender-side placement materializes a converted view %A_t once per time step, allowing both local reads and remote deliveries to reuse it, as shown in Listing 4 (3). For guard realization, each global boundary mask is realized by default as a compute-side masked select; an annotation can move it to DM, where it becomes a conditional lane copy. Although the C2 choice is semantically independent of C1 predicate placement, pairing compute realization with B ←
+
+stencil( A), or DM realization with A ← B, reduces compute– DM handoffs. For each boundary mask, we therefore evaluate only these two matched placements.                                                                                                               
+
+> 1jacobi west operand A[i,j-1]
+> 2(1) automatic column-shift realization +policy
+> 3%halo =tileflow.transfer %A [...]
+> 4%local =tileflow.local_read %A [...]
+> 5%local_t =tileflow.transpose %local
+> 6%shifted_t =tileflow.roll %local_t axis <row> by -1
+> 7%shifted =tileflow.transpose %shifted_t
+> 8%edge =tileflow.col_mask [...]
+> 9%west =tileflow.masked_overlay %shifted with %halo
+> 10 active (%edge)
+> 11 {tileflow.realization_basis =transposed}
+> 12 13 (2) realize the transposed basis
+> 14 %halo_t =tileflow.transpose %halo
+> 15 {tileflow.conversion_site =sender}
+> 16 %west_t =tileflow.row_copy %shifted_t with %halo_t [...]
+> 17 %west =tileflow.transpose %west_t
+> 18 19 (3) realize sender-side conversion
+> 20 %A_t =tileplan.converted_view %A // holds T(A)
+> 21 %halo_t =tileflow.frame_delivery %A_t [...]
+> 22 %local_t =tileflow.local_read %A_t [...]
+> 23 %shifted_t =tileflow.roll %local_t axis <row> by -1
+> 24 %west_t =tileflow.row_copy %shifted_t with %halo_t [...]
+> 25 %west =tileflow.transpose %west_t
+
+Listing 4. Schematic C2 transformation of the jacobi_2d west operand. 
+
+3) Derived Optimizations: After applying C2 annotations, the compiler derives communication and reuse optimizations. A transfer whose region is partly local is split into a local read and a remote delivery, and a rectangular delivery region is requested as one frame. The compiler also identifies frame deliveries that can use multicast across a grid row or column. For loop-level reuse, A[t, j ] in gaussian varies with the inner-loop index j but not the outer-loop index i. The compiler prepares a frame of the required values across j before the 
+
+i loop and reuses it across that loop’s iterations. Transpose simplification combines T (a)+ T (b) into T (a+b) and cancels adjacent transpose pairs. 
+
+D. C3: Task — Pipelining Compute and Data Movement 
+
+After the C2 transformations, each operation is labeled as compute or DM. A logical L1 buffer is emitted at transfer des-tinations and for operands constructed by DM from transferred or locally read data. Values used only within compute remain tile values, whereas values exchanged with DM require logical L1 buffers. In Listing 5, %west_operand buffers %west_t 
+
+from Listing 4 (3). C3 also accounts for physical 16 × 16 -face boundaries when materializing DM-side shifts. The compiler then partitions operations by engine, splitting loop nests into engine-specific loops connected by the logical L1 buffers. By default, all DM operations are assigned to DM0. Lane annotations assign the specified operations to DM0 or DM1. The remaining DM operations follow their dependencies when possible and otherwise fall back to DM0. The compiler validates lane assignments to prevent cross-lane sharing of synchronized buffers and conflicting accesses to persistent L1 buffers. In jacobi_2d , the construction of the north and south operands can be assigned to one lane and that of the west and east operands to the other. The split is legal because the north and south construction reads the original view of A, while the west and east construction reads the separate converted view %A_t .                                                                                                                          
+
+> 1(1) {task.streaming_granularity =<row> }
+> 2task.group @dm1 {
+> 3%west_halo =tileflow.frame_delivery %A_t ... [0,-1]
+> 4shard_for (%r) axis <row> {
+> 5task.epoch_acquire %west_operand[%r]
+> 6shard_for (%c) axis <col> {
+> 7%shift =tileflow.roll %A_t[%r,%c] axis <row> by -1
+> 8// %west_operand[%r,%c] =patch(%shift, %west_halo)
+> 9}
+> 10 task.epoch_ready %west_operand[%r]
+> 11 }
+> 12 }
+> 13 task.group @compute {
+> 14 shard_for (%r) axis <row> {
+> 15 task.epoch_wait %west_operand[%r]
+> 16 shard_for (%c) axis <col> {stencil(%r, %c) }
+> 17 task.epoch_free %west_operand[%r]
+> 18 }
+> 19 }
+> 20 21 (2) {task.streaming_granularity =<col> }
+> 22 task.group @dm1 {
+> 23 %west_halo =tileflow.frame_delivery %A_t ... [0,-1]
+> 24 shard_for (%r) axis <row> {shard_for (%c) axis <col> {
+> 25 task.epoch_acquire %west_operand[%r,%c]
+> 26 %shift =tileflow.roll %A_t[%r,%c] axis <row> by -1
+> 27 // %west_operand[%r,%c] =patch(%shift, %west_halo)
+> 28 task.epoch_ready %west_operand[%r,%c]
+> 29 }}
+> 30 }
+> 31 task.group @compute {
+> 32 shard_for (%r) axis <row> {shard_for (%c) axis <col> {
+> 33 task.epoch_wait %west_operand[%r,%c]
+> 34 stencil(%r, %c)
+> 35 task.epoch_free %west_operand[%r,%c]
+> 36 }}
+> 37 }
+
+Listing 5. Schematic C3 streaming granularities for the jacobi_2d west operand. 
+
+After engine assignment, the streaming-granularity annota-tion selects how often the producer and consumer synchro-nize. Listing 5 shows row and column streaming for the 
+
+jacobi_2d west operand. Column streaming synchronizes once per tile, enabling finer-grained overlap between operand construction and computation. Row streaming instead synchro-nizes once per shard row, allowing local-copy work generated by tileflow.roll to be batched across its columns. If an operation sequence crosses from compute to DM and back within the column loop, as in the transpose, DM-side roll, and transpose-back sequence in Listing 4 (1), DM and compute must synchronize at each column-loop iteration; row streaming is therefore rejected. 
+
+E. Physical — Resource Planning and D2M Emission 
+
+Physicalization resolves the logical resources introduced at C3 and emits D2M IR. It realizes the synchronization with CB reserve/push and wait/pop operations, assigning each synchronized buffer depth one by default and depth two when streamed; a non-streamed delivery uses depth two only when explicitly annotated and it passes the compiler’s legality checks. From each buffer’s shape and depth, it derives the CB capacity and allocates the L1 storage. For %west_operand 
+
+in Listing 5, the compiler allocates L1 storage and CB capacity for one shard row per CB slot with row streaming, or one tile per slot with column streaming. Cross-core RAW and WAR dependences on persistent L1 operands are enforced with grid-wide semaphore barriers placed before remote reads and before subsequent updates by the owner core, respectively. For Dst allocation, the compiler places a scope inside the in-nermost loop that writes an output tile, assigns slots to live val-ues by linear scan, and spills values crossing scope boundaries to L1. A Dst-resident matmul accumulator stays within one bank across the reduction loop, whereas an L1-resident one is emitted as a linalg.generic whose output panel the downstream D2M pipeline divides into Dst-sized subblocks. Each Task phase is finally emitted as d2m.generic over its core grid, with its DM0, DM1, and compute groups as concurrent threads. Host–DRAM transfers, layout conversion, and DRAM–persistent-L1 movement are emitted as separate dispatches. 
+
+F. Scope 
+
+The current implementation targets affine kernels over statically shaped rank-2 tensors with positive extents. Each CUDA thread block must match the 32 × 32 tile shape. All tensor extents must be multiples of that tile shape, and each output tile grid must divide evenly across the core grid because tail-domain schedules are not generated. The current compiler does not support CUDA __shared__ memory or __syncthreads() . Cross-core transfers cannot yet be split into streamed remote loads because their RAW and WAR barriers synchronize the grid around remote reads and subsequent owner updates of an entire persistent L1 buffer. V. E VALUATION 
+
+A. Methodology 1) Targets: Measurements use a Tenstorrent Blackhole p150a running system firmware 18.11.0.0 and an NVIDIA A100. We build our backend on tt-mlir revision 2a45751 ,adding LLKs for DM-side broadcasts and copies, extend-ing the existing mask-construction LLKs to support arbi-trary row and column sets, and adding lowering support for offset DMA reads and shaped remote loads. We disable 
+
+d2m-optimize-dma and preserve the explicit DMA and CB order emitted by our compiler. syrk is compiled at math fidelity HiFi2 ; the others use the pass default, HiFi4 .All Blackhole configurations are compiler-generated from the scoped CUDA inputs of Section II-C and run through tt-mlir, tt-metal, and ttrt. Within each workload, they share the spatial mapping and differ only in checkpoint policies. The Tenstorrent experiments use gaussian at N = 5120 
+
+and jacobi_2d and syrk at N = 3200 , all on a 10 × 10 
+
+core grid. These sizes make each output tile grid evenly divisible across the core grid. gaussian executes 5119 pivots, jacobi_2d executes 1000 time steps, and syrk 
+
+executes a single call. gaussian and jacobi_2d are evaluated at BF16 and FP32; syrk is evaluated at BF16 only. jacobi_2d at BF16 is numerically inaccurate after 1000 steps (Section V-E); we report its timings only to study realization-policy effects. For the A100 comparison, we use the same workload scope, including the omission of gaussian ’s right-hand-side-vector update, and apply standard GPU optimizations to the Rodinia and PolyBench/ACC implementations. For Rodinia gaussian , we remap the fast-varying thread index to the matrix-column dimension. For PolyBench jacobi_2d ,we alternate the input and output buffers between time steps instead of copying each result back. These GPU implementa-tions retain the original iteration structure, without algorithmic restructuring such as blocked factorization for gaussian 
+
+or temporal blocking for jacobi_2d . For syrk , we use 
+
+cublasGemmEx with BF16 Tensor Cores and FP32 accu-mulation. 
+
+2) Measurement: We measure Tenstorrent device time with the tt-metal device profiler from the earliest kernel-zone start to the latest end across participating cores, converting cycle counts to time at 1350 MHz. Host submission and host– device transfers are excluded. We report the mean of five measurements per configuration. On the A100 we additionally apply a time-based warm-up. The coefficient of variation was at most 0.19% across the Blackhole configurations and at most 0.6% on the A100. For the Tenstorrent-only policy studies, we report only the workload d2m.generic , with operands already resident in L1, to isolate the effects of realization policies. For com-parison with the A100, we manually fold the DRAM-to-L1 transfer and L1–DRAM writeback into the workload dispatch and report the elapsed time of the resulting single dispatch. We exclude row-major–tiled layout conversion, assuming that Blackhole data already resides in DRAM in tiled format. For the shorter syrk workload, this comparison executes 100 iterations within a single workload dispatch on Blackhole and 100 consecutive kernel launches on the A100, and we average the resulting per-iteration times. Peak L1 is the statically planned per-core L1 footprint, including persistent L1 buffers and temporary CBs. 
+
+B. Incremental Effects of Realization Policies 
+
+Tables II–IV trace cumulative paths through the policy space. Each row changes one policy relative to the preced-ing step, and the step speedup is their execution-time ratio. Bold marks the fastest measured configuration in the ladder at each precision. These comparisons hold the lower-level implementation fixed, including LLK code and intra-kernel scheduling. A policy’s measured effect still depends on the compiler’s current lowering rules, such as Dst allocation. Changes to either layer may change the measured effects of individual policies. The baselines use the default realization choices except that, at C1, jacobi_2d retains the boundary guards on B ← stencil( A). gaussian uses row streaming throughout, whereas jacobi_2d uses column streaming until its final BF16 row. 
+
+1) gaussian : Sinking the row mask hoists the select operation out of the column loop and improves performance at both precisions. Sinking the column mask does not allow such a hoist and requires staging a zero tile in Dst, costing about 14% at FP32. At BF16, Dst allocation also changes and the subtraction runs on the FPU instead of the SFPU, holding the cost to about 1%. Moving the masks to DM removes mask construction and masked selection. This change produces the largest step speedup, 3.19 × at BF16 and 1.93 × at FP32. Moving the reciprocal to DM gains at most about 1%, since the reciprocal is computed once per shard. Compute-side row and column broadcasts provide further gains at BF16. For FP32, the compute-side row broadcast is also beneficial, but adding the column broadcast increases execution time. Instead, forming A[i, t ]/A [t, t ] on DM provides a further 1.07 × at FP32 and gives the lowest measured time, as discussed in Section V-C.                                        
+
+> TABLE II INCREMENTAL EFFECTS OF REALIZATION POLICIES FOR G A U S S I A N .
+> Configuration Time [ms] Step speedup BF16 FP32 BF16 FP32 base: guard as a compute select 1290.5 1995.1 ––+ row mask sinking 1106.4 1689.6 1.17 ×1.18 ×
+> + col mask sinking 1119.3 1923.5 0.99 ×0.88 ×
+> + masks on DM 350.8 995.9 3.19 ×1.93 ×
+> + reciprocal on DM 347.8 994.9 1.01 ×1.00 ×
+> + row broadcast on compute 323.0 947.6 1.08 ×1.05 ×
+> Applied separately to the row above:
+> + col broadcast on compute 309.7 985.4 1.04 ×0.96 ×
+> + scale on DM 537.8 889.3 0.60 ×1.07 ×
+
+2) jacobi_2d : Applying the halo patch in the transposed basis adds one tile transpose but turns a strided column patch into a contiguous row copy, providing step speedups of 1.49 ×
+
+at BF16 and 1.29 × at FP32. Moving the conversion to the sender creates a converted view that is reused by local reads and remote deliveries, reducing the number of tile transposes from five to two per output tile and providing further gains at both precisions. Using the second DM lane provides 1.53 ×
+
+at BF16 but little benefit at FP32, where the heavier compute stage already hides most DM work. Moving the row boundary masks to DM has little effect, slightly slowing BF16 while giving the fastest measured FP32 configuration. This change reduces compute-side masked selects while largely preserving contiguous A ← B writeback through row-wise DM copies. Moving the column boundary masks to DM as well removes the remaining selects from compute, and at BF16 the Dst copy they require. However, the strided partial copies it introduces in the DM writeback cost more than the exposed saving, and both precisions slow down. With the masks on DM, switching to row streaming provides a further 1.14 × at BF16, although column streaming is prefer-able with the masks on compute, as discussed in Section V-C. The corresponding FP32 configuration is infeasible because it exceeds L1 capacity.                                    
+
+> TABLE III INCREMENTAL EFFECTS OF REALIZATION POLICIES FOR J A C O B I _2 D.
+> Configuration Time [ms] Step speedup BF16 FP32 BF16 FP32 base: direct column patch 266.8 414.4 ––+ patch transpose 179.7 321.4 1.49 ×1.29 ×
+> + sender-side conversion 137.6 201.6 1.31 ×1.59 ×
+> + second DM lane 89.8 197.0 1.53 ×1.02 ×
+> + row masks on DM 91.9 196.9 0.98 ×1.00 ×
+> + col masks on DM 93.1 200.6 0.99 ×0.98 ×
+> + row streaming 81.8 –1.14 ×–
+
+3) syrk : Table IV evaluates the schedule sequence in Listing 1. Strip-mining groups 10 reduction tiles into shaped operand deliveries and a blocked matmul, reducing remote load transactions per core from 20,000 to 2,000 and providing 
+
+5.57 ×. Moving the block loop outward forms larger delivery frames that are reused across the output shard, reducing the count further to 20 and providing 5.36 ×. The larger receive buffers and an L1-resident partial accumulator increase peak L1 from 446 to 1004 KiB. Depth-two operand delivery then provides a 1.27 × speedup by overlapping data transfer with computation, but raises peak L1 usage to 1404 KiB.                     
+
+> TABLE IV INCREMENTAL EFFECTS OF REALIZATION POLICIES FOR S Y R K (BF16).
+> Configuration Time [ μs] L1 [KiB] Step speedup base: reduction innermost 13852.9 440 –+ strip-mine k2485.6 446 5.57 ×
+> + interchange koutward 463.8 1004 5.36 ×
+> + delivery depth two 365.3 1404 1.27 ×
+
+C. Interactions among Realization Policies 
+
+The performance effect of a realization policy depends on the surrounding policies, arithmetic precision, and loop schedule. Figure 4 shows three cases in which changing this context reverses which realization is faster. 
+
+1) Multiplication and broadcast placement in gaussian :
+
+Figure 4(a) shows how arithmetic precision and broadcast placement affect the performance of placing the scaling multi-plication A[i, t ]·(1 /A [t, t ]) . The scaling can be performed as a tile multiplication on compute after the column broadcast, or element-wise by DM on the source column before broadcast. When only the row broadcast is placed on compute, DM-side scaling increases BF16 time by 67% but reduces FP32 time by 6%. Under row streaming, the DM and compute stages overlap, so execution time is determined by the slower stage. At BF16, compute is relatively light, and moving the scaling makes DM the bottleneck. At FP32, SFPU element-wise operations make compute the bottleneck, and moving the scaling to DM relieves it. When only the column broadcast is placed on compute, DM-side scaling instead increases FP32 time by 5%. Acompute-side broadcast is fused into a binary operation. With compute-side scaling, it is fused into the scaling multiplication, which is outside the column loop. Moving the scaling to DM (a) Gaussian precision / compute-side broadcast  
+
+> BF16 / row FP32 / row FP32 / col 323 ms 948 ms 1020 ms 1.67× 0.94× 1.05× scale @ compute scale @ DM
+
+(b) Jacobi boundary-mask placement / DM lanes  
+
+> comp. / 1 comp. / 2 DM / 2 112 ms 93.5 ms 81.8 ms 1.23× 0.96× 1.14× row stream column stream
+
+(c) SYRK operand reuse                 
+
+> per-tile per-shard 12.6 ms 0.37 ms 0.52× 1.07× 1 DM lane 2 DM lanes Fig. 4. Realization policies whose effects reverse across surrounding configurations. Blue bars show absolute device time; orange bars show time normalized to the blue bar in each group. gaussian is N= 5120 ;jacobi_2d is N= 3200 over 1000 steps; syrk is N= 3200 at delivery depth two.
+
+removes that multiplication, so the broadcast is instead fused into the other multiplication inside the column loop, increasing the number of expensive FP32 column-broadcast invocations. 
+
+2) Streaming granularity in jacobi_2d : Figure 4(b) shows how the effect of column streaming depends on the DM workload. With the boundary masks on compute, column streaming is 23% slower with one DM lane but 4% faster with two lanes. With the masks on DM, it remains 14% slower even with two lanes. Column streaming fragments the local copies for shifted operands into smaller transfers, adding work to the DM stage. When DM is heavy, as with one DM lane or a DM-side mask, this overhead is exposed. With a compute-side mask and two DM lanes, compute is instead the bottleneck, so the DM work is hidden and the finer-grained pipeline improves DM–compute overlap. 
+
+3) DM-lane assignment across syrk schedules: Fig-ure 4(c) shows that the benefit of assigning the multicast deliveries of A and AT to separate DM lanes depends on the reduction schedule. With the reduction innermost, splitting the fine-grained operand deliveries across two DM lanes reduces execution time by 48% through greater transaction-level concurrency. After interchange has reduced the delivery count to 20 per core, the same split adds coordination overhead and increases execution time by 7%. 
+
+D. Comparison with the A100 
+
+Table V compares execution time, including the device-memory traffic but excluding host–device transfers; the Black-hole side uses the fastest measured configuration at each compared precision, shown in bold in Tables II–IV.                 
+
+> TABLE V DEVICE -RESIDENT TIME EXCLUDING HOST –DEVICE TRANSFERS .
+> Workload Precision A100 [ms] TT [ms] TT/A100
+> gaussian FP32 302.9 890.5 2.94 ×
+> jacobi_2d FP32 66.3 197.3 2.98 ×
+> syrk BF16 0.363 0.708 1.95 ×
+
+gaussian and jacobi_2d are 2.94 × and 2.98 × slower on Blackhole than on the A100, respectively, but the two ar-chitectures encounter different bottlenecks. Even at the A100’s theoretical peak DRAM bandwidth of 1.555 TB/s, the DRAM traffic measured with Nsight Compute would require at least 68% of gaussian execution time and 79% of jacobi_2d 
+
+execution time, showing that DRAM traffic alone accounts for most of their execution time. 0 200 400 600 800 1000 critical path DM work                  
+
+> 7%7% 46% 38% 889 ms 15/16 overlapped (a) gaussian
+> 050 100 150 200 Device time [ms] critical path DM work
+> 13% 10%7% 33% 37% 201 ms 99/100 overlapped (b) jacobi_2d
+> communication & sync overlapped DM work preparation unpack/pack writeback math thread DM work
+> Fig. 5. Estimated breakdown of FP32 Blackhole execution time. Preparation denotes DM-side pivot-row/cell construction in gaussian and compute-side transposed view construction in jacobi_2d . The hatched portions of DM work denote pivot-column construction and scaling in gaussian and halo construction in jacobi_2d , estimated by assuming that only the first of 16 shard rows or 100 tiles, respectively, is exposed.
+
+Unlike the A100 implementations, the Blackhole realiza-tions keep their working sets in distributed L1. Figure 5 estimates an execution-time breakdown from controlled vari-ants. Differences measure the incremental cost of restoring each mechanism under the corresponding configuration. The 
+
+jacobi_2d decomposition uses the all-boundary-masks-on-DM configuration rather than the fastest measured configu-ration to separate stencil arithmetic cleanly. Cross-core com-munication and CB synchronization account for only 7% of 
+
+gaussian and 13% of jacobi_2d execution time and do not dominate either workload. Serialized preparation adds another 7% and 10%, and jacobi_2d ’s A ← B writeback a further 7%. Most DM-side tile construction is hidden be-hind compute, showing that the generated pipeline effectively overlaps DM and compute work. The remaining bottleneck lies in operand staging and SFPU execution within the compute kernel. In the evaluated FP32 path, unpack-to-Dst transfers and SFPU operations serialize on the math thread. Each SFPU operation sequentially executes arithmetic instructions, loads and stores between Dst and the SFPU’s local registers, and address updates. These costs limit throughput below the arithmetic peak and motivate further investigation of intra-kernel scheduling and optimization. For syrk , the L1-resident Blackhole workload dispatch sustains 179 TFLOP/s, or 65% of the 276 TFLOP/s peak scaled to the 100 evaluated cores. Including the serialized DRAM–L1 transfers increases execution time from 0.365 to 
+
+0.708 ms. The A100 completes the same device-resident work-load, including device-memory accesses, in 0.363 ms, also sustaining 180 TFLOP/s, or 58% of its 312 TFLOP/s BF16 peak. The L1-resident Blackhole execution therefore achieves a fraction of peak performance comparable to that of the A100’s end-to-end execution, while overlapping DRAM–L1 transfers with the contraction remains the primary opportunity on Blackhole. 
+
+E. Numerical Accuracy 
+
+We report relative Frobenius error for the fastest configura-tion at each precision, against an FP64 reference computed in PyTorch from the same inputs. For gaussian on a diagonally dominant input, the FP32 error is 9.3 × 10 −7 over the off-diagonal; for jacobi_2d , it is 9.5 × 10 −6 over the interior after 1000 steps. At BF16, the corresponding errors increase to 4.7×10 −3 for 
+
+gaussian and 1.68 for jacobi_2d . Both device outputs are nevertheless reproduced bit-exactly, at their full evaluated depths, by a simulator that models the emitted operation order, the FPU/SFPU assignment, the BF16 constants, and the accumulation of multiplier partial products in BF16 Dst with fp32_dest_acc_en=false . The increase therefore reflects BF16 representation and Tensix arithmetic; in partic-ular, 0.2 is not exactly representable in BF16, introducing a systematic bias at every jacobi_2d step. For syrk at BF16, the whole-output error is 1.0 × 10 −2; a simulator of the measured matrix-unit arithmetic likewise reproduces the device output bit-exactly. Future annotations could selectively promote operation and Dst-accumulation precision, trading accuracy against Dst capacity and execution time. 
+
+F. Toward Feedback-Driven Annotation Selection 
+
+The annotation space is large because policy choices can be combined and, where applicable, specified independently for different axes. Even without varying CB depth, the evaluated BF16 space contains 336 configurations for gaussian and 256 for jacobi_2d , all of which executed successfully. These conservative counts exclude unlikely but legal choices, such as sinking masks along unrelated axes or adding more compute–DM handoffs. The performance differences in Ta-bles II–IV and the policy interactions in Fig. 4 motivate exposing and comparing alternative per-core realizations rather than relying on fixed per-annotation costs. We therefore envision a feedback-driven system in which an LLM proposes annotation sets and uses measured performance to guide subsequent proposals, while the compiler applies each set and completes the lowering. Structural legality checking and low-level code generation remain within the compiler, while the LLM searches the declarative annotation space. VI. R ELATED WORK 
+
+Prior work retargets GPU programs across architectures. MKPipe [18] pipelines OpenCL multi-kernel workloads on FPGAs and balances throughput and resources across kernels, while Moses et al. [19] translate CUDA parallel constructs to CPUs. Booth [20] accepts CUDA, HIP, and Triton and emits Tenstorrent Metalium through a Tile DataFlow IR that represents regions, communication channels, transfer and synchronization actions, and L1 placement. HetGPU [21] instead proposes a compiler and runtime layer for cross-vendor binary compatibility by mapping CUDA SIMT semantics to heterogeneous GPUs, including Tenstorrent’s many-core MIMD execution model. Our work instead focuses on affine CUDA HPC kernels and preserves flexibility in their per-core realization through declarative annotations. T2T [17] and TileLoom [12] address complementary thread-to-tile mapping and spatiotemporal dataflow planning, respectively, as dis-cussed in Section III. Accelerator-oriented programming systems instead expose spatial execution and data movement directly to the pro-grammer. TT-Lang [22] provides a Python DSL for writing Tenstorrent kernels that progressively discloses pipelining and synchronization details. Dato [23] similarly provides a task-based model for FPGA and NPU dataflow accelerators, in which tasks are connected through explicit streams and input sharding is expressed as layout types. In contrast, our compiler starts from existing CUDA code rather than a new DSL, and derives inter-core communication from its affine accesses rather than requiring explicit tasks and streams as in Dato. ARIES [24] and Tiramisu [25] provide user-directed sched-ules for choices such as computation placement and loop transformations. Our annotations instead target fine-grained per-core realization choices for decoupled compute and data-movement processors, including operation placement, guard realization, and streaming granularity. TT-Lang is also de-signed to support AI-assisted translation and optimization in which AI agents generate and refine programs in its DSL, whereas Merouani et al. [26] use an LLM to propose Tiramisu transformation sequences whose legality and performance are evaluated by the compiler. Our checkpoints could similarly support LLM-proposed annotations, with the compiler check-ing legality and performing low-level lowering. VII. C ONCLUSION 
+
+We presented an MLIR-based compiler that derives spa-tial mapping and per-core realization when migrating affine CUDA programs to Tenstorrent Blackhole, exposing per-core realizations as declarative annotations and lowering their com-binations automatically. The fastest measured per-core config-urations improve performance by 4.2 × on BF16 gaussian 
+
+and 2.1–2.2 × on FP32 gaussian and jacobi_2d , relative to the compiler’s own default realizations. The measurements also show that the effect of an annotation depends on the surrounding policies. ACKNOWLEDGMENT 
+
+This work is supported in part by JST CREST JP-MJCR21D2. The authors used LLM assistants (Claude and Codex) for drafting and refining text from author-provided outlines and technical notes, and for coding support. REFERENCES [1] Y.-H. Chen, J. Emer, and V. Sze, “Eyeriss: A spatial architecture for energy-efficient dataflow for convolutional neural networks,” ACM SIGARCH computer architecture news , vol. 44, no. 3, pp. 367–379, 2016. [2] S. Lie, “Cerebras architecture deep dive: First look inside the hardware/-software co-design for deep learning,” IEEE Micro , vol. 43, no. 3, pp. 5–15, 2023. [3] B. Gaide, D. Gaitonde, C. Ravishankar, and T. Bauer, “Xilinx adaptive compute acceleration platform: Versal architecture,” in Proceedings of the 2019 ACM/SIGDA International Symposium on Field-Programmable Gate Arrays , 2019, pp. 84–93. [4] J. Vasiljevic and D. Capalija, “Blackhole & TT-Metalium: The stan-dalone AI computer and its programming model.” in 2024 IEEE Hot Chips 36 Symposium (HCS) , 2024, pp. 1–30. [5] K. Rocki, D. Van Essendelft, I. Sharapov, R. Schreiber, M. Morrison, V. Kibardin, A. Portnoy, J. F. Dietiker, M. Syamlal, and M. James, “Fast stencil-code computation on a wafer-scale processor,” in SC20: International Conference for High Performance Computing, Networking, Storage and Analysis . IEEE, 2020, pp. 1–14. [6] M. Orenes-Vera, I. Sharapov, R. Schreiber, M. Jacquelin, P. Van-dermersch, and S. Chetlur, “Wafer-scale fast Fourier transforms,” in 
+
+Proceedings of the 37th International Conference on Supercomputing ,2023, pp. 180–191. [7] N. Brown, “Exploring the Versal AI engines for accelerating stencil-based atmospheric advection simulation,” in Proceedings of the 2023 ACM/SIGDA International Symposium on Field Programmable Gate Arrays , 2023, pp. 91–97. [8] N. Brown and R. Barton, “Accelerating stencils on the Tenstorrent Grayskull RISC-V accelerator,” in SC24-W: Workshops of the Inter-national Conference for High Performance Computing, Networking, Storage and Analysis . IEEE, 2024, pp. 1690–1700. [9] L. Piarulli and D. De Sensi, “Stencil computations on Tenstorrent Wormhole,” arXiv preprint arXiv:2605.07599 , 2026. [10] M. Taylor, C. Pearson, L. Berger-Vergiat, G. Long, and J. Ciesko, “Numerical kernels on a spatial accelerator: A study of Tenstorrent Wormhole,” arXiv preprint arXiv:2603.23343 , 2026. [11] N. Brown, J. Davies, and F. L. Clair, “Exploring fast Fourier transforms on the Tenstorrent Wormhole,” in High Performance Computing: ISC High Performance 2025 International Workshops , ser. Lecture Notes in Computer Science, vol. 16091. Springer, 2025, pp. 598–612. [12] W. Li, Z. Bai, H. Wang, P. Dangi, Z. Zhang, C. Tan, H. Lan, W.-F. Wong, and T. Mitra, “TileLoom: Automatic dataflow planning for Tile-Based languages on spatial dataflow accelerators,” in 20th USENIX Symposium on Operating Systems Design and Implementation (OSDI 26) , 2026, pp. 1891–1908. [13] S. Che, M. Boyer, J. Meng, D. Tarjan, J. W. Sheaffer, S.-H. Lee, and K. Skadron, “Rodinia: A benchmark suite for heterogeneous computing,” in 2009 IEEE international symposium on workload characterization (IISWC) . IEEE, 2009, pp. 44–54. [14] S. Grauer-Gray, L. Xu, R. Searles, S. Ayalasomayajula, and J. Cavazos, “Auto-tuning a high-level language targeted to GPU codes,” in 2012 innovative parallel computing (InPar) . IEEE, 2012, pp. 1–10. [15] W. S. Moses, L. Chelini, R. Zhao, and O. Zinenko, “Polygeist: Raising C to polyhedral MLIR,” in 2021 30th International Conference on Parallel Architectures and Compilation Techniques (PACT) . IEEE, 2021, pp. 45–59. [16] C. Lattner, M. Amini, U. Bondhugula, A. Cohen, A. Davis, J. Pienaar, R. Riddle, T. Shpeisman, N. Vasilache, and O. Zinenko, “MLIR: Scaling compiler infrastructure for domain specific computation,” in 
+
+2021 IEEE/ACM International Symposium on Code Generation and Optimization (CGO) . IEEE, 2021, pp. 2–14. [17] S. Li, J. Zhao, Y. Liu, S. Zhang, L. Chen, Y. Li, Y. Zhang, Z. Li, R. Zhou, X. Shi, C. Xia, Y. Wen, X. Feng, and H. Cui, “From threads to tiles: T2T, a compiler for CUDA-to-NPU translation via 2D vectorization,” in 2026 IEEE/ACM International Symposium on Code Generation and Optimization (CGO) , 2026, pp. 362–374. [18] J. Liu, A.-A. Kafi, X. Shen, and H. Zhou, “MKPipe: A compiler frame-work for optimizing multi-kernel workloads in OpenCL for FPGA,” in 
+
+Proceedings of the 34th ACM International Conference on Supercom-puting , 2020, pp. 1–12. [19] W. S. Moses, I. R. Ivanov, J. Domke, T. Endo, J. Doerfert, and O. Zi-nenko, “High-performance GPU-to-CPU transpilation and optimization via high-level parallel constructs,” in Proceedings of the 28th ACM SIGPLAN Annual Symposium on Principles and Practice of Parallel Programming , 2023, pp. 119–134. [20] Z. Hambly, “Booth,” https://github.com/Zaneham/Booth, 2026, accessed: Aug. 11, 2026. [21] Y. Yang, Y. Zheng, T. Yu, and A. Quinn, “HetGPU: The pur-suit of making binary compatibility towards GPUs,” arXiv preprint arXiv:2506.15993 , 2025. [22] Tenstorrent AI ULC, “tt-lang: Python DSL for Tenstorrent hardware,” https://github.com/tenstorrent/tt-lang, 2025, accessed: Aug. 11, 2026. [23] S. Fang, H. Chen, N. Zhang, J. Li, H. Meng, A. Liu, and Z. Zhang, “Dato: A task-based programming model for dataflow accelerators,” 
+
+arXiv preprint arXiv:2509.06794 , 2025. [24] J. Zhuang, S. Xiang, H. Chen, N. Zhang, Z. Yang, T. Mao, Z. Zhang, and P. Zhou, “Aries: An agile MLIR-based compilation flow for re-configurable devices with AI engines,” in Proceedings of the 2025 ACM/SIGDA International Symposium on Field Programmable Gate Arrays , 2025, pp. 92–102. [25] R. Baghdadi, J. Ray, M. B. Romdhane, E. Del Sozzo, A. Akkas, Y. Zhang, P. Suriana, S. Kamil, and S. Amarasinghe, “Tiramisu: A polyhedral compiler for expressing fast and portable code,” in 2019 IEEE/ACM International Symposium on Code Generation and Optimiza-tion (CGO) . IEEE, 2019, pp. 193–205. [26] M. Merouani, I. K. Bernou, and R. Baghdadi, “Agentic auto-scheduling: An experimental study of LLM-guided loop optimization,” in 2025 34th International Conference on Parallel Architectures and Compilation Techniques (PACT) . IEEE, 2025, pp. 186–200. APPENDIX : A RTIFACT DESCRIPTION /A RTIFACT 
+
+EVALUATION 
+
+Artifact Description (AD): Artifact Identification 
+
+The artifact supports the realization policies of Section IV and the measurements of Section V. It is available at https://github.com/casys-utokyo/ annotation-driven-cuda-to-tenstorrent and includes four main components.  
+
+> •
+
+Tenstorrent backend fork : https://github.com/ casys-utokyo/tt-mlir, branch waccpd26 , based on upstream 2a45751 , containing the LLK and lowering extensions described in Section V.  
+
+> •
+
+MLIR snapshots : CUDA-derived inputs and intermedi-ate representations through final D2M, organized by con-figuration in directories corresponding to the incremental-policy tables, interaction figure, and A100 comparison.  
+
+> •
+
+Compiled Blackhole programs : each executable config-uration’s measured 80-program.ttm and the shared 
+
+system_desc.ttsys . The flatbuffers contain the gen-erated kernels and run with upstream ttrt.  
+
+> •
+
+A100 sources : the comparison implementations in 
+
+a100-hand-optimized/ , using ping-pong buffers for Jacobi, coalesced accesses for Gaussian, and cuBLAS for SYRK. The artifact supports inspection of the compiler repre-sentations, execution of the measured programs, and re-compilation starting from 70-final-d2m.mlir using the backend fork. It does not include the CUDA-to-D2M fron-tend, so it cannot regenerate these snapshots from CUDA or apply new frontend annotations. Each configuration’s 
+
+20-policy-summary.md describes its annotations and target operations, while REPRO.sh records the annotation application and lowering sequence. 
+
+Artifact Evaluation (AE): Reproducibility of Experiments a) Requirements: Executing Blackhole programs re-quires a p150a and upstream ttrt at tt-mlir revision 2a45751 .Recompiling final D2M requires the backend fork. Accuracy checks additionally require PyTorch and NumPy. The A100 experiments use an NVIDIA A100-PCIE-40GB with driver 
+
+560.35.05 and CUDA Toolkit 12.0. 
+
+b) Workflow: 
+
+1) Select a configuration corresponding to Tables II–V or Fig. 4 using the repository README. Each configu-ration directory contains its policy documentation and compiler snapshots. 2) Reproduce device timings with 
+
+tools/timing/zones.py , following 
+
+tools/timing/README.md for profiler setup and workload-specific options. One measurement with this tool takes about half a minute. 3) Reproduce numerical errors and BF16 simulator com-parisons with check.py and emulate.py in 
+
+tools/accuracy/ , following its README for the configurations in Section V-E. 4) Build and run a100-hand-optimized/ following its README to reproduce the A100 comparison. 
+
+c) Expected results: Measured times should agree with the corresponding table rows and figure bars within experi-mental variation. The accuracy tools report relative Frobenius errors comparable to Section V-E and bit-exact agreement with the BF16 simulator.

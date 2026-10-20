@@ -1,0 +1,153 @@
+{
+  "date": "20260921-20261020",
+  "date_label": "2026-09-21 ~ 2026-10-20",
+  "generated_at": "2026-10-20 03:37:18 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2609.30099v1",
+      "route": "20260921-20261020/2609.30099v1-compiler-and-hardware-co-design-for-accelerator-architectures",
+      "title": "Compiler and Hardware Co-Design for Accelerator Architectures",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "基于MLIR的编译器与硬件协同设计，可生成新加速器后端",
+      "first_seen_at": "2026-10-20 03:37:18 UTC",
+      "updated_at": "2026-10-20 03:37:18 UTC"
+    },
+    {
+      "paper_id": "2610.09156v1",
+      "route": "20260921-20261020/2610.09156v1-compiling-semi-ring-dynamic-programming-to-tier-aware-3d-dram-processing-in-memory",
+      "title": "Compiling Semi-Ring Dynamic Programming to Tier-Aware 3D-DRAM Processing-in-Memory",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "MLIR编译器将半环抽象编码为一等IR并通过硬件感知pass组lowering",
+      "first_seen_at": "2026-10-20 03:37:18 UTC",
+      "updated_at": "2026-10-20 03:37:18 UTC"
+    },
+    {
+      "paper_id": "2609.30104v1",
+      "route": "20260921-20261020/2609.30104v1-mqss-selector-rl-guided-pass-selection-for-an-mlir-compilation-pipeline",
+      "title": "MQSS-Selector: RL-Guided Pass Selection for an MLIR Compilation Pipeline",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "面向MLIR编译流水线的强化学习引导Pass选择",
+      "first_seen_at": "2026-10-20 03:37:18 UTC",
+      "updated_at": "2026-10-20 03:37:18 UTC"
+    },
+    {
+      "paper_id": "2609.37916v1",
+      "route": "20260921-20261020/2609.37916v1-rlx-a-unified-multi-backend-tensor-compiler-and-distributed-runtime-in-rust",
+      "title": "RLX: A Unified Multi-Backend Tensor Compiler and Distributed Runtime in Rust",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "以三级中间表示统一编译器与运行时，并通过分派契约面向多种设备后端下降",
+      "first_seen_at": "2026-10-20 03:37:18 UTC",
+      "updated_at": "2026-10-20 03:37:18 UTC"
+    },
+    {
+      "paper_id": "2610.02658v1",
+      "route": "20260921-20261020/2610.02658v1-annotation-driven-migration-of-cuda-programs-to-tenstorrent-blackhole",
+      "title": "Annotation-Driven Migration of CUDA Programs to Tenstorrent Blackhole",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "基于MLIR的编译器推导数据布局、核间通信与分块计算",
+      "first_seen_at": "2026-10-20 03:37:18 UTC",
+      "updated_at": "2026-10-20 03:37:18 UTC"
+    },
+    {
+      "paper_id": "2609.29219v1",
+      "route": "20260921-20261020/2609.29219v1-schedules-are-solvable-symbols-tuning-free-compilation-of-tile-programs-on-dataflow-architectures",
+      "title": "Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向数据流加速器的免调优分块程序编译器",
+      "first_seen_at": "2026-10-20 03:37:18 UTC",
+      "updated_at": "2026-10-20 03:37:18 UTC"
+    },
+    {
+      "paper_id": "2609.30651v1",
+      "route": "20260921-20261020/2609.30651v1-verification-of-compiler-to-accelerator-mappings-for-machine-learning-accelerators",
+      "title": "Verification of Compiler-to-Accelerator Mappings for Machine Learning Accelerators",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "形式化验证ML加速器的编译器到加速器映射",
+      "first_seen_at": "2026-10-20 03:37:18 UTC",
+      "updated_at": "2026-10-20 03:37:18 UTC"
+    },
+    {
+      "paper_id": "2610.03571v1",
+      "route": "20260921-20261020/2610.03571v1-openmp-meta-lowering-a-declarative-approach-to-performance-portable-parallel-code-generation",
+      "title": "OpenMP Meta-Lowering: A Declarative Approach to Performance Portable Parallel Code Generation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "基于MLIR的模块化降级，将降级策略变为可编程组件",
+      "first_seen_at": "2026-10-20 03:37:18 UTC",
+      "updated_at": "2026-10-20 03:37:18 UTC"
+    },
+    {
+      "paper_id": "2610.04808v1",
+      "route": "20260921-20261020/2610.04808v1-alkaid-a-compiler-framework-for-ultra-low-latency-kernels-on-hardware",
+      "title": "Alkaid: A Compiler Framework for Ultra-Low-Latency Kernels on Hardware",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "领域专用编译器将ML数据流内核下降为平台无关RTL或HLS代码以生成硬件加速后端",
+      "first_seen_at": "2026-10-20 03:37:18 UTC",
+      "updated_at": "2026-10-20 03:37:18 UTC"
+    }
+  ]
+}

@@ -1,0 +1,319 @@
+Title: Alkaid: A Compiler Framework for Ultra-Low-Latency Kernels on Hardware
+
+URL Source: https://arxiv.org/pdf/2610.04808v1
+
+Published Time: Tue, 06 Oct 2026 01:13:14 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+# Alkaid: A Compiler Framework for Ultra-Low-Latency Kernels on Hardware 
+
+Chang Sun ∗† , Zhiqiang Que ‡§ , Dimitrios Danopoulos ¶, Maurizio Pierini ¶, Wayne Luk §, Maria Spiropulu †† California Institute of Technology, USA; ‡ University of Bristol, UK;  
+
+> §
+
+Imperial College London, UK; ¶ CERN, Switzerland 
+
+Abstract —Ultra-low-latency machine learning and data pro-cessing pipelines operating on the sub-microsecond level often contain static dataflow kernels that require fine-grained bitwidth control, arithmetic optimization, and fast hardware performance estimation. This works introduce Alkaid, a free and open source domain specific compiler that translates sub-microsecond latency dataflow kernels into platform agnostic Register Transfer Level (RTL) or High-Level Synthesis (HLS)-ready code in seconds. Alkaid targets ultra-low-latency ML pipelines, especially those addressed by existing ML-to-hardware flows such as hls4ml ,while also supporting the surrounding pre-processing, post-processing, and control logic. At its core, Alkaid uses an arithmetic centric intermediate representation, Alkaid Low-level IR (ALIR), to preserve fixed-point semantics, heterogeneous bitwidths, and operation level structure for optimization and code generation. Alkaid further provides comprehensive hardware-aware optimization passes and an interpretable white-box an-alytical performance model for rapid design space exploration without synthesis in the loop. Across representative ML work-loads, including MLPs, GNNs, and transformers, Alkaid achieves 20-30% lower LUT usage than the best prior flows for bit-exact equivalent designs, with up to 40% lower latency in some cases. Beyond typical neural networks, Alkaid achieves comparable performance to the state-of-the-art method for synthesizing boosted decision trees, while also enabling the implementation and integration of non-ML kernels such as sorting networks and histograms. 
+
+I. I NTRODUCTION 
+
+FPGAs are an attractive platform for sub-microsecond, ultra-low-latency computing, especially in domains such as real-time scientific instrumentation [1] and edge intelligence. In these applications, the target computation is often a static dataflow kernel whose graph structure, tensor shapes, and data types are known at compile time. Examples include low-latency machine learning inference kernels and the surround-ing data-processing logic used in Level-1 trigger pipelines at the Large Hadron Collider (LHC). Unlike throughput oriented accelerators, these kernels often target sub-microsecond la-tency, where small changes in bitwidth or arithmetic structure can directly affect both resource usage and timing. Existing ML-to-hardware frameworks such as hls4ml [1] and FINN [2] have shown that neural network models can be translated into efficient low-latency hardware. However, these tools are organized around coarse grained neural network layers with predefined templates. While this makes them effective for supported models, they are less flexible when new ML architectures introduce operators outside the predefined library [1], or when the full application kernel includes cus-tom pre/post-processing operations like tensor arrangement, selection, sorting, or control logic. To address this gap, we present A Library for Kernel Accelerator Implemented on Device ( Alkaid ), a free and open source domain specific compiler framework 1 for low-latency static dataflow kernels. Alkaid translates Python/NumPy descriptions and machine-learning frontend models into Alkaid Low-level IR (ALIR), an arithmetic-centric static single-assignment intermediate rep-resentation. ALIR preserves fixed-point semantics, heteroge-neous bitwidths, and operation-level dependencies throughout tracing, optimization, performance modeling, and code gen-eration. In addition, Alkaid lowers the optimized ALIR into platform agnostic Register Transfer Level (RTL) or High-Level Synthesis (HLS)-ready code. It also provides an interpretable white-box analytical performance model that estimates area and combinational latency from the optimized IR, enabling rapid design-space exploration without invoking synthesis in the loop. Although our evaluation uses FPGA backend tools, the generated RTL is not tied to a specific FPGA vendor and can be integrated into downstream hardware design flows. To the best of our knowledge, Alkaid is the best-performing compiler framework for sub-microsecond dataflow, and the first one providing an accurate, white-box analytical perfor-mance modeling. We make the following contributions:  
+
+> •
+
+We present Alkaid, an open-source domain-specific com-piler framework for ultra-low-latency ML pipelines and their surrounding data-processing logic. Alkaid translates python/numpy descriptions and ML frontend models into platform agnostic RTL or HLS-ready code, enabling fast hardware generation for both ML and non-ML kernels.  
+
+> •
+
+We introduce ALIR, an arithmetic-centric SSA inter-mediate representation that preserves fixed-point seman-tics, heterogeneous bitwidths, and operation-level struc-ture across tracing, optimization, modeling, and code generation. Based on ALIR, Alkaid provides hardware-aware optimization passes and a white-box analytical performance model for rapid area and latency estimation without synthesis in the loop.  
+
+> •
+
+We evaluate Alkaid across MLPs, Graph Neural Net-works (GNNs), transformers, boosted decision trees (BDT), sorting networks, histograms, and custom python/numpy dataflow kernels. For bit-exact neural net-work designs, Alkaid reduces LUT usage by 20 ∼ 30% 
+
+and latency by up to 40% compared with the state-of-the-art (SOTA) da4ml or hls4ml +da4ml flows, while reducing end-to-end compilation and synthesis time from 
+
+> *Corresponding author. Email: chsun@cern.ch
+> 1https://github.com/calad0i/alkaid arXiv:2610.04808v1 [cs.AR] 3 Oct 2026
+
+Table I: Comparison of different tools for the translation of sub-microsecond ML models to FPGA designs. Framework Alkaid hls4ml da4ml 1 FINN Chisel4ML HAO 2 ✓ +□o 3 ✓ ✓ ✓                                        
+
+> Extensible Operation ✓+□o ✓✓✓
+> Vendor Agnostic ✓✓✓✓✓
+> Extensible Frontend ✓+□o ✓✓✓
+> MLP/Convolution ✓✓✓✓✓
+> Transformer ✓✓✓✓✓
+> Fast Compilation ✓✓✓✓✓
+> Non-NN Operations ✓✓✓✓✓
+> Performance Model ✓+□o 4✓+□o 4✓
+
+✓: Supported; ✓: Not supported; +□o : Partially supported        
+
+> 1da4ml as a standalone compiler. 2HAO denotes hardware-aware optimiza-tion, i.e., optimization using non-trivial explicit hardware-aware transforma-tions that are not delegated to the backend synthesis tool, i.e., beyond pragma tuning and basic algebraic simplifications. 3hls4ml can use da4ml as an optimization provider but lacks first-party support. 4Only for a subset of operations.
+
+hours or days to under an hour. II. B ACKGROUND AND RELATED WORK 
+
+Existing ML-to-hardware frameworks such as hls4ml [1], 
+
+chisel4ml [3], FINN [2] and fpgaConvNet [4] have shown that neural networks can be translated into efficient FPGA implementations. Other frameworks, such as TreeLUT [5], Conifer [6], and FwX [7], [8], have explored the implementa-tion of decision trees and tree ensembles on FPGAs. However, these frameworks are coarse-grained template-based, making it difficult to implement new layers, which requires sufficient hardware knowledge to manually implement the corresponding layer in either RTL or HLS. More broadly, compiler infrastructures such as Dyna-matic [9], Calyx [10], CIRCT [11], and XLS [12] reflect the growing interest in compiler-based procedural hardware generation. In parallel, frameworks such as DnnWeaver [13], FPGAConvNet [4], ScaleHLS [14], HIDA [15], POM [16], Allo [17], and Stream-HLS [18] have explored automated HLS generation from affine or multi-kernel programs. How-ever, these frameworks are not directly comparable to the proposed framework as their target applications operate at latencies that are orders of magnitude higher than the sub-microsecond regime targeted by Alkaid, where frameworks such as hls4ml [1] and FINN [2] dominate. III. D ESIGN AND ARCHITECTURE 
+
+Alkaid is a domain-specific, kernel-level compiler that trans-lates static dataflow kernels, or computation graphs whose structure and data types are fully determined at compile time, into platform-agnostic RTL or HLS code. To lower the barrier for defining such kernels, Alkaid provides a symbolic tracing frontend based on Python and NumPy: the user “replays” the kernel’s execution on a symbolic tensor provided by the framework using native arithmetic and NumPy operations, and the framework traces the executed operations to construct the corresponding IR. After the IR is generated, it can be optimized with a set of built-in passes, or the user may define custom transformations for specific applications. RTL or HLS code is then generated from the IR with a code generator, which can be used for direct synthesis or as a template for further manual optimizations. The overall architecture of Alkaid is illustrated in Figure 1. 
+
+A. Intermediate Representation and Optimizations 1) ALIR: ALIR, the intermediate representation of Alkaid, is an instruction-based, low-level SSA static dataflow IR tailored for DSP-heavy kernels. While many existing IRs are expressive enough to represent our kernels, ALIR is designed to serve not only as a functional representation of compu-tation, but also as a direct optimization and code-generation substrate for low-latency hardware. The key design choice is that ALIR is arithmetic-centric : all operations are natively defined on fixed-point numbers with arbitrary bitwidths, and the bit-extensions or concatenations required when operating between values of different bitwidths are implicit in the operation semantics rather than explicit IR instructions. By preserving the arithmetic structure instead of lowering to explicit bit-manipulation, ALIR enables optimizations, such as affine-arithmetic-based interval propagation for bitwidth minimization, that would be significantly more convoluted in a bitvector-centric IR like the XLS IR. ALIR is partly inspired by Distributed Arithmetic Instruc-tion Set (DAIS) used in da4ml [19], but the two serve different purposes. DAIS was mainly introduced for distributed arith-metic, with minimal extensions for supporting the inference of specific neural networks. On the other hand, ALIR is designed as a more general arithmetic-centric IR, covering a wider range of static dataflow kernels beyond DA-style linear operators. This includes comparison, selection, lookup, and bitwise operations, while still preserving explicit SSA de-pendencies, fixed-point semantics, and heterogeneous bitwidth support. As a result, ALIR retains the low-level arithmetic transparency of DAIS, while providing a compiler abstraction better suited to Alkaid’s end-to-end optimizations and direct RTL/HLS generation for a broader range of applications. Currently, ALIR implements only 13 low-level operations that have been found to sufficiently cover all operations in the dataflow kernels we have encountered in our target applica-tions, including basic arithmetic operations (neural networks), comparison and selection operations (e.g., sorting networks or decision trees), and boolean operations (e.g., logic-gate networks or generic conditional switches). The operations are listed in Table II. For each operation, we map it to a minimal implementation in the target RTL or HLS code, which can be fed into the synthesis tool for downstream processing. 
+
+2) Optimizations: While the synthesis backend can also perform most optimizations, we find that explicitly implement-ing certain optimizations can significantly reduce the area and latency of the generated design. Hence, we implemented these optimizations in Alkaid as a part of the compilation process. Individual optimizations may be switched on or off by the user with a simple API, and the user may also define custom optimizations to further optimize Symbolic Tracer Built-in Converter Alkaid Low-level Intermediate Representation (ALIR) Combinational Logic Block SSA Program Logic LUTs   
+
+> Operation
+> SArray
+> SVariable Graph
+> Construction Time Optimization C++ Module
+> CMVM: da4ml+ SCM: H(k)+ODP Aff ine Arithmetic Operation Rewrite Balacing Balancing
+> Global Optimization
+> Canonicalization Byte Code Generator Constant Propagation Adder Chain Fusion Comm. Expression Elimination Dead Code Elimination
+> Utilities Backends RTL
+> Verilog 2005 VHDL 2008 XLS
+> oneAPI Inputs Outputs PyTorch or PyTorch-based Keras or Keras-based
+> keras standalone and tensorflow.keras
+> Others Raw Operation
+> ··· ··· …Keras Graph Parser
+> Built-in Operation Extension Operation
+> Torch FX Parser
+> Built-in Operation Extension Operation
+> Plugin Converter
+> External Parser & Operation Definition Configuration (Optional)
+> RTL Source HLS Model
+> Helper Scripts Metadata I/O Wrapper RTL Source HLS Source XLS IR
+> Performance Model Firmware Verification IR Simulation C++ Module
+> Byte Code Interpreter Symbolic Interpreter Verilator/GHDL & C++ Binding LUT Surrogate Latency Surrogate Quick Convert Results Report
+> Vitis HLS
+> Simulation utils torch-logix HGQ XGBoost hls4ml numpy
+> ··· ··· ···
+
+Figure 1: Architecture and workflow of the Alkaid framework. All components shown, except the frontend frameworks, are developed as part of the framework. the IR for specific applications when needed. In general, for kernels that can reasonably fit into one FPGA ( ∼1M LUTs), the whole symbolic tracing, IR generation, and optimization process can be completed in milliseconds to under a minute. The da4ml algorithm included in Alkaid, da4ml+, is a reimplementation of the da4ml algorithm [19] with optimized memory access patterns for better cache efficiency in C++ with modified tie-breaking rules. This implementation is generally 2.5-3 times faster than the original implementation (e.g., 
+
+13 .3 → 5.5 ms for 32 ×32 ×8 bits, 84 → 24 s for 128 ×128 ×8
+
+bits random matrices), while achieving the same or better optimization results in adder counts under the same logic depth constraint. 
+
+Algorithm 1: Lookup operation resource estimator 
+
+Input: Logic lookup table T with output bits bw out 
+
+Output: Estimated LUT count c 
+
+> 1
+
+w ← bw(ˆ q)
+
+// Bypass slow large table  
+
+> 2
+
+if w − X > 6 then return ⌈0.7 · 2w−X ⌉ 
+
+> 3
+
+c ← 0 
+
+> 4
+
+for b ← 0 to bw out − 1 do  
+
+> 5
+
+f ← bit b of T , reshaped to {0, 1}w 
+
+> 6
+
+c ← c + Count (f , false ) 
+
+> 7
+
+return ⌈c⌉ 
+
+> 8
+
+Function Count( f ∈ { 0, 1}d, greedy ): 
+
+> 9
+
+if d ≤ X then return [f is non-const ] 
+
+> 10
+
+if greedy then  
+
+> 11
+
+i∗ ← arg max i
+
+P 
+
+> j
+
+[f0,i [j] = f1,i [j]]  
+
+> 12
+
+else  
+
+> 13
+
+try all i∗ ∈ [d], return minimum  
+
+> 14
+
+fk, 0 ← take( f , 0, dim= i∗) 
+
+> 15
+
+fk, 1 ← take( f , 1, dim= i∗) 
+
+> 16
+
+if f0,i ∗ = f1,i ∗ then return Count( f0,i ∗ , true ) 
+
+> 17
+
+return Count( f0,i ∗ , true ) + Count( f1,i ∗ , true )
+
+Due to the low-level nature of the IR, we split optimizations into both the symbolic tracing stage and the traditional IR stage. Optimizations that are local, such as the da4ml optimiza-tion for CMVM operations, or optimizations requiring only information from past operations, such as the affine-arithmetic-based interval estimation and some constant folding/propa-gation, are performed during the symbolic tracing stage as the IR is being constructed. Optimizations requiring a global view of the IR, such as expression canonicalization, common sub-expression elimination, dead/null operation elimination, and further constant folding after these optimizations, are performed iteratively after the IR is constructed. This way, we can maximize the optimization opportunities while minimizing the number of iterations required for global optimizations. 
+
+B. Performance Model 
+
+After these optimizations, the IR closely reflects the post-technology-mapping physical design, enabling a white-box an-alytical model to estimate area and latency without synthesis. For each IR operation, we combine first-principles analysis, such as LUT pin counting, with empirical fitting from micro-benchmarks to estimate its LUT cost and combinational delay. Unlike the machine learning based surrogate models used in hls4ml [20], [21], this analytical approach is directly derived from the IR structure and the underlying hardware implemen-tation, making it interpretable and straightforward to adapt to different target platforms or synthesis tools by adjusting the model parameters. The evaluation of the performance model typically completes in under a second per kernel, which we consider negligible within a typical development cycle. Table II shows the equations used to estimate LUT usage and latency for each operation. For area, we model only LUT consumption, since DSP usage is negligible after distributed-arithmetic optimization, while FF usage depends mainly on pipelining rather than the implemented function. The LUT-decomposition function for the LOOKUP operation is described in Algorithm 1, which is implemented as a recursive function that decomposes the logic lookup table into two subtables until the length is smaller than 26 for LUT6 on UltraScale+ devices. Table II: ALIR operations with their corresponding surrogate resource and latency models. Notation is defined below.                                                                                                                         
+
+> Opcode Name Description Cost (LUTs) Latency Note
+> −2NEG Negate value 00absorbed
+> −1READ Load from external buffer 00no-op
+> 0/1ADD/SUB buf[id 0]±buf[id 1]≪smax(bw out −1,1) (bw out −1) ·a+bhas overlap
+> 00no overlap
+> 2RELU max(0 , x )e·bw in 03QUANT Quantize (bit-take/extend) 00no-op
+> 4CADD buf[id 0] + c≪sd·max(bw in −1,0) 0consumer ∈ { 0,1,6}
+> 00otherwise (absorbed)
+> 5CONST Define constant value 00no-op
+> 6MUX 2:1 mux on MSB of third operand bw( q)·(0 .5−d·α)0.5−g·αRough approx
+> 7MUL buf[id 0]×buf[id 1]reduc (bw in ,0,bw in ,1)reduc (bw in ,0,bw in ,1)·a+bRough approx
+> 8LOOKUP Table lookup See Algorithm 1 max(bw in −6,1) ·0.59UNARY Bitwise NOT / reduce-OR / reduce-AND 00absorbed
+> 10 BINARY Bitwise AND/OR/XOR 0.2·bw overlap hhas overlap
+> 00no overlap or const operand
+
+Notation. All costs are in LUT6 equivalents; latencies are in combinational logic levels, independent of the pipelining configuration. a ≈
+
+0.025 , b ≈ 1.1, c ≈ 0.36 , d ≈ 0.3, e ≈ 0.667 , f ≈ 0.7, g ≈ 0.4, h ≈ 0.15 are empirically derived constants based on micro-benchmarks. The bitwidth of the input is bw in , or bw in ,0, bw in ,1 for binary operations, and the output bitwidth is bw out . bw overlap is the overlapping bitwidth of the two operands. α ∈ [0 , 1] is the constant-descendant score for the MUX operation, which describes the portion of the source terms of the mux-tree (i.e., casted muxing operations) that are constants. NEG , WRAP , and BINARY are considered transparent in the descendant score tracing. “Consumer ∈ { 0, 1, 6}” refers to if the const-add operation’s output is used by any one of the ADD , SUB , or MUX operations. When the cost of an operation is 0 with certain conditions, we consider the operation to be absorbed into the neighboring operations without adding extra resource overhead, or the operation is a pure signal rearrangement without arithmetic operation. reduc( x, y ) = x · y − max( x, y ) is the estimator of the number of adders used to implement a multiplication with bitwidths x and y implemented as conditional shift-adders. 
+
+Since LUT6 2 fracturing is rarely used for LOOKUP , fractional LUT usage is not included in the model. 
+
+C. Symbolic Tracing Frontend 
+
+The symbolic tracing frontend is Alkaid’s primary frontend, allowing users to define dataflow kernels using native Python and numpy operations on framework-provided symbolic ten-sors. It is designed to be bit-exact: operations on symbolic ten-sors match those implemented in hardware. Intermediate bit-growth is tracked using affine arithmetic where possible, with interval arithmetic as a fallback. Therefore, no implicit quanti-zation is applied; users must explicitly use properly quantized operations and weights, otherwise the generated firmware may become unsynthesizable due to excessive intermediate value sizes. In addition, this frontend also underpins higher-level frontends for machine-learning frameworks. For Keras and PyTorch models, Alkaid traces execution on symbolic tensors for most native operations, while framework-specific plugins define how special layers or operators map to NumPy-based symbolic operations. For other frameworks, Alkaid provides a generic interface for developers to define the full symbolic execution flow. The plugin system decouples compiler infrastructure from frontend development, allowing each frontend to evolve in-dependently and add new operators within its own codebase. It also allows subtle framework-specific differences, such as padding semantics or quantized lookup behavior, to be repre-sented through different symbolic mappings without forcing compromises in the backend. 
+
+1) Layer/Operation Plugin: Currently, Alkaid natively sup-ports the Keras and PyTorch frontends for most of the el-ementary operations. However, since the symbolic tracing frontend does not perform implicit quantization, the models will need to be explicitly quantized before being fed into the framework. In practice, we expect these blocks to be used in conjunction with third-party libraries providing the mapping of their quantization schemes to the symbolic tracing frontend. Currently, plugins for the HGQ [22], PQuantML [23], and torchlogix [24] are implemented with the Keras and Torch frontends. 
+
+2) Framework-wise Plugin: When the frontend model is provided by another framework, such as XGBoost [25] or hls4ml [1], developers may define a plugin describing how the model should be executed on the symbolic tensors. This plugin is generally more flexible than the prior operation/layer plugin, while also requiring more effort to implement. For instance, the XGBoost plugin would allow the user to configure how the leaf values are mapped/quantized to fixed-point numbers, and if the tree is to be implemented as a lookup-table or muxes. The hls4ml plugin allows the conversion of an optimized hls4ml model targeting the Vitis HLS backend into ALIR, which can then be further lowered into RTL or HLS code with the Alkaid code generator and remains bit-exact to the original hls4ml model. 
+
+D. Code Generation Backend 
+
+Currently, Alkaid provides two code generation backends: a platform-agnostic RTL generator, whose output can be used for direct synthesis or as a template for further manual integration, and an HLS generator targeting Vitis HLS and oneAPI DPC++. Alkaid also provides an IR-to-IR translator layer that emits XLS IR from the optimized ALIR via the C binding to libxls, enabling integration with XLS-based flows. The code generation backend is designed to be extensible to other target platforms by implementing the corresponding code generator and adjusting the performance model accordingly. 10 2 10 3 10 4 10 5 10 6Estimated LUT 10 210 310 410 510 6Actual LUT          
+
+> -0.5 0.0 0.5 Estimated LUT Actual LUT Actual LUT 0100 200 300 400 500 Count
+> 050 100 150 Estimated Latency [ns] 025 50 75 100 125 150 Actual Latency [ns]
+> -0.5 0.0 0.5 Estimated Latency Actual Latency Actual Latency 0100 200 300 Count  BDT JEDI-Linear JEDI-Linear-LUT JEDI-Net MLP MLP-LUT Non-ML TGCNN TGCNN-LUT Transformer
+
+Figure 2: From left to right: (1) Estimated LUT usage vs. actual LUT usage after place-and-route for various designs. (2) Relative error of the estimated LUT usage vs. actual LUT usage after place-and-route. (3) Estimated latency vs actual latency after place-and-route. Here, latency refers to the real implementation latency after place-and-route with timing requirements met, rather than the number of clock cycles. Larger, more complex JEDI-net designs exhibit higher prediction errors due to increased routing congestion. (4) Relative error of the estimated latency vs actual latency after place-and-route. 
+
+E. hls4ml Integration 
+
+While Alkaid is mainly designed as a standalone tool, an alternative to hls4ml , for users who are already familiar with hls4ml, or have existing models defined in hls4ml, Alkaid provides seamless integration with hls4ml to allow users to benefit from Alkaid’s broader operator support and faster development cycle while retaining the familiar hls4ml interface. In particular, for the hls4ml/Keras frontend, when an unsupported layer is encountered during hls4ml’s parsing, the hls4ml plugin for Alkaid will be triggered to convert the unsupported layer into ALIR. The ALIR will then be converted into HLS code with Alkaid’s code generator and inlined into the generated HLS code from hls4ml, which can then be fed into the synthesis tool for downstream processing. IV. E VALUATION 
+
+Unless otherwise stated, all Alkaid results are obtained using Vivado 2025.1 targeting the UltraScale+ VU13P FPGA (xcvu13p-flga2577-2-e ), based on out-of-context post-routing reports. Following prior work, we report latency as the number of cycles at the maximum achievable clock frequency (Fmax ). All designs are registered at both input and output ports to cover all combinational paths, and the cycle latency is measured as the number of registered combinational stages. In all evaluated neural network designs, Alkaid generates bit-exact RTL designs compared to the original designs, while reducing the LUT usage by 20-30% and latency by up to 40% compared to da4ml or hls4ml+da4ml implementations. Comparing to hls4ml standalone, it achieves 50-70% LUT reduction and > 99% DSP reduction without the da4ml 
+
+algorithm optimization. Compared to TreeLUT for decision tree based models, Alkaid achieves comparable efficiency in LUT usage and latency. 
+
+A. Performance Modeling 
+
+To evaluate the accuracy of the performance model, we compare the estimation from the performance model with the post-routing results from Vivado 2025.1 for a large set of machine learning models, including the multi-layer perceptron (MLP), static graph neural networks (GNN), JEDI-linear [26], TGCNN [27], and transformers. Some non-ML kernels, such as the parallel sorting networks, are also included in the evaluation since they are commonly used in the LHC trigger pipelines. A total of 2,410 designs are evaluated for the performance model, with a wide range of LUT usage from half a thousand to over half a million. We show the correlation plots and the distribution of relative estimation error for both LUT usage and latency in Figure 2. We find that our performance model can achieve an estimation error of < 10% for LUT usage and < 20% for latency compared to the post-routing results from Vivado 2025.1 in general. In both cases, we find other factors, such as the target clock frequency, routing congestion, or even the version of the synthesis tool may lead to a larger variation in the actual area and latency of the generated design, which is not and cannot be captured by the performance model. This appears to be a fundamental limitation shared by any pre-routing analytical model, as even the vendor tools’ own timing estimates degrade significantly under heavy routing congestion. Hence, we consider the estimation error of the performance model to be sufficient for users to quickly iterate on their design and explore the design space before running the synthesis step. 
+
+B. Performance and Resource Usage 
+
+We evaluate the performance of Alkaid on a set of repre-sentative machine learning models, including the multi-layer perceptron (MLP), static graph neural networks (GNN), and transformer/linformer models for the jet substructure classifi-cation task. For this task, we compare the performance and resource usage of the designs generated by Alkaid with the exact same models used in the respective original works, which are generated with da4ml [19], hls4ml [1], or a combination of the two. In all cases, the models converted with Alkaid are bit-exact to the original RTL/HLS code generated by the respective tools, hence there is strictly no difference in the accuracy of the generated designs. For BDTs, we use FQTree [30], which leverages Alkaid for hardware generation, and compare agaist TreeLUT [5] on the same task and the MNIST [31] dataset. For the jet substructure classification (JSC) task, the ob-jective is to classify the jets into 5 categories. We consider two variants of this task, one with only the high-level features (HLF) and the other with the particle-level features (PLF). For Table III: Performance and resource usage on the JSC HLF dataset. Alkaid reduces LUT utilization by 20%-30% compared with da4ml. Models with identical accuracy are converted from the same trained model and have bit-exact firmware implementations. Model Implementation Acc. ↑ Latency LUT DSP FF Fmax [MHz] II MLP                                                                  
+
+> Alkaid 76.9% 27.8 ns 7,341 08,532 540. 1FPGA’26 [22] HGQ (da4ml) 36.3 ns 10,182 010,480 552. 1
+> Alkaid 76.6% 21.2 ns 4,423 04,727 565. 1FPGA’26 [22] HGQ (da4ml) 26.2 ns 5,991 05,890 611. 1
+> Alkaid 75.6% 15.8 ns 1,744 01,740 569. 1FPGA’26 [22] HGQ (da4ml) 18.6 ns 2,298 02,217 645. 1
+> Alkaid 74.9% 12.6 ns 1,001 0909 556. 1FPGA’26 [22] HGQ (da4ml) 14.5 ns 1,390 01,316 692. 1
+> Alkaid 73.2% 7.1 ns 271 0288 708. 1FPGA’26 [22] HGQ (da4ml) 9.1 ns 366 0363 663. 1
+
+Table IV: Performance and resource usage on the JSC PLF dataset. Alkaid reduces LUT utilization by 20%-30% compared with hls4ml using the da4ml plugin, and achieves much lower LUT usage than standard hls4ml. Model Implementation P Acc. ↑ Latency LUT DSP FF Fmax [MHz] II Logic Synth JEDInet                                                                                                       
+
+> Alkaid 16 68.9% 108.1 ns 413 k 5172k 167. 146.7 min
+> [TRETS’26] [28] MetaML (hls4ml) -896 k 5,013 516k -2>29 h
+> Alkaid 32 74.6% 90.1 ns 314 k 5152k 178. 136.1 min
+> [TRETS’26] [28] MetaML (hls4ml) -1,017 k 845 761k -2>41 h Linformer
+> Alkaid 16 72.8% 102.3 ns 185 k 091 k 186. 128.9 min
+> [ML4PS’25] [29] hls4ml+da4ml 104.6 ns 246 k 066 k 182. 1>9 h
+> Alkaid 32 78.4% 86.8 ns 198 k 095 k 196. 129.1 min
+> [ML4PS’25] [29] hls4ml+da4ml 140.0 ns 267 k 071 k 150. 1>24 h Transformer
+> Alkaid 16 72.3% 97.6 ns 229 k 099 k 184. 137.3 min
+> [ML4PS’25] [29] hls4ml+da4ml 98.4 ns 279 k 080 k 193. 1>12 h
+> Alkaid 32 77.0% 79.5 ns 141 k 069 k 189. 126.2 min
+> [ML4PS’25] [29] hls4ml+da4ml 82.9 ns 180 k 055 k 193. 1>30 h
+
+the HLF variant, we consider models trained and evaluated on the OpenML variant of the task [32], which contains 16 high-level features derived from the kinematic properties of the jet constituents. For the particle-level variant, we adopt models trained on the hls4ml jet tagging dataset [33], which contains the kinematic variables of individual particles. For this study, we consider the models with a maximum of 16 or 32 particles with both the GNN and transformer/linformer architectures. For the decision tree models, we consider the models trained on the same JSC task with the same dataset as well as the MNIST [31] dataset. Since the exact models with the specified accuracy are not provided in the original TreeLUT paper, we fit the decision trees ourselves targeting the same accuracy. The decision trees are then converted into RTL with Alkaid for the evaluation. This results in slightly different models between the two implementations, but we consider the accuracy to be close enough for a meaningful comparison of the perfor-mance and resource usage of the generated designs. For this comparison, it should be noted that the latencies reported for TreeLUT [5] are adjusted due to different evaluation protocols. TreeLUT uses unregistered inputs and outputs with 0.05-0.1 ns external delay, while the latency cycle number is counted by the number of internal registers between the input and output ports. On the other hand, we count the number of cycles in Alkaid with the number of combinational blocks between the registered input and output ports, which has +1 cycle compared to the TreeLUT counting method with the same pipelining. To normalize the latency results, we adjust the latency for TreeLUT to be reported latency + clock period − 0.2 ns, where the clock period is calculated as the inverse of the reported Fmax . The 0.2 ns is the higher estimate derived from the 0.05-0.1 ns delays added by the authors for the unregistered input and output ports, which yields the most favorable adjusted latency for TreeLUT. Since TreeLUT omits the input and output registers, the FF counts cannot be directly compared between the two implementations but are included for completeness. The results for the JSC HLF and JSC PLF tasks are summarized in Tables III and IV, respectively. The results for the decision tree models are summarized in Table V. The MLP, transformer, and Linformer models are converted via the HGQ plugin, while the GNN models are converted via the hls4ml plugin for bit-exactness. The BDT models are converted with the XGBoost plugin with explicit quantization support. For neural network models, we find that Alkaid can gener-ally achieve 20-30% lower LUT usage compared to the designs generated by da4ml or hls4ml with the da4ml plugin. On some designs, the latency could also be reduced by up to 40% compared to the original designs, while maintaining similar latency on others. We attribute the LUT improvement over da4ml to the affine arithmetic based bit-growth tracking, which allows Alkaid to use smaller bit-widths for the intermediate values without causing overflow, while da4ml relies on a more conservative interval arithmetic that leads to larger bit-widths in general. The latency improvement is likely from both the reduced arithmetic complexity and better latency performance modeling, which allows for better path length balancing and more efficient pipelining. However, with the backend com-Table V: Performance and resource consumption of BDT models on the JSC HLF dataset and the MNIST dataset. Alkaid achieves similar resource usage and latency compared to TreeLUT [5] at the same or slightly higher accuracy. Task Implementation Acc. ↑ Latency [cycle] LUT DSP FF Fmax II JSC HLF                                                         
+
+> Alkaid 75.6% 2 (3.8 ns) 2,181 0566 521. 1FPGA’25 [5] TreeLUT 75.6% *3 (3.9 ns) 2,234 0347 735. 1
+> Alkaid 74.7% 1 (2.0 ns) 682 0146 512. 1FPGA’25 [5] TreeLUT 74.6% *2 (2.1 ns) 796 074 887. 1MNIST
+> Alkaid 96.6% 2 (3.5 ns) 4,429 01,390 565 1FPGA’25 [5] TreeLUT 96.6% *3 (3.6 ns) 4,478 0597 791 1
+> Alkaid 96.0% 2 (3.4 ns) 3,306 01,247 581 1FPGA’25 [5] TreeLUT 95.6% *3 (3.2 ns) 3,499 0759 874 1
+
+piler retiming, we do observe minor fluctuations in latency. Compared to hls4ml without using da4ml for CMVM kernel optimization, Alkaid can achieve significantly lower LUT usage while mostly eliminating DSP usage. For the BDT models, Alkaid achieves equivalent or slightly better accuracy compared to TreeLUT [5] with similar LUT usage and latency after adjusting for the different evaluation protocols. It should be noted that, for the JEDInet models, we disabled the da4ml optimization for the CMVM kernels to bit-exactly match the original design’s accumulator overflow behavior in hls4ml, and hence, the DSP-to-LUT conversion optimization used only the H(k)+ODP SCM optimization, which is expected to be less effective than the full CMVM optimization. How-ever, the Alkaid designs still outperform the original hls4ml designs with 50 -70% lower LUT usage and > 99% lower DSP usage in general, while simultaneously achieving II=1 compared to hls4ml’s II=2, which is strictly higher throughput with lower resource utilization. Due to the high LUT usage, we observe high routing congestion (level 4-5) for the JEDInet designs, which leads to a significant reduction of Fmax and hence higher latency than the performance model’s estimation. Since some designs span over one SLR and the cross-SLR routing delay is not modeled in the performance model, the pipelining is likely to be less efficient than the estimation as well, which also contributes to the lowered Fmax . Since the original hls4ml designs are not routed, we cannot compare the actual latency of the two implementations. Another advantage of Alkaid over hls4ml, or other HLS-based flows is the significantly faster development cycle enabled by the quick model-to-RTL conversion and accu-rate performance estimation. For the JEDInet models and the transformer/linformer models, the designs generated by hls4ml, with or without the da4ml plugin, require hours to days for a single HLS synthesis. In particular, the JEDInet models require days for HLS and logic synthesis, while the transformer/linformer models could also need more than one day. In contrast, the model-to-RTL conversion with Alkaid takes less than a minute for all of the models shown, and the logic synthesis for the each take no more than 50 minutes. This allows users to iterate on their designs much more efficiently and explore the design space with more freedom.                                                                    
+
+> 1def operation(x): #x[16,4]
+> 2a=np.maximum(x, 0)
+> 3b=x[:, 1::2].T
+> 4c=np.round(np.sin(b) * np.pi)
+> 5d=np.repeat(c, 2, axis=0) * 3 +4
+> 6e=np.max(np.stack([d, -d*2], axis=0), axis=0)
+> 7f=c@e.T
+> 8g=np.einsum(’ij,kj->ik’, c, d)
+> 9h=np.sum(g, axis=0)
+> 10 idx =np.argsort(h)[:2]
+> 11 j=h[idx].ravel()
+> 12 return j[None] +f[..., None] +a[-2::-4, :2]
+> 13 14 inp =FVArray.new((8,4)).quantize(0,8,0).as_new()
+> 15 out =operation(inp)
+> 16 alir =trace(inp, out)
+> Listing 1: An example Python function with various NumPy operations that can be automatically traced and converted into RTL code with Alkaid. Non-linear functions (sin fused with multiplication here) are implemented as logic look-ups with precision evaluations lazily evaluated at the next quantization operation. The generated RTL code is bit-exact to the original Python function.
+
+C. Non-Machine Learning Kernels 
+
+Beyond machine learning models, Alkaid can also be used to convert other types of computation kernels into RTL code as long as they can be expressed in reasonably well-structured Python/NumPy code. For instance, one can create a parallel sorting network with the np.sort or np.argsort 
+
+functions, or a histogram kernel with the np.histogram 
+
+function. We show the latency and resource usage of the generated designs for these kernels in Table VI. We also show an example of how the different NumPy functions can be com-posed in a pythonic way to create a more complex dataflow kernel in Listing 1. In this particular example, the kernel is generated with the inputs being unsigned 8-bit integers, and the generated design will be bit-exact to the description in the Python function, with the intermediate values tracked automatically. To demonstrate support for a backend beyond AMD FPGAs, these non-ML kernels are synthesized with Quartus 25.1 targeting the Altera Agilex 7 FPGA. The sorting and histogram kernels are commonly used in the pre-processing stage of many machine learning models at the LHC, such as for jet constituent ordering and feature extraction or creation for the downstream models. With Alkaid, one can create a unified dataflow graph containing both the machine learning model and the pre-/post-processing steps, and convert the entire graph into an RTL project with a single workflow. V. C ONCLUSION 
+
+We present Alkaid, a domain-specific compiler that trans-lates low latency kernels into platform-agnostic RTL or HLS code. Alkaid combines a Python/NumPy symbolic tracing frontend, an arithmetic-centric IR (ALIR), and a white-box an-alytical performance model for rapid design-space exploration. Table VI: Latency and resource usage for the sorting networks, histogram, and custom python function generated kernels. The target FPGA is the Altera Agilex 7 AGFB014R24A2E2V .Kernel Configuration Latency ALUT DSP FF Fmax [MHz] Batcher Sorter                                                                                       
+
+> 128 ×8bit 42.1 ns 41,226 032,845 309.
+> 96 ×8bit 40.2 ns 29,868 027,145 323.
+> 64 ×8bit 25.3 ns 15,197 017,302 394. Bitonic Sorter
+> 128 ×8bit 42.4 ns 49,432 045,812 307.
+> 96 ×8bit 42.1 ns 35,170 019,391 309.
+> 64 ×8bit 32.7 ns 18,525 012,894 306. Histogram
+> 128 →8bin 5.6 ns 2,297 0739 356.
+> 256 →8bin 8.4 ns 5,006 01,945 358.
+> 128 →32 bin 5.7 ns 11,324 08,122 348.
+> 256 →32 bin 9.3 ns 24,379 06,651 321. Custom Dataflow Listing 1 6.3 ns 3,744 03443 326.
+
+Across MLPs and transformers, Alkaid reduces LUT usage by 
+
+20 -30 % and latency by up to 40% compared with the SOTA da4ml or hls4ml+da4ml flows for bit-exact designs. For GNNs, Alkaid reduces LUT usage by 50 -70% and DSP usage by 
+
+> 99% compared with hls4ml standalone, while reducing end-to-end compilation and synthesis time from hours or days to under an hour. Alkaid also support for non-ML static dataflow kernels such sorting networks and histogram kernels for LHC trigger pre-processing. As a design choice, Alkaid generates stateless pipelined designs similar to XLS functions, and we consider scheduling and orchestration to be an orthogonal step at the higher level. We aim to enable processing element reuse and throughput-area trade-offs for larger models and support more complex dataflow graphs in the future. 
+
+Acknowledgements Partial support from the United States DoE (grant numbers DE-SC0011925, DE-FOA-0002705), NSF (grant numbers PHY240298, PHY2117997), United Kingdom EPSRC (grant numbers UKRI256, EP/V028251/1, EP/N031768/1, EP/S030069/1, and EP/X036006/1), AMD, and Eric & Wendy Schmidt Fund via CERN NGT (agreement number SIF-2023-004), is acknowledged. REFERENCES [1] J.-F. Schulte et al. , “hls4ml: A Flexible, Open-Source Platform for Deep Learning Acceleration on Reconfigurable Hardware,” ACM Transactions on Reconfigurable Technology and Systems , 2026. [2] Y. Umuroglu et al. , “FINN: A framework for fast, scalable binarized neural network inference,” in Proceedings of the 2017 ACM/SIGDA International Symposium on Field-Programmable Gate Arrays , 2017. [3] J. Vreˇ ca and A. Biasizzo, “Towards deploying highly quantized neural networks on fpga using chisel,” in 2023 26th Euromicro Conference on Digital System Design (DSD) , 2023, pp. 161–167. [4] S. I. Venieris and C.-S. Bouganis, “fpgaConvNet: A Framework for Mapping Convolutional Neural Networks on FPGAs,” in Proceedings of the 2016 IEEE 24th Annual International Symposium on Field-Programmable Custom Computing Machines (FCCM) , 2016. [5] A. Khataei and K. Bazargan, “Treelut: An efficient alternative to deep neural networks for inference acceleration using gradient boosted decision trees,” in Proceedings of the 2025 ACM/SIGDA International Symposium on Field Programmable Gate Arrays , ser. FPGA ’25, 2025. [6] S. Summers et al. , “Fast inference of boosted decision trees in fpgas for particle physics,” Journal of Instrumentation , 2020. [7] T. Hong et al. , “Nanosecond machine learning event classification with boosted decision trees in fpga for high energy physics,” Journal of Instrumentation , 2021. [8] B. Carlson et al. , “Nanosecond machine learning regression with deep boosted decision trees in fpga for high energy physics,” Journal of Instrumentation , 2022. [9] L. Josipovi´ c, R. Ghosal, and P. Ienne, “Dynamically scheduled high-level synthesis,” in Proceedings of the 2018 ACM/SIGDA International Symposium on Field-Programmable Gate Arrays , 2018, pp. 127–136. [10] R. Nigam et al. , “A compiler infrastructure for accelerator generators,” in 
+
+Proceedings of the 26th ACM International Conference on Architectural Support for Programming Languages and Operating Systems , 2021. [11] CIRCT Developers, “CIRCT: Circuit ir compilers and tools,” https:// circt.llvm.org/, 2026, lLVM Incubator Project, accessed 2026-04-02. [12] XLS Authors, “XLS: Accelerated hw synthesis,” https://google.github. io/xls/, 2026, apache 2 licensed project, accessed 2026-04-02. [13] H. Sharma, J. Park, D. Mahajan, E. Amaro, J. K. Kim, C. Shao, A. Mishra, and H. Esmaeilzadeh, “From high-level deep neural models to fpgas,” in The 49th Annual IEEE/ACM International Symposium on Microarchitecture , ser. MICRO-49. Taipei, Taiwan: IEEE Press, 2016. [14] H. Ye et al. , “ScaleHLS: A new scalable high-level synthesis frame-work on multi-level intermediate representation,” in IEEE international symposium on high-performance computer architecture (HPCA) , 2022. [15] H. Ye, H. Jun, and D. Chen, “Hida: A hierarchical dataflow compiler for high-level synthesis,” in Proceedings of the 29th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 1 , 2024, pp. 215–230. [16] W. Zhang et al. , “An optimizing framework on MLIR for efficient FPGA-based accelerator generation,” in IEEE International Symposium on High-Performance Computer Architecture (HPCA) , 2024. [17] H. Chen et al. , “Allo: A programming model for composable accelerator design,” Proceedings of the ACM on Programming Languages , 2024. [18] S. Basalama and J. Cong, “Stream-HLS: towards automatic dataflow acceleration,” in Proceedings of the 2025 ACM/SIGDA International Symposium on Field Programmable Gate Arrays , 2025, pp. 103–114. [19] C. Sun et al. , “da4ml: Distributed arithmetic for real-time neural networks on fpgas,” ACM Transactions on Reconfigurable Technology and Systems , vol. 19, no. 1, pp. 1–27, 2026. [20] B. Hawks et al. , “wa-hls4ml: A Benchmark and Surrogate Models for hls4ml Resource and Latency Estimation,” ACM Transactions on Reconfigurable Technology and Systems , 2026. [21] M. M. Rahimifar et al. , “rule4ml: An open-source tool for resource utilization and latency estimation for ml models on fpga,” 2024. [22] C. Sun et al. , “HGQ: High Granularity Quantization for Real-time Neural Networks on FPGAs,” in Proceedings of the 2026 ACM/SIGDA International Symposium on Field-Programmable Gate Arrays , 2026. [23] R. Niemi et al. , “Pquantml: a tool for end-to-end hardware-aware model compression,” Machine Learning: Science and Technology , vol. 7, no. 5, p. 055007, sep 2026. [24] L. Gerlach, T. Gerlach, L. V˚ age, E. Kauffman, and I. Ojalvo, “Warp logic neural networks,” 2026. [Online]. Available: https: //arxiv.org/abs/2602.03527 [25] T. Chen and C. Guestrin, “XGBoost: A Scalable Tree Boosting System,” in Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining , 2016. [26] Z. Que et al. , “JEDI-Linear: Fast and Efficient Graph Neural Networks for Jet Tagging on FPGAs,” in International Conference on Field Programmable Technology (ICFPT) . IEEE, 2025. [27] C. Sun et al. , “Fast muon tracking with machine learning implemented in fpga,” Nuclear Instruments and Methods in Physics Research Section A: Accelerators, Spectrometers, Detectors and Associated Equipment ,2023. [28] Z. Que et al. , “MetaML-Pro: Cross-Stage Design Flow Automation for Efficient Deep Learning Acceleration,” ACM Transactions on Reconfig-urable Technology and Systems , 2026. [29] L. Laatu et al. , “Sub-microsecond transformers for jet tagging on fpgas,” 2025. [Online]. Available: https://arxiv.org/abs/2510.24784 [30] Z. Que et al. , “FQTree: Fine-grained Quantization and Hardware Gen-eration of Boosted Decision Trees,” in 2026 IEEE 37nd International Conference on Application-specific Systems, Architectures and Proces-sors (ASAP) . IEEE, 2026. [31] L. Deng, “The mnist database of handwritten digit images for machine learning research [best of the web],” Signal Processing Magazine, IEEE ,vol. 29, pp. 141–142, 11 2012. [32] O. Contributors and L. J. H. Curators, “hls4ml LHC Jets HLF (OpenML Dataset 42468),” 2020, accessed: 2025-09-15. [Online]. Available: https://www.openml.org/d/42468 [33] M. Pierini, J. M. Duarte, N. Tran, and M. Freytsis, “HLS4ML LHC Jet dataset (150 particles),” Jan. 2020. [Online]. Available: https://doi.org/10.5281/zenodo.3602260

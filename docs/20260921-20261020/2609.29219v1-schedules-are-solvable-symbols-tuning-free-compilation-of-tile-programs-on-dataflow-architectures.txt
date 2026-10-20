@@ -1,0 +1,569 @@
+Title: Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures
+
+URL Source: https://arxiv.org/pdf/2609.29219v1
+
+Published Time: Fri, 25 Sep 2026 00:46:29 GMT
+
+Number of Pages: 15
+
+Markdown Content:
+# Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures 
+
+Heru Wang 
+
+School of Computing, National University of Singapore Singapore 
+
+heru.wang@nus.edu.sg 
+
+Wei Li 
+
+School of Computing, National University of Singapore Singapore 
+
+liwei01@nus.edu.sg 
+
+Zhenyu Bai ∗
+
+School of Computing, National University of Singapore Singapore 
+
+zhenyu.bai@nus.edu.sg 
+
+Tulika Mitra 
+
+School of Computing, National University of Singapore Singapore 
+
+dcstm@nus.edu.sg 
+
+Abstract 
+
+Modern AI and HPC accelerators increasingly expose dataflow features : software-visible mechanisms for data movement and overlap, such as inter-core communication through the on-chip network and intra-core asynchronous pipelining. These features shift scheduling responsibility from hardware to the compiler, and—because placement, movement, and synchronization become software-visible—they also make the performance of static schedules predictable. Yet high per-formance on such hardware still relies on vendor-engineered kernel libraries or profile-based auto-tuning, whose embed-ded expert knowledge transfers poorly across architectures and algorithms. We present Loom, a tuning-free symbolic compiler frame-work for tile-based SPMD programs on spatial dataflow ar-chitectures. The central idea is to treat tile-based SPMD com-pilation as a hardware-explicit static optimization problem. Loom enumerates discrete spatial-mapping and communi-cation candidates while keeping value parameters—such as tiling factors and pipeline knobs—symbolic within each can-didate. From an explicit hardware description, it derives symbolic legality constraints and latency expressions, formulates one CP-SAT problem per schedule candidate, and jointly solves inter-core dataflow, intra-core asynchronous scheduling, and block sizes at compile time. On two Tenstorrent generations, Wormhole and Black-hole, Loom matches or exceeds the vendor-optimized TTNN library on GEMM, Flash Attention, and Flash Decode, out of the box and without per-shape profiling or profile-based platform-specific schedule tuning. These results suggest that hardware-derived symbolic compilation provides a retar-getable alternative to profiling-based tuning for spatial dataflow 
+
+> ∗Corresponding author.
+
+architectures while remaining interpretable by keeping opti-mization decisions traceable to source-level symbols. 
+
+ACM Reference Format: 
+
+Heru Wang, Wei Li, Zhenyu Bai, and Tulika Mitra. 2026. Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures. In . ACM, New York, NY, USA, 15 pages. 
+
+https://doi.org/10.1145/nnnnnnn.nnnnnnn 
+
+1 Introduction 
+
+Modern AI and HPC kernels are increasingly dominated by structured tensor and stencil-style computations whose parallelism, control flow, and memory reuse are highly reg-ular [14]. For these kernels, moving data—not computing on it—has become the central performance and energy bot-tleneck [10, 18, 21]. Their regularity, however, also exposes static structure: tiles can in principle be placed in local mem-ories, retained across uses, forwarded through the on-chip network, or overlapped with computation instead of being repeatedly fetched and scheduled dynamically. The problem this paper addresses is how a compiler can systematically exploit this static structure to plan data movement, rather than leaving it to dynamic hardware mechanisms or manual expert effort. Modern accelerators increasingly offload predictable con-trol decisions to software, simplifying hardware control and reducing dynamic scheduling overhead while devoting more resources to bandwidth, local storage, and computation [38]. We refer to the resulting software-visible mechanisms for or-chestrating data movement and execution overlap as spatial dataflow features . Across cores, these features support ex-plicit on-chip communication, including forwarding and mul-ticast, allowing data to be reused from local memories instead of repeatedly fetched from off-chip memory [15, 36, 40, 48]. Within a core, they support asynchronous transfers, double buffering, and producer–consumer synchronization between memory and compute stages.  
+
+> 1arXiv:2609.29219v1 [cs.PL] 24 Sep 2026 Conference’17, July 2017, Washington, DC, USA Heru Wang, Wei Li, Zhenyu Bai, and Tulika Mitra
+
+Such mechanisms are now common across spatial acceler-ators [1–3, 7, 8, 13, 16, 20, 39, 43], while mainstream GPUs are moving in the same direction through asynchronous data movement, specialized pipelines, and increasingly explicit inter-SM communication. Collectively, these features allow software to orchestrate communication and computation around distributed local memories, improving data reuse and execution efficiency for regular workloads [5, 17, 25]. Software has not kept pace with this trend. High-performance kernel development commonly follows one of two paths. The first relies on vendor libraries whose kernels are carefully optimized by hardware experts for a specific platform [9, 22]. These libraries perform well for supported operators, but their expert knowledge transfers poorly across architectures and algorithms, and users receive few tuning options. The second uses tile-based SPMD DSLs, now a central abstraction for AI and HPC kernels [11, 19, 34, 46, 50]. Pro-grammers write tile-level block programs, which the com-piler and runtime lower to parallel threads. Because perfor-mance depends heavily on tile sizes and schedules, these systems often rely on profile-based auto-tuning or heuristic search [26, 28, 35]. This abstraction fits GPUs well: hardware dynamically manages the grid, L2 caches capture reuse across blocks, and warp switching hides intra-block latency. Conse-quently, existing compilers focus on efficient per-block code, leaving spatial-dataflow opportunities—core placement, NoC forwarding and multicast, and software-managed overlap— implicit and unexploited. Thus, neither path provides portable, joint optimization of inter-core and intra-core dataflow: ven-dor libraries hard-code it for one platform, while tile-based DSLs do not expose it. Our key insight is that tile-based SPMD programs already contain the structure needed to plan both levels of dataflow, and that dataflow features make the resulting plans stati-cally predictable. The grid is regular and homogeneous: it consists of many instances of the same block program over a predictable iteration space, which is exactly the information needed to plan inter-core dataflow—where block instances run, where their operands reside, and when data should be forwarded or reused through the on-chip fabric. The block program is heterogeneous: it describes the concrete sequence of loads, computation, stores, buffering, and synchronization needed by one tile of work, which is exactly the information needed to plan intra-core dataflow—asynchronous move-ment, double buffering, and producer–consumer overlap within each core. Because dataflow features expose place-ment, movement, and synchronization decisions to software, schedules planned this way become predictable to the com-piler; with sufficient hardware information, good schedules can therefore be selected statically rather than discovered 
+
+through profile-based tuning. The challenge is that the two levels cannot be optimized in-dependently. Inter-core choices determine which data arrive at each core, at what rate, and with what reuse opportu-nities; those choices constrain the local buffers, synchro-nization points, and pipeline stages available to the block program. Conversely, intra-core schedules determine how much local memory is required, how long data must be re-tained, and how much communication or computation can be overlapped, which changes the best grid placement and forwarding pattern. Exploiting SPMD for spatial dataflow therefore requires hardware information: local-memory ca-pacity, network topology and bandwidth, off-chip bandwidth, synchronization costs, and compute throughput determine which combinations of grid-level and block-level decisions are legal and profitable. Worse, this joint space contains many value-based design choices. SPMD block sizes, buffer allocations, forwarding groups, and pipeline depths are not small categorical op-tions: they are integer parameters whose values change the amount of computation per block, local-memory footprint, communication volume, available parallelism, and overlap opportunities. Enumerating all combinations is impractical, but fixing these values too early obscures the interactions that determine whether a dataflow plan is legal and prof-itable. A useful compiler must therefore reason about these choices symbolically, using hardware constraints and ana-lytical cost models to prune invalid mappings and compare candidate schedules without exhaustively compiling and profiling every instance. In this work, we present Loom, a tuning-free end-to-end compiler framework for tile-based SPMD programs on spatial dataflow architectures. The central idea is to treat tile-based SPMD compilation as a hardware-explicit static optimiza-tion problem: instead of optimizing a fixed tile configura-tion, Loom keeps SPMD block sizes and pipeline decisions symbolic throughout the compilation flow, derives legality constraints and latency expressions from explicit hardware descriptions, and jointly optimizes inter-core dataflow, intra-core asynchronous scheduling, and SPMD block size deci-sions at compile time. By making hardware resources such as local memory capacity, memory bandwidth, and compute throughput visible to the optimizer, Loom can reason about the correlations among these choices rather than relying on isolated, architecture-specific rules. Unlike auto-tuned DSL stacks, no per-kernel hardware profiling is performed in the loop; unlike vendor libraries, all hardware knowledge is parameterized in the architecture description, so retar-geting a new hardware generation only requires updating that description rather than re-engineering kernels. Beyond selecting high-performance mappings, the solver exposes dominant bottlenecks in interpretable terms, providing ac-tionable insight for both compiler engineers and hardware designers. We evaluate Loom on two generations of Tenstorrent hardware, Wormhole and Blackhole, using three representa-tive operators: GEMM, Flash Attention, and Flash Decode.  
+
+> 2Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures Conference’17, July 2017, Washington, DC, USA
+
+Compared with the vendor-optimized TTNN library, Loom matches or exceeds TTNN on GEMM (with geometric-mean speedups of 0 .99 × and 1 .16 × on Wormhole and Blackhole, re-spectively) and Flash Decode (1 .01 × and 1 .17 ×), and achieves a 2 .15 ×–2 .29 × geometric-mean speedup on Flash Atten-tion. All results are obtained out of the box, showing that Loom’s architecture-parameterized compilation flow retar-gets across hardware generations. The ablation studies fur-ther show that the solver usually selects spatial mappings and block sizes that are locally optimal or close to the best measured alternatives. Together, these results suggest that explicitly modeling dataflow choices, memory-hierarchy con-straints, NoC communication, and intra-core pipelining en-ables a compiler to recover much of the expert scheduling knowledge traditionally embedded in hand-tuned vendor kernels. The source code of Loom is publicly available at 
+
+https://github.com/ecolab-nus/loom .
+
+2 Framework 
+
+2.1 Overview 
+
+Figure 1 summarizes Loom’s end-to-end compilation flow. Loom first lowers a tile-based SPMD program into a symbolic, 
+
+dataflow-agnostic MLIR (Multi-Level Intermediate Represen-tation) [27] program. We call this representation dataflow-agnostic because it preserves the logical SPMD grid, block-level computation, and global-memory accesses, while leav-ing producer-consumer dataflow, local-memory usage, and buffer readiness semantics implicit. Loom then reconstructs the producer-consumer structure and makes the local-memory and readiness semantics explicit, producing dataflow-aware MLIR while keeping their concrete realization abstract. The architectural information in Figure 2 guides the remaining stages. Starting from the dataflow-aware MLIR, Loom uses the target topology and NoC capabilities to enumerate alter-native spatiotemporal mappings of the logical SPMD grid and corresponding data-movement strategies. Each combi-nation forms a schedule candidate, while value parameters such as block sizes and pipeline choices remain symbolic. For each candidate, Loom constructs a Hierarchical Execution Graph (HEG) that captures its program structure and poten-tial overlap. Loom then combines the HEG with the target resource and performance information to derive a symbolic latency expression and legality constraints, which together form a CP-SAT optimization problem. Loom solves these candidate-specific problems, selects the feasible candidate with the lowest modeled latency, substitutes the solved sym-bolic values into the selected program, and lowers it through the target backend to the final executable. 
+
+Stage 1: Lowering SPMD programs to symbolic MLIR. 
+
+Given a Helion SPMD program, Loom lowers its logical grid, block-level control flow, tensor computation, and global-memory accesses into MLIR while preserving symbolic block-size parameters. The output is a dataflow-agnostic MLIR pro-gram that retains both grid-level parallelism and block-level computation but leaves producer-consumer data movement and synchronization implicit. 
+
+Stage 2: Reifying intra-core dataflow. Given the dataflow-agnostic MLIR from Stage 1, Loom converts tensor depen-dences represented by Static Single Assignment (SSA) use-def chains into explicit producer-consumer dependences over virtual buffers. The output is a dataflow-aware MLIR program in which producer-consumer handoffs are explicit while their physical storage and synchronization resources remain abstract. 
+
+Stage 3: Concretizing virtual buffers. Loom uses live-ness analysis to bind virtual buffers to physical local-memory and synchronization resources, which can be reused when legal. The output replaces abstract virtual-buffer resources with memory references and synchronization operations. 
+
+Stage 4: Topology- and NoC-aware candidate gener-ation. Given the symbolic logical SPMD grid and the tar-get topology, Loom enumerates spatiotemporal mappings of program parallel axes onto the available cores, with any remaining grid extent executed temporally. For each map-ping, Loom analyzes the resulting global-memory accesses for cross-core reuse and considers the inter-core transfer patterns supported by the target NoC. The combination of a spatiotemporal mapping and its data-movement choices forms a schedule candidate with explicit spatial and temporal placement and inter-core communication. 
+
+Stage 5: Symbolic performance modeling and con-straints. For each schedule candidate, Loom constructs an Hierarchical Execution Graph (HEG) that captures its struc-tured execution and potential overlap. Combining the HEG with target performance and resource models yields a sym-bolic latency expression and legality constraints, forming one CP-SAT problem per candidate. 
+
+Stage 6: Solving and target code generation. Loom solves each candidate-specific CP-SAT problem independently, dis-cards infeasible candidates, and selects the feasible candidate with the lowest modeled latency. It then materializes the solved symbolic values in the selected MLIR program and lowers it through the hardware-specific backend to the final executable. 
+
+2.2 Symbolic MLIR 
+
+The standard MLIR infrastructure does not provide the kind of first-class compile-time symbol needed by Loom: a value that has a stable source-level name, a finite domain, and can flow through the IR as an SSA value until the solver assigns it a constant. MLIR already uses the term “symbol” for named 
+
+> 3
+
+Conference’17, July 2017, Washington, DC, USA Heru Wang, Wei Li, Zhenyu Bai, and Tulika Mitra Frontend Lowering Intra-core Data fl ow Symbolic Time Estimation Symbolic Constraints CP-SAT Solving top-1 Backend (CodeGen) select top-1 SPMD Program (Helion) linalg on tensor affi ne.parallel memref.subview bu ff erization.to_tensor Data fl ow-Agnostic MLIR Data fl ow-Aware MLIR Hierarchical Execution Graph Spatiotemporal Mapping affi ne.parallel scf.for linalg on memref producer-consumer Executable 
+
+> Explicit Sizes Explicit Bu ff erization Explicit Sync Explicit Compute
+> memref.subview loom.copy Memory Operation Rewrite
+
+Figure 1. Overview of the Loom framework. Core Chip Cores Organization NoC Topology NoC Performance DRAM Channels Organization ...   
+
+> TX
+> RF L1
+> RX NoC to other cores or global mem
+> Compute Backend
+> Pack
+> Unpack
+> DRAM 2 (3GB) DRAM 3 (3GB) DRAM 0  (3GB) DRAM 1  (3GB)
+> Intracore Module Organization Bu ff ers Bandwidth & Capacity Datapath Bandwidth & Connectivity Module Performance Module Concurrency ...
+
+Figure 2. Architectural information used by Loom. IR entities such as @foo ; in this paper, we call those entities 
+
+labels and use symbol to mean a compile-time unknown introduced by our extension. Our symbolic MLIR extension keeps such unknowns explicit in shapes, loop bounds, index expressions, memory footprints, and performance-model inputs throughout the compilation pipeline. A symbol is introduced by an loom.sym operation: 
+
+%0 = loom.sym @tile_b { upper_bound = 16 : index } 
+
+The operation has two roles. The SSA result, here %0 , is the MLIR-facing representation of the unknown value. It has type index , so existing MLIR operations and analyses can use it wherever an index expression is expected, including affine arithmetic, loop bounds, allocation sizes, subview sizes, tensor shapes, and indexing expressions. The label, here @tile_b , is the human- and solver-facing identity of the same unknown. A label can originate from sev-eral sources, but it most commonly comes from a block-size symbol that already exists in the Helion kernel. For example, when a source loop such as for tile_m, tile_n in hl.tile ←↪
+
+([m, n]): is lowered, Loom creates symbols whose labels preserve the source names @tile_m and @tile_n . These labels are carried through the compilation pipeline and become variable names in the CP-SAT formulation. This separation makes the optimized schedule interpretable. Compiler passes manipulate the SSA values when building symbolic bounds, access windows, buffer footprints, multi-cast regions, and HEG workloads. The modeling and solving layer uses the labels to name the corresponding CP-SAT vari-ables and to report the solution back in source-level terms, such as the selected values of tile_m and tile_n . Loom uses the same mechanism for symbols introduced later by the compiler, such as spatial tiling factors, and pipelining knobs, so all solved quantities remain traceable. After CP-SAT solving, each loom.sym is replaced by the solved constant, and all dependent expressions are rewritten accordingly. The output is a concrete MLIR kernel variant whose loop bounds, buffer sizes, communication regions, and backend choices are fixed, while the selected constants remain traceable to the original source-level symbol labels. 
+
+2.3 Reifying Tensor Values into Synchronized Buffers loom.vb 
+
+At this point, the IR produced by Stage 1 represents block computation as MLIR linalg operations over tensor values, with producer-consumer dependences preserved through SSA use-def chains. These dependences are sufficient to pre-serve program semantics, but not to exploit the intra-core asynchronous execution exposed by modern dataflow archi-tectures: memory and compute workers can proceed inde-pendently and form pipelines as long as their input data are ready. Exploiting this capability therefore requires the com-piler to explicitly represent when local storage is writable and when produced data become readable. Loom introduces 
+
+virtual buffers as a target-independent protocol for express-ing this local storage and data-readiness state. Compiler passes use virtual buffers to coordinate producer-consumer handoff through readable and writable state, while later low-ering stages choose the physical buffers, synchronization resources, and target instructions that implement the proto-col. Loom exposes the virtual buffer abstraction through a synchronization interface and a data-access interface. The synchronization interface consists of four loom.vb.* opera-tions. Before a consumer reads a value, loom.vb.acquire ←↪
+
+waits until the corresponding virtual buffer contains the required amount of readable data; after the read completes, 
+
+loom.vb.release records that the consumer no longer needs that data. Before a producer writes a value, loom.vb.reserve 
+
+waits until the destination virtual buffer has enough writable capacity; after the write completes, loom.vb.commit makes the newly produced data readable by downstream consumers. 
+
+4Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures Conference’17, July 2017, Washington, DC, USA loom.sem.alloc loom.sem.alloc       
+
+> loom.mem.alloc
+> loom.mem.alloc
+> loom.mem.alloc
+> loom.sem.alloc
+> loom.vb.reserve
+> loom.vb.commit
+> loom.vb.acquire
+> loom.vb.release
+> as memref Memory Banks Semaphores producer create consumer read/write
+> buf_0:memref s_0 s_1 s_2
+> virtual buffers (vb) buf_2:memref buf_1:memref
+
+Figure 3. Loom’s virtual-buffer abstraction and related prim-itives. vb_A  
+
+> vb_C
+> linalg. matmul
+> vb_A,vb_B, vb_C
+> acquire acquire reserve
+> vb_A vb_B vb_C
+> commit release release
+> vb_C vb_A vb_B
+> vb_B
+> Global Memory Global Memory
+> vb_C vb_C, global vb_C
+> acquire copy release reserve copy commit
+> vb_B global, vb_B vb_B
+> reserve copy commit
+> vb_A global, vb_A vb_A
+
+Figure 4. Typical intra-core dataflow. Together, these operations make the synchronization that governs access ordering explicit in the IR, while still de-ferring the choice of concrete storage and synchronization resources. Conceptually, a virtual buffer behaves like a circular buffer: readers and writers use different views to access the buffer because their accesses are derived from the buffer’s read and write positions, respectively. This lets ordinary memory operations access the payload while the loom.vb.* protocol maintains the corresponding readiness state. Virtual buffers can be implemented differently across hard-ware targets, but each implementation must provide two capabilities: storage for the payload and a counting synchro-nization mechanism that tracks readable data and writable capacity. As shown in Figure 3, loom.mem.alloc allocates the required storage resource and loom.sem.alloc allocates the synchronization resource; binding these resources material-izes the virtual buffer for target lowering. The target backend then lowers the resulting storage accesses and synchroniza-tion operations into target-specific instructions. The tensor semantics in the dataflow-agnostic MLIR are reified into virtual-buffer semantics. Figure 4 illustrates the protocol for a matmul. Global-to-local copies reserve and commit vb_A and vb_B ; the matmul acquires and releases these inputs while reserving and committing vb_C ; the final copy consumes vb_C through the same protocol. Thus, data movement and computation use a uniform virtual-buffer interface. 
+
+2.4 Reuse-Aware Virtual Buffer Concretization 
+
+Because each loom.vb requires a semaphore object and a mem-ory region, both of which are physical resources, Loom re-duces their use to conserve hardware resources. In particular, Loom first reduces the number of virtual buffers when mul-tiple tensor values can be represented by the same virtual vb_A  
+
+> vb_A vb_B
+> acquire release reserve linalg.op1 commit
+> vb_A vb_A vb_A vb_A vb_A
+> acquire acquire release reserve linalg.op2 commit release
+> vb_A vb_B vb_A vb_A vb_A, vb_B, vb_A vb_A vb_B
+> physical buffer physical buffer
+
+(a) Virtual-buffer reuse. vb_A   
+
+> reserve copy commit
+> vb_A global, vb_A vb_A
+> acquire linalg.op3 release
+> vb_A vb_A vb_A
+> reserve copy commit
+> vb_B global, vb_B vb_B
+> acquire linalg.op4 release
+> vb_B vb_B vb_B vb_B
+> physical buffer
+> no concurrency
+
+(b) Physical-buffer reuse. 
+
+Figure 5. Virtual-buffer optimizations. buffer, and then assigns the remaining virtual buffers to phys-ical storage and synchronization semaphores. 
+
+Reusing virtual buffers across exclusive handoffs. 
+
+Keeping each virtual buffer distinct can be unnecessarily conservative. Loom therefore reuses virtual buffers when their dependences already form an exclusive handoff. Many 
+
+linalg operations expose this structure naturally: an opera-tion may update one of its operands in place, or the result of one operation may be consumed by a single downstream op-eration before that storage is reused. In these cases, the con-nected virtual buffers can be merged into one buffer whose readable and writable state advances across the handoff. Figure 5a illustrates this optimization. The in-place update in linalg.op1 consumes and then rewrites the value carried by 
+
+vb_A , so the same virtual buffer can be released, reserved, and committed for the updated value. The following linalg.op2 
+
+continues this handoff by consuming the committed value and writing its result back to the same virtual buffer. 
+
+Concretizing virtual buffers with reusable physical storage. After virtual-buffer reuse optimization, the remain-ing virtual buffers still describe the logical dependences re-quired for pipeline-parallel execution, but Loom has not yet materialized physical storage or synchronization resources. Stage 3 materializes these virtual buffers, while reusing phys-ical storage whenever liveness permits. This step cannot be treated as a late target-lowering detail. Because Loom de-rives local-storage usage from the virtual buffers and the backend’s symbolic latency model treats local-memory ca-pacity as a feasibility constraint on block sizes, unnecessary allocations can rule out larger blocks that would otherwise expose more operation-level parallelism. During concretization, Loom analyzes virtual buffer life-times and exclusive-handoff relations to determine which virtual buffers can safely share physical storage after previ-ous accesses have completed. Loom groups shape-compatible virtual buffers, builds an interference graph for each group, and applies a coloring algorithm to assign non-interfering virtual buffers to the same loom.mem.alloc result. Thus, mul-tiple virtual buffers may occupy the same physical storage at different program points, while each virtual buffer keeps 
+
+5Conference’17, July 2017, Washington, DC, USA Heru Wang, Wei Li, Zhenyu Bai, and Tulika Mitra 
+
+its own synchronization resource for enforcing the access ordering expressed by its loom.vb.* operations. After concretization, the memref views exposed by a virtual buffer are derived from its assigned loom.mem.alloc storage, while the readable and writable state is implemented by the associated loom.sem.alloc semaphore. On the consumer path, loom.vb.acquire and loom.vb.release wait on and update this semaphore around the read view. On the producer path,  
+
+> loom.vb.reserve
+
+and loom.vb.commit do the same around the write view. Thus, concretization preserves the virtual-buffer interface used by earlier compiler passes while making the underlying storage accesses and synchronization effects ex-plicit in the IR. Figure 5b shows the distinct case of physical-storage reuse: 
+
+vb_A and vb_B remain separate virtual buffers with indepen-dent synchronization state, but share one loom.mem.alloc be-cause their lifetimes do not overlap. 
+
+2.5 Topology-Aware Intermediate Transformation 
+
+For spatial dataflow architectures with a software-visible NoC and a homogeneous core array, how the SPMD grid is mapped onto the cores directly affects available parallelism, cross-core data reuse, and communication cost. Loom there-fore applies a topology-aware intermediate transformation to expand the dataflow-agnostic program into a pruned set of mapping candidates. It first enumerates topology-aware spa-tial mappings, then analyzes the cross-core reuse exposed by each retained mapping and rewrites eligible memory trans-fers into NoC-aware operations. 
+
+Topology-aware mapping. Loom maps the logical SPMD grid onto the parallelism available on the target core topol-ogy, as specified by the core organization in the architecture description in Figure 2. Rather than requiring a one-to-one correspondence between program axes and physical array dimensions, Loom enumerates different logical views of the available cores, varying both how many cores participate and how their parallelism is organized across program axes. This flexibility is useful when parallelism is uneven across program axes. For example, when mapping a workload with a small batch dimension but a long sequence dimension onto a regular 8 × 8 mesh, Loom may logically view the array as 2 × ( 4 × 8), assigning 2-way spatial parallelism to batch and the remaining 32-way extent to sequence. For each candidate, Loom tiles the SPMD program grid over one legal view of the target core topology, following the same tiling practice as TileLoom [29]. The spatial tile extents determine the cross-core parallel portion of each grid axis, while any remaining extent executes temporally. 
+
+Spatial-reuse-aware pruning. The main compilation pressure in this framework is candidate-space growth: Loom enumerates different logical views of the parallelism avail-able on the target core topology and different placements of the program’s parallel axes, with each retained mapping modeled and solved independently. Exhaustively consider-ing every legal core view and every ordering of program axes can therefore become combinatorial. Loom reduces this space before symbolic modeling by prioritizing mappings that expose both parallelism and cross-core data reuse. For each program axis, Loom computes an axis score ( Par-allelExtent , ReuseVolume , ReuseAccessCount ). ParallelExtent 
+
+measures how much work can be distributed along the axis, while ReuseVolume and ReuseAccessCount characterize how much data can be shared when accesses are invariant along that axis and how frequently such reuse occurs. Loom uses these scores to construct a dominance-based partial order over program axes: an axis is constrained be-hind another only when it is dominated in all three metrics; otherwise, both relative orders remain legal. Rather than enumerating all axis permutations, Loom enumerates only the linear extensions of this partial order and combines them with the legal core views to form mapping candidates. This pruning retains the alternatives that are not dominated under Loom’s reuse-and-parallelism heuristic while substantially reducing the candidate set passed to modeling and solving. By applying this pruning, Loom eliminates up to 93% of the legal candidate space for GEMM mappings, and Section 3 empirically evaluates the quality of the retained candidates. 
+
+Spatial reuse across cores. For each retained mapping candidate, Loom derives the spatial communication pattern induced by its block-to-core placement. It identifies cross-core reuse from affine global-memory access expressions: when an access is invariant along a spatial dimension, mul-tiple cores address the same global-memory slice and may share the transferred data. Subject to the connectivity and communication patterns supported by the target NoC, eligi-ble accesses are rewritten as loom.copy operations encoding the selected transfer mode and spatial sharing region. 
+
+> loom.copy %0, %1, @mem_global to @mem_local, multicast : [8, 1] region : (TL : [0, %2], BR : [7, %3 ←↪
+> ])
+
+Here, multicast : [8, 1] specifies the sharing extent, while region identifies the participating rectangular core region by its top-left and bottom-right coordinates. Together with the underlying spatiotemporal mapping, each retained data-movement choice defines a schedule candidate. These annotations also provide the candidate-specific communica-tion information used by the latency model to account for NoC transfer costs. 
+
+2.6 Latency Modeling 
+
+Building the Hierarchical Execution Graph. A latency model for a SPMD program must expose where load, com-putation, and store stages may overlap. Loom captures this structure with a Hierarchical Execution Graph (HEG), a re-cursively defined execution model:  
+
+> 6Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures Conference’17, July 2017, Washington, DC, USA
+
+𝑔 :: = pipe (ℓ, 𝑔 ′, 𝑠 ) | for (𝑖, 𝑔 ′) | 𝑐 | 𝑔 ; 𝑔 (1) 
+
+ℓ :: = LOAD_OP ∗ | ∅ (2) 
+
+𝑠 :: = STORE_OP ∗ | ∅ (3) 
+
+𝑐 :: = COMPUTE_OP ∗ (4) A sequential composition 𝑔 1; 𝑔 2 represents two sibling HEG subgraphs executed in order within the same scope, where 𝑔 1 and 𝑔 2 are arbitrary HEGs. A pipe node represents a load stage ℓ, a child HEG 𝑔 ′, and a store stage 𝑠 , where either memory stage may be empty. The pipeline structure specifies a potential overlap; whether the overlap is enabled is left as a solver decision. A for node repeats its child HEG 
+
+𝑔 ′ for 𝑖 iterations, where 𝑖 may be either a concrete integer or a symbolic expression. A leaf HEG 𝑐 is a sequence of non-memory compute operations. Figure 6 shows an example HEG. The root HEG consists of three subgraphs that are executed sequentially in this candidate. Its compute stage is a for node with child HEG 𝑔 ′ and trip count 𝑖 , representing a loop nest whose body exposes pipeline-parallel execution. loom.copy     
+
+> loom.copy
+> loom.copy
+> loom.copy loom.copy
+> LOAD Compute STORE LOAD Compute STORE
+> loom.copy loom.copy
+> loom.copy loom.copy
+> loop(i, g')
+
+Figure 6. Example Hierarchical Execution Graph. For example, Flash Decode naturally requires sequential composition: a local softmax loop can be represented as one HEG subgraph, followed by sibling subgraphs for gathering partial results, computing the global softmax, and applying the final score computation. Each of these subgraphs may itself contain nested loops or pipelines. 
+
+Primitive-based latency assembly. We use the term 
+
+primitive operation to refer to the lowest-level compiler-visible operation used to construct an HEG, such as a copy, a matrix multiplication, or an elementwise operation. The architecture description module provides symbolic latency expressions for collections of such primitives using the ar-chitecture information in Figure 2. The HEG latency model treats these expressions as base terms: a leaf HEG is assem-bled from compute primitives, while each load or store stage is assembled from the corresponding memory primitives. Thus, primitive performance modeling remains local to the architecture description module, while the HEG specifies how the resulting latency terms are composed. Let G be the set of HEG nodes in a candidate program, and let 𝑟 ∈ G denote the root HEG. For each node 𝑔 ∈ G , 𝑇 𝑔 (x, b)
+
+denotes the symbolic latency expression of the subgraph rooted at 𝑔 under block-size configuration x and pipeline-knob configuration b.For a leaf HEG 𝑐 , the architecture description module directly provides its assembled compute latency 𝑇 𝑐 (x). For a sequential composition 𝑔 = 𝑔 1; 𝑔 2, the two child subgraphs execute in order, so their latencies are added: 
+
+𝑇 𝑔 (x, b) = 𝑇 𝑔 1 (x, b) + 𝑇 𝑔 2 (x, b). (5) For a pipe node 𝑔 = pipe (ℓ, 𝑔 ′, 𝑠 ), the architecture descrip-tion module provides the assembled memory-stage latencies 
+
+𝑇 ℓ𝑔 (x) and 𝑇 𝑠 𝑔 (x) for the primitive collections in ℓ and 𝑠 . The remaining term, 𝑇 𝑔 ′ (x, b), is the latency of the child HEG and is assembled recursively from lower-level HEG nodes. Loom introduces a two-bit pipeline knob b𝑔 = (𝑏 ℓ𝑚 𝑔 , 𝑏 𝑚𝑠 𝑔 )
+
+for this node. The first bit controls whether the load–body boundary is opened as a pipeline boundary, while the second controls the body–store boundary. A closed boundary fuses the adjacent components into one serial stage, whereas an open boundary allows them to execute as separate pipeline stages. Therefore, the latency of a pipe node is: 
+
+ℓ𝑔 = 𝑇 ℓ𝑔 (x), 𝑚 𝑔 = 𝑇 𝑔 ′ (x, b), 𝑠 𝑔 = 𝑇 𝑠 𝑔 (x),𝑇 𝑔 (x, b) =
+
+
+
+ℓ𝑔 + 𝑚 𝑔 + 𝑠 𝑔 , b𝑔 = (0, 0),
+
+max (ℓ𝑔 + 𝑚 𝑔 , 𝑠 𝑔 ), b𝑔 = (0, 1),
+
+max (ℓ𝑔 , 𝑚 𝑔 + 𝑠 𝑔 ), b𝑔 = (1, 0),
+
+max (ℓ𝑔 , 𝑚 𝑔 , 𝑠 𝑔 ), b𝑔 = (1, 1).
+
+(6) For a for node 𝑔 = for (𝑖, 𝑔 ′), Loom composes the loop latency as: 
+
+𝑇 𝑔 (x, b) = 𝑖 (x) · 𝑇 𝑔 ′ (x, b). (7) Starting from leaf HEGs and memory stages, Loom recur-sively assembles these expressions bottom-up. The latency of the root HEG, 𝑇 𝑟 (x, b), is the total symbolic latency ex-pression of the candidate program. 
+
+Scope of symbolic latency modeling. This latency model targets regular SPMD grids, where block instances follow the same execution structure and can be described by a shared symbolic latency expression. Irregular or asymmetric grids are more challenging because different grid positions may execute different amounts of work or follow different it-eration extents, making their latencies position-dependent rather than representable by a single symmetric expression. Such cases require either regularizing the iteration space before modeling or extending the latency model to explicitly represent position-dependent execution costs. 
+
+Defining and solving the constrained optimization problem. The bottom-up HEG assembly gives each map-ping candidate a symbolic latency expression. For a retained candidate cdt ∈ C , let 𝑟 cdt denote its root HEG. The ex-pression 𝑇 𝑟 cdt (xcdt , bcdt ) captures how the candidate latency is assembled. Latency alone, however, is not sufficient to  
+
+> 7Conference’17, July 2017, Washington, DC, USA Heru Wang, Wei Li, Zhenyu Bai, and Tulika Mitra
+
+define a legal implementation. The same architecture de-scription module that provides primitive latency terms also provides resource and legality constraints, such as local-memory capacity, alignment requirements, divisibility con-straints, and primitive validity conditions. Together with candidate-specific placement and communication decisions, these constraints define a constrained optimization problem for each schedule candidate. For each candidate cdt , Loom solves: 
+
+(x★
+
+> cdt
+
+, b★ 
+
+> cdt
+
+) = arg min  
+
+> xcdt ,bcdt
+
+𝑇 𝑟 cdt (xcdt , bcdt )
+
+s.t. Φcdt (xcdt , bcdt ),
+
+Φcdt (xcdt , bcdt ) :=
+
+
+
+𝑥 𝑘 ∈ Z>0, 𝑥 𝑘 ≤ 𝑈 cdt ,𝑘 ,𝑥 𝑘 ≡ 0 (mod 𝑎 cdt ,𝑘 ),
+
+L1Footprint cdt (xcdt , bcdt ) ≤ 𝐶 L1 ,
+
+ValidPrimitive 𝑝, cdt (xcdt ),
+
+Legal 𝑞, cdt (xcdt , bcdt )
+
+(8) After solving all retained candidates-specific optimization problems independently, Loom selects the feasible candidate with the lowest modeled latency: 
+
+cdt ★ = arg min  
+
+> cdt ∈ C feas
+
+𝑇 𝑟 cdt (x★
+
+> cdt
+
+, b★ 
+
+> cdt
+
+). (9) The predicate Φcdt combines architecture constraints and program constraints under the fixed mapping candidate cdt .The bounds 𝑈 cdt ,𝑘 and alignment factors 𝑎 cdt ,𝑘 come from the architecture description module combined with candidate-specific tiling context. The L1 footprint constraint bounds the local-memory usage induced by the candidate, including additional buffering required by selected pipeline configura-tions. Primitive validity constraints ensure that the latency terms requested from the architecture description module are applied within supported workload scenarios. The remaining legality predicates capture semantic and candidate-specific requirements, such as valid communication patterns and tiling-bound constraints. Infeasible candidates are discarded, and the best feasible solution is materialized as the selected mapping, block-size configuration, and pipeline configura-tion. 
+
+2.7 Architecture Description 
+
+Architecture-description requirements. Loom separates kernel implementation from architecture-specific control. Kernel developers specify the operator without placement, communication, or pipelining decisions; Loom infers these decisions jointly through the solver using the program struc-ture and the target architecture description. The architecture-specific effort is therefore concentrated in constructing this description, whose required information falls into two cate-gories. Structural properties, including core organization, in-terconnect topology and connectivity, and memory-hierarchy capacities, are obtained directly from hardware specifica-tions. Performance properties, including the bandwidth of each memory level and the NoC, and the latency and through-put of primitive operations, are characterized using isolated microbenchmarks. These parameters are collected once per architecture and reused across operators and input shapes, rather than measured within the per-kernel optimization loop. 
+
+Architecture-model applicability. Loom targets dataflow architectures whose workload placement, communication, synchronization, and memory–compute pipelining are suffi-ciently explicit and predictable for static modeling. Its resource-based latency formulation is not tied to a homogeneous sys-tem or single-level memory hierarchy. This abstraction natu-rally extends to heterogeneous functional units, hierarchical memories, and multi-level interconnects as long as their performance-relevant behavior can be modeled composition-ally. Less deterministic hardware behavior can instead be represented using conservative or offline-calibrated resource models, without introducing profiling into the per-kernel optimization loop. 
+
+3 Evaluation 
+
+We evaluate Loom on two generations of Tenstorrent accel-erators. The evaluation answers four questions. First, can Loom generate kernels that are competitive with Tenstor-rent’s optimized TTNN library and a tuning-based approach? Second, can the same architecture-parameterized compila-tion flow retarget multiple hardware generations? Third, what compile-time cost does symbolic optimization intro-duce relative to tuning-based methods such as TileLoom? Fourth, how accurately does the analytical model rank sched-ule candidates and choose block sizes? 
+
+3.1 Experimental Setup Platforms. We run all experiments on two servers: one with a Tenstorrent Wormhole card and one with a Tenstorrent Blackhole card. Table 1 lists the host and accelerator specifi-cations used in the evaluation. 
+
+Table 1. Specifications of the hardware platforms used in our evaluation. TT-Wormhole TT-Blackhole Host CPU Intel Xeon Silver 4514Y AMD EPYC 7352 Host Memory 256 GB 512 GB OS Ubuntu 24.04.4 LTS Ubuntu 22.04.5 LTS Topology 8 × 8 12 × 10 On-chip SRAM 108 MB 180 MB DRAM 12 GB GDDR6 32 GB GDDR6 Off-chip BW 288 GB/s 512 GB/s TFLOPS (FP16) 64 162 
+
+Baseline and benchmarks. We compare Loom against two baselines: TTNN [45], Tenstorrent’s vendor-provided library of hand-optimized kernels for linear algebra and  
+
+> 8Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures Conference’17, July 2017, Washington, DC, USA
+
+neural-network workloads [44], and TileLoom [29], a state-of-the-art compiler for automatically generating optimized kernels on Tenstorrent hardware. We evaluate three repre-sentative kernels: GEMM, Flash Attention, and Flash Decode. These kernels cover different performance regimes. GEMM is a regular dense-linear-algebra primitive with structured tiling and high data reuse. Flash Attention combines ma-trix multiplication, softmax, and value aggregation, stressing fused dataflow, on-chip buffering, and communication sched-uling. Flash Decode represents autoregressive inference, in which the query length is fixed and performance is domi-nated by streaming the KV cache. Together, these workloads test whether Loom can generate competitive code across compute-bound, fused-attention, and memory-dominated kernels. 
+
+3.2 Kernel Performance Table 2. Geometric-mean speedup over TTNN on Wormhole and Blackhole. 
+
+Kernel Method Wormhole Blackhole 
+
+GEMM TileLoom 0.950 × 1.100 ×
+
+Loom 0.989 × 1.160 ×
+
+Flash Attention TileLoom 1.940 × 1.980 ×
+
+Loom 2.293 × 2.151 ×
+
+Flash Decode TileLoom ∗ 0.840 × 0.870 ×
+
+Loom ∗ 0.979 × 0.989 ×
+
+Loom (all) 1.011 × 1.169 × 
+
+> ∗Geometric mean over the subset of shapes supported by TileLoom.
+
+Table 2 reports the geometric-mean end-to-end speedup of TileLoom and Loom over TTNN on Wormhole and Blackhole. A value greater than 1 .0× indicates a speedup over TTNN. Loom consistently outperforms TileLoom across all three kernels and both platforms. For GEMM, Loom achieves per-formance close to TTNN on Wormhole and a 1 .16 × speedup on Blackhole. For Flash Attention, Loom achieves 2 .29 × and 2.15 × speedups on Wormhole and Blackhole, respectively, outperforming TileLoom’s 1 .94 × and 1 .98 ×.For Flash Decode, TileLoom does not support all evalu-ated shapes because of tool limitations. We therefore first compare both systems on the subset of shapes supported by TileLoom (marked with ∗). On this common subset, Loom improves the geometric-mean performance from 0 .84 × to 0.98 × on Wormhole and from 0 .87 × to 0 .99 × on Blackhole. In contrast to TileLoom, Loom supports all evaluated Flash De-code shapes; across the complete evaluation set, it achieves geometric-mean speedups of 1 .01 × and 1 .17 × over TTNN on Wormhole and Blackhole, respectively. All Loom results are obtained out of the box, without per-shape profiling or profile-based platform-specific schedule tuning. 
+
+3.2.1 GEMM. We first evaluate GEMM, a compute-intensive primitive for which both TTNN and TileLoom provide strong baselines. Figures 7a and 7b compare Loom against the two systems across matrix dimensions from 256 to 16,384. On Wormhole, Loom achieves 0 .989 × the geometric-mean per-formance of TTNN and 1 .050 × that of TileLoom. On Black-hole, Loom improves over both baselines, reaching 1 .160 ×
+
+and 1 .069 × geometric-mean performance relative to TTNN and TileLoom, respectively. The gains are particularly pro-nounced for several communication-sensitive shapes: for ex-ample, on Blackhole, Loom reaches 1 .50 × and 1 .84 × the per-formance of TileLoom for (16K , 256 , 2K ) and (16K , 256 , 16K ),respectively. These results arise from three aspects of Loom’s opti-mization flow. First, Loom searches topology-aware data-movement schedules rather than restricting execution to a fixed set of manually designed templates. For example, on Blackhole, TTNN broadcasts one operand across the entire chip for (16K , 256 , 2K ) and (16K , 256 , 16K ). Loom instead se-lects a two-dimensional broadcast that distributes the two operands along orthogonal directions, substantially reducing communication cost. Second, Loom jointly selects block sizes using its solver and latency model instead of relying on fixed tiling heuristics. This can improve performance even when the spatial com-munication pattern remains unchanged. For (256 , 256 , 256 ),for example, Loom selects a larger 𝐾 tile, amortizing data movement over more computation. Third, Loom co-optimizes tiling with intra-core pipelining. Double buffering can overlap communication with computa-tion, but consumes additional L1 capacity and can therefore constrain tile size. Loom explicitly captures this trade-off rather than enabling pipelining unconditionally. On Worm-hole, for (16K , 16K , 256 ), it disables double buffering and uses larger 𝑀 and 𝑁 tiles, increasing computation per data movement. Together, these choices allow Loom to remain competitive with highly optimized TTNN kernels while also improving over TileLoom across both architectures. Finally, the results demonstrate that the same optimiza-tion flow retargets across accelerator generations. Loom parameterizes architectural properties including peak com-pute throughput, memory bandwidth, NoC cost, and local-memory capacity. Retargeting therefore requires updating the hardware model rather than redesigning GEMM sched-ules for each generation. The solver then adapts communi-cation topology, tile sizes, and pipeline choices to the new hardware. This enables Loom to move from near-TTNN per-formance on Wormhole to outperforming both TTNN and TileLoom on Blackhole without Blackhole-specific schedule engineering. 
+
+3.2.2 Flash Attention. Flash Attention is a more com-plex fused operator than GEMM. It combines matrix multi-plication, softmax, and value aggregation, so performance 
+
+> 9
+
+Conference’17, July 2017, Washington, DC, USA Heru Wang, Wei Li, Zhenyu Bai, and Tulika Mitra 256 2K 16K             
+
+> K dimension
+> (256, 256) (2K, 256) (2K, 2K) (16K, 256) (16K, 2K) (16K, 16K)
+> (M, N)
+> 1.38x 0.95x 0.87x 0.99x 0.92x 0.89x 1.04x 1.05x 0.96x 1.06x 0.90x 0.86x 1.03x 1.04x 0.96x 1.02x 1.04x 0.94x
+
+Wormhole               
+
+> 256 2K 16K
+> K dimension
+> 1.24x 1.50x 1.58x 1.17x 1.35x 1.22x 0.82x 0.94x 1.03x 1.11x 1.95x 1.61x 1.01x 1.00x 0.92x 1.01x 0.99x 0.99x
+
+Blackhole 
+
+> 1.0 1.2 1.4 1.6 1.8
+> Relative performance
+
+(a) Performance relative to TTNN. 256 2K 16K             
+
+> K dimension
+> (256, 256) (2K, 256) (2K, 2K) (16K, 256) (16K, 2K) (16K, 16K)
+> (M, N)
+> 1.36x 1.18x 1.47x 1.06x 1.08x 1.06x 1.03x 0.99x 0.89x 0.91x 1.01x 1.01x 1.03x 0.96x 0.89x 1.13x 1.06x 0.94x
+
+Wormhole               
+
+> 256 2K 16K
+> K dimension
+> 1.13x 1.10x 1.47x 0.97x 1.00x 0.94x 0.75x 0.90x 1.07x 1.03x 1.50x 1.84x 1.11x 0.93x 0.94x 1.08x 0.97x 0.95x
+
+Blackhole  
+
+> 0.8 1.0 1.2 1.4 1.6 1.8
+> Loom / TileLoom performance
+
+(b) Performance relative to TileLoom. 
+
+Figure 7. GEMM performance of Loom relative to TTNN and TileLoom on Wormhole and Blackhole. 012 2.09x 2.07x 2.14x 2.12x 2.17x 2.15x 2.20x 2.22x 2.19x 2.17x             
+
+> Blackhole
+> (16, 1K, 128)(8, 2K, 128) (2, 8K, 128) (4, 4K, 128) (8, 2K, 64) (16, 1K, 64) (2, 8K, 64) (4, 4K, 64) (1, 16K, 64)(1, 16K, 128)
+> 012
+> 2.18x 2.37x 2.42x 2.39x 2.22x 2.19x 2.27x 2.23x 2.28x 2.40x
+> Wormhole
+> Performance (normalized)
+> TTNN TileLoom Loom
+
+Figure 8. Performance of TileLoom and Loom relative to TTNN on Flash Attention, with batch size 𝐵 , sequence length 𝐿 , and number of heads 𝑁 .depends on both compute efficiency and the ability to reuse data across cores while controlling communication. We eval-uate the non-causal variant because it exposes more spa-tial dataflow choices and highlights the benefit of topology-aware mapping and NoC-aware memory rewriting. Figure 8 shows that Loom consistently outperforms both TTNN and TileLoom on Wormhole and Blackhole. Across the evaluated configurations, Loom achieves 2 .18 ×–2 .42 ×
+
+speedup over TTNN on Wormhole and 2 .07 ×–2 .22 × on Black-hole. It also consistently improves over TileLoom, demon-strating the benefit of Loom’s solver-based exploration in identifying better-performing implementations within the optimization space. 
+
+3.2.3 Flash Decode. Flash Decode exercises a different regime from Flash Attention. In autoregressive decoding, the query length is one, and the kernel repeatedly streams over the KV cache. This makes the kernel more memory dom-inated: it has less dense compute reuse, and performance depends heavily on KV-cache movement. Because Flash De-code has limited parallel dimensions to distribute across cores, a key optimization opportunity is to parallelize the reduction dimension, i.e., the sequence-length dimension. Exploiting this opportunity requires careful inter-core com-munication planning together with an intra-core schedule that coordinates synchronization and overlaps communica-tion latency. Flash Decode therefore stresses both inter-core data movement and intra-core pipeline optimization. Figure 9 reports the normalized performance of TileLoom and Loom over TTNN for Flash Decode. Overall, Loom con-sistently outperforms TileLoom and remains competitive with TTNN across the evaluated shapes. On Blackhole, Loom outperforms TTNN on most shapes and achieves a speedup of up to 1 .42 ×. On Wormhole, performance is more shape-dependent, with a peak speedup of 1 .24 × and several con-figurations performing slightly below TTNN. In contrast, TileLoom is generally slower than TTNN on the supported shapes and reports N/A for several configurations on which it fails because of tool limitations. This behavior is expected because Flash Decode offers less scheduling freedom. Since the query dimension is fixed to one, Loom cannot use it as an effective spatial-mapping or tiling axis. The solver also has a smaller legal block-size space because the query tile is effectively predetermined. These constraints reduce the benefit of topology-aware mapping and symbolic tiling. Even under this restricted setting, Loom remains close to or faster than TTNN, showing that the compiler can handle memory-dominated inference kernels without manual tuning. 
+
+10 Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures Conference’17, July 2017, Washington, DC, USA 0.0 0.5 1.0 1.5 N/A N/A N/A N/A N/A N/A                
+
+> 0.89x 1.13x 1.04x 1.17x 1.31x 1.42x 1.17x 1.27x 1.12x 1.25x
+> Blackhole
+> (8, 32, 2K, 64) (8, 32, 2K, 128) (8, 32, 4K, 64) (8, 32, 4K, 128) (8, 32, 8K, 64) (8, 32, 8K, 128) (8, 32, 16K, 64) (8, 32, 16K, 128) (8, 32, 32K, 64) (8, 32, 32K, 128)
+> 0.0 0.5 1.0 1.5 N/A N/A N/A N/A N/A N/A
+> 1.02x 0.95x 1.13x 1.17x 0.97x 1.09x 1.05x 0.93x 0.95x 1.24x
+> Wormhole
+> Performance (normalized)
+> TTNN TileLoom Loom
+
+Figure 9. Performance of TileLoom and Loom relative to TTNN on Flash Decode, with batch size 𝐵 , number of heads 𝑁 ,sequence length 𝐿 , and head dimension 𝐷 .
+
+3.3 Compilation Cost 
+
+Table 3 compares the compilation cost of Loom with that of TileLoom when generating the top-1 and top-5 candidates. The top-1 and top-5 searches take 6.74 s and 34.21 s, respec-tively, compared with 5.75 s and 27.66 s for TileLoom. Thus, although Loom is 17.2%–23.7% more expensive, its compila-tion cost remains on the same scale as TileLoom’s. In return, Loom produces higher-quality candidates, improving the av-erage speedup from 0 .948 × to 0 .989 × for the top-1 candidate and from 1 .029 × to 1 .089 × for the top-5 candidates, corre-sponding to 4.3% and 5.8% higher performance, respectively. Loom therefore incurs a modest compile-time increase over TileLoom while producing higher-performing candidates in this experiment. 
+
+Table 3. Compilation cost and resulting performance of TileLoom and Loom. 
+
+TileLoom Loom Top-1 Top-5 Top-1 Top-5 
+
+Compilation Time (s) ↓ 5.75 27.66 6.74 34.21 Avg. Speedup ↑ 0.948 × 1.029 × 0.989 × 1.089 ×
+
+3.4 Ablation Studies 3.4.1 Candidate ranking. We next evaluate whether the latency model ranks spatial mappings accurately. Exhaus-tively running every schedule candidate with every legal block-size configuration is impractical because the combined search space is too large. Instead, we use a focused top-5 com-parison. For each GEMM shape, we record the five schedule candidates ranked highest by the solver; for each candidate, the solver also selects the best legal block sizes and pipeline option under that candidate’s constraints. We then run these five generated kernels on hardware and compare their mea-sured performance. Figure 10 shows the measured performance range of the five candidates for each shape, normalized to the measured performance of the solver-ranked top-1 candidate. The hori-zontal line at 1 .0 is therefore the solver-selected candidate. If the interval ends at 1 .0, the solver-ranked top-1 candidate is also the measured-best candidate among the top five. If the interval extends above 1 .0, then another candidate in the top five is faster on hardware. (16K, 256, 256) (16K, 256, 16K) (16K, 256, 2K) (2K, 2K, 16K) (256, 256, 2K) (2K, 256, 256) (256, 256, 16K) (2K, 2K, 2K) (16K, 2K, 16K) (16K, 16K, 16K) (16K, 2K, 2K) (16K, 16K, 2K) (256, 256, 256) (2K, 2K, 256) (16K, 16K, 256) (2K, 256, 2K) (16K, 2K, 256) (2K, 256, 16K) 
+
+> 0.4 0.6 0.8 1.0 1.2 1.4 1.6
+> Performance (normalized to top-1)
+
+Figure 10. Measured performance range of the solver-ranked top-5 spatial-mapping candidates, normalized to the solver-ranked top-1 candidate. The results show that Loom usually ranks the best map-ping first. For most shapes, the upper end of the interval coincides with the 1 .0 line, meaning that the solver-selected candidate is also the best measured candidate among the top five. A few intervals extend slightly above 1 .0, but the gap is small, so the chosen candidate remains close to the best measured option. The largest deviations occur for the three leftmost, highly skewed shapes, for which the latency model does not rank the best measured top-5 candidate first. These deviations are expected for highly skewed shapes, which provide too little parallel work along one or more ma-trix dimensions and make several spatial mappings nearly indistinguishable at the model level. Their measured rank-ing is then affected by low-level microarchitectural details that would require additional microbenchmarks and deeper 
+
+11 Conference’17, July 2017, Washington, DC, USA Heru Wang, Wei Li, Zhenyu Bai, and Tulika Mitra 
+
+hardware knowledge to model accurately. These effects ex-plain the wider intervals, but the affected shapes are outliers. Moreover, even the optimized vendor library does not con-sistently handle these extreme shapes well, and our selected candidate remains close to, and sometimes faster than, the vendor library. The focus of this ablation study is to eval-uate Loom’s static modeling and scheduling capability, i.e., whether it can narrow a large search space to a small set of high-quality candidates without profiling every option. In practice, Loom could add a final lightweight profiling step that runs the top-𝑘 generated candidates on hardware and selects the best measured one as the final schedule. 
+
+3.4.2 Block sizes. We also evaluate whether Loom selects effective block sizes after a spatial mapping has been fixed. For each GEMM shape, we keep the solver-selected candidate and treat its selected 𝑀 , 𝑁 , and 𝐾 block sizes as the center point. We then enumerate the local neighborhood by perturb-ing each block dimension to the nearest legal aligned value below, equal to, or above the solver choice. This produces up to 3 3 = 27 configurations, including the solver-selected one. Configurations that violate hardware constraints are excluded. As reported in Figure 11, each box summarizes the mea-sured performance distribution of valid neighboring block-size configurations for a GEMM shape, normalized to TTNN. The boxes show the 25th–75th percentile range with the median inside; the whiskers indicate the minimum and max-imum, and the orange diamonds mark the configurations selected by the solver based on the latency expression. (256, 256, 256) (256, 256, 2K) (256, 256, 16K) (2K, 256, 256) (2K, 256, 2K) (2K, 256, 16K) (2K, 2K, 256) (2K, 2K, 2K) (2K, 2K, 16K) (16K, 256, 256) (16K, 256, 2K) (16K, 256, 16K) (16K, 2K, 256) (16K, 2K, 2K) (16K, 2K, 16K) (16K, 16K, 256) (16K, 16K, 2K) (16K, 16K, 16K) 
+
+> 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0
+> Normalized Performance  Loom
+
+Figure 11. Performance over TTNN under local block-size perturbations around the solver-selected solution. The solver-selected block sizes are among the best local choices for almost all GEMM shapes. In most cases, the or-ange diamond is at or near the top whisker, which means that local perturbations do not improve performance. Only a few shapes have a neighboring configuration that is slightly faster, and the gap is small. Thus, once the spatial mapping is fixed, the latency model usually identifies a block-size configuration that is locally optimal or very close to locally optimal on hardware. This result matches the structure of GEMM. Under a fixed spatial mapping, the communication pattern is mostly de-termined, and the block-size choice mainly controls arith-metic intensity, local-buffer footprint, and primitive effi-ciency. Larger feasible blocks often improve compute utiliza-tion and push execution toward the compute-bound regime, and the symbolic latency model captures this trend. As a result, the solver often chooses the largest or near-largest feasible block sizes under capacity and alignment constraints. The rare mismatches occur for highly skewed shapes such as 
+
+(256 , 256 , 2K ) and small shapes such as (256 , 256 , 256 ), where there is too little work in some dimensions to reach stable throughput. In these regimes, memory bandwidth, compute utilization, and fixed overhead are harder for an analytical model to predict accurately. 
+
+3.4.3 Model accuracy. We validate Loom’s model by com-paring predicted and measured GEMM throughput. Figure 12 plots modeled and measured TFLOPS across (𝑀, 𝑁 , 𝐾 ) con-figurations ranging from small matrices to large compute-heavy shapes. The goal is not cycle-accurate prediction. In-stead, the model cheaply separates promising mappings from clearly inefficient ones during search. (256, 256, 256) (256, 256, 2K) (256, 256, 16K) (2K, 256, 256) (2K, 256, 2K) (2K, 256, 16K) (2K, 2K, 256) (2K, 2K, 2K) (2K, 2K, 16K) (16K, 256, 256) (16K, 256, 2K) (16K, 256, 16K) (16K, 2K, 256) (16K, 2K, 2K) (16K, 2K, 16K) (16K, 16K, 256) (16K, 16K, 2K) (16K, 16K, 16K) 
+
+> Matrix Configurations(M, N, K)
+> 10 20 30 40
+> TFLOPS
+> Modeled Performance Measured Performance
+
+Figure 12. Accuracy of Loom’s performance model against real hardware measurements. The modeled curve preserves the main performance regimes observed on hardware. It predicts low throughput for small configurations, higher throughput for large compute-heavy configurations, and drops for shapes with limited parallelism or limited reuse. However, several gaps remain, including the transitions from (2K , 256 , 256 ) to (2K , 2K , 256 ) and from 
+
+(16K , 256 , 2K ) to (16K , 2K , 256 ). These differences arise from hardware effects that the model intentionally abstracts away, such as fixed kernel overhead, pipeline warm-up, synchro-nization cost, imperfect utilization, and the difficulty of reach-ing peak throughput on small or skinny matrices. Because the model uses idealized compute and memory throughput, it can overestimate configurations that do not fully utilize the accelerator. Despite these absolute prediction errors, the model pro-vides the information needed by the compiler. It narrows 
+
+12 Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures Conference’17, July 2017, Washington, DC, USA 
+
+the search to high-quality regions rather than predicting the exact TFLOPS of every candidate. The candidate-ranking and block-size ablations in Figures 10 and 11 support this conclusion: the candidates selected by the model achieve competitive measured performance even when the modeled throughput differs from the hardware measurement. Thus, the model is accurate enough for search-space pruning and ranking. 
+
+4 Related Work 
+
+Analytical modeling for hardware–software co-design. 
+
+Prior work on accelerator co-design and modeling, including Spatial [23], Plasticine [40], AutoSA [49], Timeloop [37], Ac-celergy [53], MAESTRO [24], Sparseloop [54], and AMOS [57], treats data movement, reuse, memory hierarchy, and hard-ware resource limits as explicit modeling objects. These sys-tems are primarily designed for hardware generation, ac-celerator design-space exploration, or mapping evaluation at the PE, buffer, dataflow-directive, or memory-hierarchy level. Loom adopts the same analytical view of data move-ment and resource constraints, but derives symbolic legality constraints and latency terms for compiling an executable tile program for a given sptial-dataflow target. 
+
+Compilation for spatial and tile-level programs. CGRA and FPGA compilers map dataflow graphs onto fixed fabrics through placement, routing, and scheduling [31, 32, 51, 52, 55], while spatial dataflow compilers such as TileLoom [29], Revet [42], LISA [30], and system-level wafer-scale compil-ers [48] raise the abstraction to distributed cores, explicit communication, and architecture-aware placement. Tile-level tensor compilers such as Triton [46], Ansor [56], Hidet [12], and TileLang [50] expose blocked computation, local-memory movement, fusion, and pipeline structure, typically relying on tuning, learned cost models, or user-provided schedules. Loom is closest in spirit to these compilers, but keeps block sizes symbolic and jointly reasons about topology-aware mapping, NoC communication, local-buffer feasibility, and intra-core overlap instead of optimizing a fixed tile configu-ration or profiling concrete variants. 
+
+Symbolic and solver-based schedule optimization. Loom is also related to analytical tile-size selection, polyhedral optimization, and solver-based mapping [4, 6, 33, 41, 47]. These approaches represent schedule choices as mathemati-cal variables or search decisions under legality constraints. Loom applies this principle at the SPMD-block level for spa-tial dataflow programs, using symbolic variables for tiling factors and pipeline boundaries, and evaluating them with a hardware-parameterized analytical latency model. The solver therefore serves as an interpretable bridge between the compiler IR and the hardware-derived performance model, rather than only as a search mechanism over a fixed schedule space. 
+
+5 Conclusion 
+
+This paper presents Loom, a symbolic compiler framework for tile-based SPMD programs on spatial dataflow archi-tectures. By keeping part of schedule decisions symbolic, Loom exposes the interaction among topology-aware place-ment, NoC communication, local-buffer capacity, and intra-core pipelining to an analytical performance model and solver. This approach turns hardware constraints into ex-plicit compiler reasoning rather than relying only on fixed templates, heuristics, or profile-based tuning. Our evaluation on Tenstorrent Wormhole and Blackhole shows that Loom can generate implementations that match and often outper-form vendor-library kernels across GEMM, Flash Attention, and Flash Decode. These results suggest that as accelera-tors continue to expose more software-controlled dataflow mechanisms, hardware-derived symbolic compilation can provide an interpretable and retargetable path toward high-performance code generation. 
+
+References                 
+
+> [1] Dennis Abts, Garrin Kimmell, Andrew C. Ling, John Kim, et al. 2022. A Software-Defined Tensor Streaming Multiprocessor for Large-Scale Machine Learning. In Proceedings of the 49th Annual International Symposium on Computer Architecture (ISCA 2022) . 567–580. doi: 10. 1145/3470496.3527405
+> [2] Dennis Abts, Jonathan Ross, Jonathan Sparling, Mark Wong-VanHaren, et al. 2020. Think Fast: A Tensor Streaming Processor (TSP) for Accel-erating Deep Learning Workloads. In Proceedings of the 47th Annual International Symposium on Computer Architecture (ISCA 2020) . 145– 158. doi: 10.1109/ISCA45697.2020.00023
+> [3] Jenny Lynn Almerol, Elisabetta Boella, Mario Spera, and Daniele Gregori. 2025. Accelerating Gravitational 𝑁 -Body Simulations Us-ing the RISC-V-Based Tenstorrent Wormhole™. arXiv preprint
+> arXiv:2509.19294 (2025). https://arxiv.org/abs/2509.19294
+> [4] Riyadh Baghdadi, Jessica Ray, Malek Ben Romdhane, Emanuele Del Sozzo, Abdurrahman Akkas, Yunming Zhang, Patricia Suriana, Shoaib Kamil, and Saman Amarasinghe. 2019. Tiramisu: A polyhedral compiler for expressing fast and portable code. In 2019 IEEE/ACM International Symposium on Code Generation and Optimization (CGO) .IEEE, 193–205. [5] Luca Benini and Giovanni De Micheli. 2002. Networks on Chips: A New SoC Paradigm. Computer 35, 1 (2002), 70–78. doi: 10.1109/2.976921
+> [6] Uday Bondhugula, Albert Hartono, Jagannathan Ramanujam, and Ponnuswamy Sadayappan. 2008. Pluto: A practical and fully auto-matic polyhedral program optimization system. In Proceedings of the ACM SIGPLAN 2008 Conference on Programming Language Design and Implementation (PLDI 08), Tucson, AZ (June 2008). Citeseer , Vol. 146. [7] Nafea Bshara. 2024. AWS Trainium: the journey for designing and optimization full Stack ML hardware. In Proceedings of the 29th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 3 . 4–4. [8] Cerebras Systems. 2021. Cerebras Systems: Achieving Industry Best AI Performance Through a Systems Approach . Technical Report. Cere-bras Systems. https://8968533.fs1.hubspotusercontent-na1.net/hubfs/ 8968533/Whitepapers/Cerebras-CS-2-Whitepaper.pdf Whitepaper 03. [9] Sharan Chetlur, Cliff Woolley, Philippe Vandermersch, Jonathan Co-hen, John Tran, Bryan Catanzaro, and Evan Shelhamer. 2014. cuDNN: Efficient Primitives for Deep Learning. CoRR abs/1410.0759 (2014).
+> http://arxiv.org/abs/1410.0759
+> 13
+
+Conference’17, July 2017, Washington, DC, USA Heru Wang, Wei Li, Zhenyu Bai, and Tulika Mitra 
+
+[10] Zeshan Chishti and Berkin Akin. 2019. Memory system characteri-zation of deep learning workloads. In Proceedings of the International Symposium on Memory Systems . 497–505. [11] Yaoyao Ding, Bohan Hou, Xiao Zhang, Allan Lin, Tianqi Chen, Cody Hao Yu, Yida Wang, and Gennady Pekhimenko. 2025. Tilus: A Tile-Level GPGPU Programming Language for Low-Precision Com-putation. arXiv preprint arXiv:2504.12984 (2025). [12] Yaoyao Ding, Cody Hao Yu, Bojian Zheng, Yizhi Liu, Yida Wang, and Gennady Pekhimenko. 2023. Hidet: Task-mapping programming par-adigm for deep learning tensor programs. In Proceedings of the 28th ACM International Conference on Architectural Support for Program-ming Languages and Operating Systems, Volume 2 . 370–384. [13] Amin Firoozshahian, Joel Coburn, Roman Levenstein, Rakesh Nat-toji, Ashwin Kamath, Olivia Wu, Gurdeepak Grewal, Harish Aepala, Bhasker Jakka, Bob Dreyer, et al. 2023. Mtia: First generation silicon targeting meta’s recommendation systems. In Proceedings of the 50th Annual International Symposium on Computer Architecture . 1–13. [14] Amir Gholami, Zhewei Yao, Sehoon Kim, Coleman Hooper, Michael W Mahoney, and Kurt Keutzer. 2024. Ai and memory wall. IEEE Micro 
+
+44, 3 (2024), 33–39. [15] Graphcore Ltd. 2022. Poplar Graph Framework Software. https://www. graphcore.ai/products/poplar . Accessed: 2024-03-19. [16] James Hamilton. 2021. Tesla Project Dojo Overview. https: //perspectives.mvdirona.com/2021/08/tesla-project-dojo-overview/ .Blog post. [17] Ron Ho, Kenneth W. Mai, and Mark A. Horowitz. 2001. The Future of Wires. Proc. IEEE 89, 4 (2001), 490–504. doi: 10.1109/5.920580 
+
+[18] Mark Horowitz. 2014. 1.1 computing’s energy problem (and what we can do about it). In 2014 IEEE international solid-state circuits conference digest of technical papers (ISSCC) . IEEE, 10–14. [19] Yuanming Hu, Tzu-Mao Li, Luke Anderson, Jonathan Ragan-Kelley, and Frédo Durand. 2019. Taichi: A Language for High-Performance Computation on Spatially Sparse Data Structures. ACM Transactions on Graphics 38, 6, Article 201 (2019). doi: 10.1145/3355089.3356506 
+
+[20] Zhe Jia, Blake Tillman, Marco Maggioni, and Daniele Paolo Scarpazza. 2019. Dissecting the Graphcore IPU Architecture via Microbench-marking. arXiv preprint arXiv:1912.03413 (2019). https://arxiv.org/ abs/1912.03413 
+
+[21] Norman P Jouppi, Cliff Young, Nishant Patil, David Patterson, Gaurav Agrawal, Raminder Bajwa, Sarah Bates, Suresh Bhatia, Nan Boden, Al Borchers, et al. 2017. In-datacenter performance analysis of a tensor processing unit. In Proceedings of the 44th annual international symposium on computer architecture . 1–12. [22] Jehandad Khan, Paul Fultz, Artem Tamazov, Daniel Lowell, Chao Liu, Michael Melesse, Murali Nandhimandalam, Kamil Nasyrov, Ilya Permi-nov, Tejash Shah, Vasilii Filippov, Jing Zhang, Jing Zhou, Bragadeesh Natarajan, and Mayank Daga. 2020. MIOpen: An Open Source Library for Deep Learning Primitives. CEUR Workshop Proceedings 2744 (2020). [23] David Koeplinger, Matthew Feldman, Raghu Prabhakar, Yaqi Zhang, Stefan Hadjis, Ruben Fiszel, Tian Zhao, Luigi Nardi, Ardavan Pedram, Christos Kozyrakis, et al. 2018. Spatial: A language and compiler for application accelerators. In Proceedings of the 39th ACM SIGPLAN Conference on Programming Language Design and Implementation . 296– 311. [24] Hyoukjun Kwon, Prasanth Chatarasi, Vivek Sarkar, Tushar Krishna, Michael Pellauer, and Angshuman Parashar. 2020. Maestro: A data-centric approach to understand reuse, performance, and hardware cost of dnn mappings. IEEE micro 40, 3 (2020), 20–29. [25] Hyoukjun Kwon, Ananda Samajdar, and Tushar Krishna. 2018. ACommunication-Centric Approach for Designing Flexible DNN Accel-erators. IEEE Micro 38, 6 (2018), 25–35. doi: 10.1109/MM.2018.2875345 
+
+[26] Yongin Kwon, JooHyoung Cha, Sehyeon Oh, Misun Yu, Jeman Park, and Jemin Lee. 2025. Luthier: Bridging Auto-Tuning and Vendor Libraries for Efficient Deep Learning Inference. ACM Transactions on Embedded Computing Systems 24, 5s (2025). doi: 10.1145/3759916 
+
+[27] Chris Lattner, Mehdi Amini, Uday Bondhugula, Albert Cohen, Andy Davis, Jacques Pienaar, River Riddle, Tatiana Shpeisman, Nicolas Vasi-lache, and Oleksandr Zinenko. 2021. MLIR: Scaling compiler infrastruc-ture for domain specific computation. In 2021 IEEE/ACM international symposium on code generation and optimization (CGO) . IEEE, 2–14. [28] Jonathan S. Lew, Deval A. Shah, Suchita Pati, Shaylin Cattell, Mengchi Zhang, Amruth Sandhupatla, Christopher Ng, Negar Goli, Matthew D. Sinclair, Timothy G. Rogers, and Tor M. Aamodt. 2018. Analyzing Machine Learning Workloads Using a Detailed GPU Simulator. CoRR 
+
+abs/1811.08933 (2018). http://arxiv.org/abs/1811.08933 
+
+[29] Wei Li, Zhenyu Bai, Heru Wang, Pranav Dangi, Zhiqiang Zhang, Cheng Tan, Huiying Lan, Weng-Fai Wong, and Tulika Mitra. 2026. 
+
+{TileLoom }: Automatic Dataflow Planning for {Tile-Based } Lan-guages on Spatial Dataflow Accelerators. In 20th USENIX Symposium on Operating Systems Design and Implementation (OSDI 26) . 1891–1908. [30] Zhaoying Li, Dan Wu, Dhananjaya Wijerathne, and Tulika Mitra. 2022. Lisa: Graph neural network based portable mapping on spatial accel-erators. In 2022 IEEE International Symposium on High-Performance Computer Architecture (HPCA) . IEEE, 444–459. [31] Yixuan Luo, Cheng Tan, Nicolas Bohm Agostini, Ang Li, Antonino Tumeo, Nirav Dave, and Tong Geng. 2023. ML-CGRA: An integrated compilation framework to enable efficient machine learning accelera-tion on CGRAs. In 2023 60th ACM/IEEE Design Automation Conference (DAC) . IEEE, 1–6. [32] Xingchen Man, Jianfeng Zhu, Guihuan Song, Shouyi Yin, Shaojun Wei, and Leibo Liu. 2022. CaSMap: agile mapper for reconfigurable spatial architectures by automatically clustering intermediate representations and scattering mapping process. In Proceedings of the 49th Annual International Symposium on Computer Architecture . 259–273. [33] Massinissa Merouani, Afif Boudaoud, Iheb Nassim Aouadj, Nassim Tchoulak, Islem Kara Bernou, Hamza Benyamina, Fatima Benbouzid-Si Tayeb, Karima Benatchba, Hugh Leather, and Riyadh Baghdadi. 2025. Looper: A learned automatic code optimizer for polyhedral compilers. In 2025 34th International Conference on Parallel Architectures and Compilation Techniques (PACT) . IEEE, 201–215. [34] Microsoft. 2025. triton-shared: A shared middle-layer for the Triton Compiler. https://github.com/microsoft/triton-shared .[35] Pengyu Mu, Yi Liu, Rui Wang, Guoxiang Liu, Hangcheng An, Qianhe Zhao, Hailong Yang, Chenhao Xie, Zhongzhi Luan, Chunye Gong, and Depei Qian. 2025. Deep Learning Operators Performance Tuning for Changeable Sized Input Data on Tensor Accelerate Hardware. IEEE Trans. Comput. 74, 6 (2025), 2101–2113. doi: 10.1109/TC.2025.3551937 
+
+[36] Tim Noack, Louis Krüger, and Andreas Koch. 2025. Accelerating Sparse Linear Solvers on Intelligence Processing Units. In Proceedings of the 39th IEEE International Parallel and Distributed Processing Symposium (IPDPS) . 1023–1035. doi: 10.1109/IPDPS64566.2025.00095 
+
+[37] Angshuman Parashar, Priyanka Raina, Yakun Sophia Shao, Yu-Hsin Chen, Victor A. Ying, Anurag Mukkara, Rangharajan Venkatesan, Brucek Khailany, Stephen W. Keckler, and Joel Emer. 2019. Timeloop: A Systematic Approach to DNN Accelerator Evaluation. In 2019 IEEE International Symposium on Performance Analysis of Systems and Soft-ware (ISPASS) . 304–315. doi: 10.1109/ISPASS.2019.00042 
+
+[38] Hongwu Peng, Caiwen Ding, Tong Geng, Sutanay Choudhury, Kevin Barker, and Ang Li. 2024. Evaluating Emerging AI/ML Accelerators: IPU, RDU, and NVIDIA/AMD GPUs. arXiv preprint arXiv:2311.04417 
+
+(2024). https://arxiv.org/abs/2311.04417 
+
+[39] Raghu Prabhakar, Sumti Jairath, and Jinuk Luke Shin. 2022. Sam-baNova SN10 RDU: A 7nm Dataflow Architecture to Accelerate Soft-ware 2.0. In 2022 IEEE International Solid-State Circuits Conference (ISSCC) . 350–352. doi: 10.1109/ISSCC42614.2022.9731612 
+
+[40] Raghu Prabhakar, Yaqi Zhang, David Koeplinger, Matt Feldman, Tian Zhao, Stefan Hadjis, Ardavan Pedram, Christos Kozyrakis, and Kunle Olukotun. 2017. Plasticine: A Reconfigurable Architecture for Parallel 14 Schedules Are Solvable Symbols: Tuning-Free Compilation of Tile Programs on Dataflow Architectures Conference’17, July 2017, Washington, DC, USA 
+
+Patterns. In Proceedings of the 44th Annual International Symposium on Computer Architecture (ISCA) . 389–402. doi: 10.1145/3079856.3080256 
+
+[41] Lakshminarayanan Renganarayana and Sanjay Rajopadhye. 2008. Pos-itivity, posynomials and tile size selection. In SC’08: Proceedings of the 2008 ACM/IEEE Conference on Supercomputing . IEEE, 1–12. [42] Alexander C Rucker, Shiv Sundram, Coleman Smith, Matthew Vilim, Raghu Prabhakar, Fredrik Kjølstad, and Kunle Olukotun. 2024. Revet: A language and compiler for dataflow threads. In 2024 IEEE International Symposium on High-Performance Computer Architecture (HPCA) . IEEE, 1–14. [43] SambaNova Systems. 2021. Accelerated Computing with a Reconfig-urable Dataflow Architecture . Technical Report. SambaNova Systems. 
+
+https://sambanova.ai/hubfs/23945802/SambaNova_Accelerated-Computing-with-a-Reconfigurable-Dataflow-Architecture_ Whitepaper_English-1.pdf Whitepaper. [44] Tenstorrent. 2026. TT-Metal Technical Reports. https://github.com/ tenstorrent/tt-metal/tree/main/tech_reports . Accessed: 2026-06-09. [45] Tenstorrent. 2026. TT-Metal: TT-NN Operator Library and TT-Metalium Low-Level Kernel Programming Model. https://github.com/ tenstorrent/tt-metal . Accessed: 2026-06-09. [46] Philippe Tillet, H. T. Kung, and David Cox. 2019. Triton: An Inter-mediate Language and Compiler for Tiled Neural Network Com-putations. In Proceedings of the 3rd ACM SIGPLAN International Workshop on Machine Learning and Programming Languages (MAPL) .doi: 10.1145/3315508.3329973 
+
+[47] Cristian Tirelli, Lorenzo Ferretti, and Laura Pozzi. 2023. SAT-MapIt: A SAT-based modulo scheduling mapper for coarse grain reconfigurable architectures. In 2023 Design, Automation & Test in Europe Conference & Exhibition (DATE) . IEEE, 1–6. [48] Dirk Van Essendelft, Patrick Wingo, Terry Jordan, Ryan Smith, and Wissam Saidi. 2025. A System Level Compiler for Massively-Parallel, Spatial, Dataflow Architectures. arXiv preprint arXiv:2506.15875 (2025). [49] Jie Wang, Licheng Guo, and Jason Cong. 2021. AutoSA: A polyhedral compiler for high-performance systolic arrays on FPGA. In The 2021 ACM/SIGDA International Symposium on Field-Programmable Gate Arrays . 93–104. [50] Lei Wang, Yu Cheng, Yining Shi, Zhengju Tang, Zhiwen Mo, Wenhao Xie, Lingxiao Ma, Yuqing Xia, Jilong Xue, Fan Yang, and Zhi Yang. 2025. TileLang: A Composable Tiled Programming Model for AI Systems. 
+
+arXiv preprint arXiv:2504.17577 (2025). doi: 10.48550/arXiv.2504.17577 
+
+[51] Jian Weng, Sihao Liu, Vidushi Dadu, Zhengrong Wang, Preyas Shah, and Tony Nowatzki. 2020. Dsagen: Synthesizing programmable spatial accelerators. In 2020 ACM/IEEE 47th Annual International Symposium on Computer Architecture (ISCA) . IEEE, 268–281. [52] Dhananjaya Wijerathne, Zhaoying Li, Manupa Karunaratne, Li-Shiuan Peh, and Tulika Mitra. 2022. Morpher: An open-source integrated compilation and simulation framework for cgra. In Fifth Workshop on Open-Source EDA Technology (WOSET) .[53] Yannan Nellie Wu, Joel S Emer, and Vivienne Sze. 2019. Accelergy: An architecture-level energy estimation methodology for accelerator designs. In 2019 IEEE/ACM International Conference on Computer-Aided Design (ICCAD) . IEEE, 1–8. [54] Yannan Nellie Wu, Po-An Tsai, Angshuman Parashar, Vivienne Sze, and Joel S Emer. 2022. Sparseloop: An analytical approach to sparse tensor accelerator modeling. In 2022 55th IEEE/ACM International Sym-posium on Microarchitecture (MICRO) . IEEE, 1377–1395. [55] Tianyi Yu, Omar Ragheb, Stephen Wicklund, and Jason Anderson. 2024. MLIR-to-CGRA: A Versatile MLIR-Based Compiler Framework for CGRAs. In 2024 IEEE 35th International Conference on Application-specific Systems, Architectures and Processors (ASAP) . IEEE, 184–192. [56] Lianmin Zheng, Chengfan Jia, Minmin Sun, Zhao Wu, Cody Hao Yu, Ameer Haj-Ali, Yida Wang, Jun Yang, Danyang Zhuo, Koushik Sen, et al. 2020. Ansor: Generating {High-Performance } tensor programs for deep learning. In 14th USENIX symposium on operating systems design and implementation (OSDI 20) . 863–879. [57] Size Zheng, Renze Chen, Anjiang Wei, Yicheng Jin, Qin Han, Liqiang Lu, Bingyang Wu, Xiuhong Li, Shengen Yan, and Yun Liang. 2022. AMOS: enabling automatic mapping for tensor computations on spatial accelerators with hardware abstraction. In Proceedings of the 49th Annual International Symposium on Computer Architecture . 874–887. 15
