@@ -1,0 +1,289 @@
+Title: An MLIR pipeline for offloading Fortran to FPGAs via OpenMP
+
+URL Source: https://arxiv.org/pdf/2511.08713v1
+
+Published Time: Thu, 13 Nov 2025 01:05:14 GMT
+
+Number of Pages: 8
+
+Markdown Content:
+# An MLIR pipeline for offloading Fortran to FPGAs via OpenMP 
+
+# Gabriel Rodriguez-Canal 
+
+gabriel.rodcanal@ed.ac.uk EPCC, The University of Edinburgh Edinburgh, United Kingdom 
+
+# David Katz 
+
+david.katz@ed.ac.uk EPCC, The University of Edinburgh Edinburgh, United Kingdom 
+
+# Nick Brown 
+
+n.brown@epcc.ed.ac.uk EPCC, The University of Edinburgh Edinburgh, United Kingdom 
+
+## Abstract 
+
+With the slowing of Moore’s Law, heterogeneous computing plat-forms such as Field-Programmable Gate Arrays (FPGAs) have gained increasing interest for accelerating HPC workloads. In this work we present, to the best of our knowledge, the first implementation of selective code offloading to FPGAs via the OpenMP target directive within MLIR. Our approach combines the MLIR OpenMP dialect with a High-Level Synthesis (HLS) dialect to provide a portable compilation flow targeting FPGAs. Unlike prior OpenMP FPGA efforts that rely on custom compilers, by contrast we integrate with MLIR and so support any MLIR-compatible front end, demonstrated here with Flang. Building upon a range of existing MLIR building blocks significantly reduces the effort required and demonstrates the composability benefits of the MLIR ecosystem. Our approach supports manual optimisation of offloaded kernels through stan-dard OpenMP directives, and this work establishes a flexible and extensible path for directive-based FPGA acceleration integrated within the MLIR ecosystem. Code available in https://github.com/xdslproject/ftn/tree/main. 
+
+## CCS Concepts 
+
+• Hardware → Reconfigurable logic and FPGAs ; • Software and its engineering → Compilers .
+
+## Keywords 
+
+MLIR, LLVM, OpenMP, FPGAs, AMD U280, High Level Synthesis, HPC 
+
+ACM Reference Format: 
+
+Gabriel Rodriguez-Canal, David Katz, and Nick Brown. 2025. An MLIR pipeline for offloading Fortran to FPGAs via OpenMP. In Workshops of the International Conference for High Performance Computing, Networking, Storage and Analysis (SC Workshops ’25), November 16–21, 2025, St Louis, MO, USA. ACM, New York, NY, USA, 8 pages. https://doi.org/10.1145/3731599. 3767485 
+
+## 1 Introduction 
+
+Driven by the ever growing demand to model more complex sys-tems and reduced time to solution, heterogeneous computing plat-forms such as Field-Programmable Gate Arrays (FPGAs) have emerged as potential accelerators for scientific and high-performance com-puting (HPC) workloads. FPGAs are especially relevant given their low power draw and the increased focus in HPC on sustainable su-percomputing. FPGAs offer fine-grained customisation and power 
+
+> This work is licensed under a Creative Commons Attribution 4.0 International License.
+> SC Workshops ’25, St Louis, MO, USA
+> © 2025 Copyright held by the owner/author(s). ACM ISBN 979-8-4007-1871-7/2025/11 https://doi.org/10.1145/3731599.3767485
+
+efficiency, making them particularly suited for codes with irreg-ular memory access patterns or those not solely bound by raw compute performance [2]. However, programming FPGAs remains a major challenge, especially for HPC developers accustomed to directive-based models like OpenMP. FPGA vendors such as AMD, formerly Xilinx, provide high-level synthesis (HLS) tools that simplify Register Transfer Level (RTL) generation but provide limited support for integration between the host and device within standard parallel programming models. A major challenge with HLS is that programmers must learn new annotations and a new programming model before they are able to port their codes. By contrast, OpenMP [5] is a standard parallel pro-gramming technology that the majority of scientific programmers are already familiar with. Since target offload was introduced in version 4.0, OpenMP has supported the acceleration of loops on de-vices such as GPUs. There have been numerous efforts to leverage OpenMP to offload codes to FPGAs [15] but these efforts such as OmpSS@FPGA [7], Nymble [11] and ORKA-HPC [14], require sig-nificant compiler development and some also involve non-standard OpenMP extensions. This ultimately limits portability, imposes tool chain maintenance challenges and results in user risk of adoption. Furthermore, these existing OpenMP FPGA flows are all focused on C/C++ which, given the prevalence of Fortran in HPC, is a major limitation as Fortran codes must first be ported to a new language. In this paper we present, to the best of our knowledge, the first integration of selective OpenMP target offloading to FPGAs within the Multi-Level Intermediate Representation (MLIR) framework. Built around the core upstream dialects and driven by the Flang Fortran compiler, we demonstrate a flow that generates LLVM-IR that is provided to AMD’s HLS backend tooling. The fundamental hypothesis that we test in this paper is that the composability provided by MLIR is uniquely advantageous as it enables one to significantly reduce the development effort in supporting OpenMP to FPGA offloading. This is due to being able to leverage a range of existing building blocks that we highlight and describe. This paper is structured as follows; in Section 2 we explore the background to this work by describing FPGAs in more detail, introducing the LLVM, MLIR and Flang compiler technologies and surveying related work in programming FPGAs for HPC. Section 3 then introduces our MLIR-based compiler flow for driving the offload of Fortran loops to FPGAs via OpenMP, before evaluating this in Section 4. We then draw conclusions and describe further work in Section 5. 
+
+## 2 Background and related work 
+
+Field Programmable Gate Arrays (FPGAs) are a reconfigurable ar-chitecture that provide a large number of configurable logic blocks sitting within a sea of configurable interconnect. Other on-chip blocks, such as block RAM (BRAM) and UltraRAM (URAM) memory,  
+
+> arXiv:2511.08713v1 [cs.DC] 11 Nov 2025 SC Workshops ’25, November 16–21, 2025, St Louis, MO, USA Rodriguez-Canal et al.
+
+Figure 1: Illustration of flow developed in [3] to lower Flang to core dialects and then generate LLVM-IR from [3]. 
+
+and Digital Signal Processing (DSP) slices for arithmetic provide great versatility and potential for performance. Furthermore, the low clock rate, typically between 200 Mhz and 400 Mhz, results in low power draw and potential for high energy efficiency [2]. Given these benefits it might seem surprising that the adoption of this technology in scientific computing has, until now, been limited. Historically this was due to the immaturity of both the hardware and software ecosystems, however in recent years vendors have made significant investments. This has resulted in FPGAs which are much more powerful and hence a more realistic proposition for HPC [17], along with improvements to the software ecosystem. Vitis [21], developed by Xilinx which is now part of AMD, has been a major success in the software ecosystem. Shifting the pro-gramming of FPGAs to become much more a question of software development, rather than hardware design, programmers write their code in C decorated with specialist pragmas. The High Level Synthesis (HLS) tooling then converts this into its Register Transfer Level (RTL) counterpart. Whilst HLS tools existed before Vitis, the benefit of this framework is the overarching integration as it pack-ages everything together. Consequently, using the v++ command line tool one is able to compile their C code using HLS, integrate the resulting RTL into the shell running on the FPGA, and to drive the remaining synthesis, placement and routing steps to ultimately generate a bitstream that will program the device. However, all these successes in making FPGA programming sim-pler only guarantee to provide correctness. In order to obtain best performance on FPGAs programmers must still make significant algorithmic changes in order to convert these to a dataflow form [6]. Furthermore, they must learn new tooling and techniques along with integration into their existing code. This is often non-trivial as programmers must write code running on the host to manage data transfers, kernel launching on the device and synchronisation of FPGA kernels and host code. 
+
+## 2.1 LLVM, MLIR and Flang 
+
+LLVM [13] is a collection of modular and reusable compiler and toolchain technologies designed to support the development of com-pilers for a wide range of programming languages and hardware architectures. It provides numerous language-specific frontends and architecture-specific backends, all connected through an inter-mediate representation known as LLVM-IR. For example, a frontend such as Clang, which handles C and C++, generates LLVM-IR that is then subsequently processed by a backend. These backends span a variety of targets, including CPUs, GPUs, and FPGAs. However, because LLVM-IR is a relatively low-level representation, each fron-tend must perform substantial work to translate source code into this form. This leads to duplicated effort across frontend implemen-tations. To address this challenge, MLIR (Multi-Level Intermediate Rep-resentation) was initially developed by Google and later released as open-source software. MLIR introduces a system of intermediate representation dialects along with transformations between them. Instead of targeting LLVM-IR directly, language frontends gener-ate higher-level MLIR dialects, relying on shared infrastructure within MLIR to incrementally lower these representations toward LLVM-IR. Like LLVM-IR, MLIR is based on Static Single Assign-ment (SSA) form and a key advantage of MLIR is its support for combining multiple dialects within a single IR. This enables pro-gressive lowering and separate manipulation of distinct abstraction levels, and such modularity facilitates greater reuse of compiler infrastructure across different frontends. Ultimately, MLIR has the potential to significantly reduce the effort required to build and maintain compilers and furthermore provides an extensible frame-work where developers can define their own custom dialects and transformations. MLIR has gained substantial adoption in the past few years and is supported by an active and growing community. The MLIR ecosystem includes a wide range of core dialects, such as arith for arithmetic operations and scf for structured control flow including serial and parallel loops. The affine dialect represents affine loop nests, memref is provided for memory management and data access, 
+
+func for functions and subroutine calls and openmp characterises OpenMP-based parallelism. One of the disadvantages of MLIR is the steep learning curve, where developers must leverage C++, understand LLVM concepts, work with the Tablegen format to describe dialects and keep track of the fast moving MLIR repository. This adds to the overhead involved in development. To this end xDSL [8] was developed as a Python based compiler toolkit which is 1-1 compatible with MLIR. Providing the majority of standard MLIR dialects, as well as numerous experimental ones too, a major purposes of this toolkit is to enable rapid exploration and prototyping of MLIR concepts. The MPI dialect is one such example of this, where it was first developed using xDSL in [1] being standardised in MLIR. We have used xDSL to develop the transformations and optimisations described in this paper, and as it is 1-1 compatible with MLIR it is trivial at any point to go into the MLIR ecosystem via mlir-opt .Flang [9] is the LLVM project’s official Fortran frontend, the re-sult of a complete redesign and rewrite of the original classic Flang compiler. Built from the ground up using MLIR, this new Flang aims to provide comprehensive support for the Fortran language standard, with the flexibility to accommodate future revisions of the language. As an integrated component of LLVM, Flang is un-der active development and evolving rapidly. After parsing and lexing, Flang generates IR based upon the HLFIR (High Level For-tran Intermediate Representation) and FIR (Fortran Intermediate An MLIR pipeline for offloading Fortran to FPGAs via OpenMP SC Workshops ’25, November 16–21, 2025, St Louis, MO, USA 
+
+Representation) dialects, before undertaking a series of transforma-tion and optimisation passes on these dialects ultimately resulting in LLVM-IR. Consequently, Flang sits outside of the core MLIR ecosystem as it integrates with only a subset of the core dialects and HLFIR & FIR are not part of MLIR itself, instead with Flang providing its own path to LLVM-IR. In [3] the authors developed a lowering from HLFIR & FIR into core MLIR dialects, such as memref for handling variables and scf 
+
+for handling control flow. This flow is illustrated in Figure 1 and it was found that integrating with the rest of the MLIR ecosystem provides some performance benefits, as the wide range of MLIR transformations can be leveraged. Furthermore, there were also flexibility benefits resulting from gaining access to a wider range of other dialects and transformations that are part of MLIR. 
+
+## 2.2 FPGA programming approaches 
+
+AMD’s HLS tooling is based upon Clang and they have open sourced their fork of the Clang C/C++ frontend, along with documenting the API of their backend. Considering the popularity of Fortran in HPC, where around 80% of codes running on the Cray-EX ARCHER2 supercomputer are written in Fortran [19], it is a considerable undertaking first rewriting Fortran code in C/C++ before being able to bring it to the FPGA. Consequently, [19] coupled LLVM-IR generated by Flang with the HLS backend, enabling Fortran HLS programming. This work enabled HLS pragmas to be specified in Fortran, where a preprocessor picks them out, translates them into function calls and a later stage in the pipeline then converts these into AMD’s bespoke HLS LLVM-IR primitives. Furthermore, the flow had to provide compatibility between the latest LLVM-IR generated by Flang and AMD’s backend which is version 7 of LLVM. However, whilst [19] solves the issue of porting code between Fortran and C/C++, programmers must still use HLS pragmas and manually couple their existing code with the device, having to ex-plicitly write host code that handles data transfers and manage kernel execution on the FPGA. OmpSs@FPGA [7] developed FPGA offloading primarily with programmers leveraging the task and 
+
+target directives of OpenMP. Supporting C and C++, programmers define tasks that are then scheduled and run on the FPGA. Whilst OmpSs@FPGA uses LLVM, it required a significant amount of bespoke compiler development and its own OmpSs runtime sys-tem, ultimately generating C++ code that is annotated with HLS pragrams and used as input to AMD’s HLS tooling. Nymble [11] is also built upon the LLVM and provides a compiler flow that maps OpenMP target regions to FPGAs. LLVM-IR is gen-erated and used for HLS optimizations, and this is integrated with the Nymble HLS compiler to generate the corresponding RTL. Sup-porting OpenMP pragmas including target , teams , and parallel this compiler uses it’s own bespoke HLS backend to generate the RTL. The downside with Nymble is that significant effort is required to develop a high quality HLS compiler that will generate high performance RTL. Indeed, AMD have invested significantly into providing an LLVM-based HLS backend that is optimised for their architecture and so that would likely be a much more successful route long term. Other programming models such as SYCL [18], and implementa-tions such as triSYCL [10] which target FPGAs, embrace a single-source, task-based approach to heterogeneous programming with FPGA support. While SYCL facilitates fine-grained control and modern C++ abstractions, its programming paradigm significantly differs from the directive-based model familiar to many scientific computing practitioners. Moreover, SYCL implementations often depend on specific hardware vendors’ toolchains, affecting porta-bility. Stencil-HMLS [20] provides an automated compiler flow for FPGAs based around stencils and is driven by MLIR. Lowering from ETH’s stencil dialect into a bespoke HLS dialect, this work then integrated with that of [19] to lower the LLVM-IR into the form compatible with AMD’s HLS LLVM backend. Operations in the HLS dialect are function calls, and this IR is then transformed and provided to the AMD LLVM based HLS backend. [20] demonstrated that one could gain an order of magnitude better performance than the state of the art, DaCe, without any code or algorithm changes. However this work is limited to stencils. With the exception of the Fortran flow in [19] and Stencil-HMLS [20], which can driven by stencils extracted from Fortran via Flang due to the work of [4], the work surveyed here is only compatible with C/C++. To the best of our knowledge all the existing work on integrating OpenMP with FPGAs is limited to C/C++ and there is no Fortran+OpenMP to FPGA flow. 
+
+## 3 An MLIR-based OpenMP flow for FPGAs 
+
+Our overarching approach is to take the work of [3] which lowers Fortran, including OpenMP, to the core MLIR dialects, and then write compiler infrastructure that will connect this with the HLS MLIR dialects and transformations developed in [20]. The resulting IR will then be provided to work done in [19] to enable processing by the AMD LLVM based HLS backend. It was our hypothesis that the composability provided by MLIR would mean that these existing building blocks could be readily leveraged which would significantly reduce the complexity in developing such a compiler flow. Figure 2 provides a sketch of our approach where Fortran code, with the OpenMP omp dialect, is first lowered to the core dialects using the work of [3]. We have developed a device dialect which abstracts interaction between the host and device and ultimately then simplifies the mapping to OpenCL driver code on the host. The following list highlights the main operations in this dialect for the management of device data, and the lower omp mapped data transformation in Figure 2 converts from operations such as 
+
+omp.map_info and omp.bounds_info into these operations. (1) device.alloc which accepts the dynamic memory sizes as operands, an identifier name and memory space as attributes. This results in a memref allocated to a specific memory space on the device. (2) device.lookup which returns the memref that corresponds to the data allocated on the device based upon an identifier name and memory space. (3) device.data_check_exists returns an i1 which holds true if the data represented by the identifier exists on the device, and false if not. SC Workshops ’25, November 16–21, 2025, St Louis, MO, USA Rodriguez-Canal et al. 
+
+Figure 2: Illustration of our compilation flow from Fortran with OpenMP to the host code and FPGA bitstream 
+
+(4) device.data_acquire will acquire data corresponding to a specific identifier on the device. (5) device.data_release releases data corresponding to a spe-cific identifier on the device. Memory on the device is tracked by a string identifier, allocated by device.alloc.a nd then retrieved by device.lookup . These op-erations return a memref which has an associated memory space. There can be multiple memory spaces provided by a device, for instance in addition to providing 16 separate banks of HBM the U280 FPGA also contains DDR memory. The memref.dma_start 
+
+and memref.wait are used to transfer data between the host and device memrefs, copying data from one to the other. What adds some complexity here is how OpenMP data is handled in the IR because there may be nested data regions. For example, the code in Listing 1 will first create a data region at line 4 for variable 
+
+a, with the corresponding omp.map_info in the IR containing the map type of from that directs that this variable will only be copied back from the device. However, the omp.target operation at line 5 will not only generate an omp.map_info operation for variable b, with the map type of to , but also an omp.map_info 
+
+operation for variable a with the map type tofrom::implicit . This is because !$omp target enter data and !$omp target exit data which control the start and end of OpenMP data regions can be dynamic. Accordingly, OpenMP must ensure that when an offloaded loop runs on the device the data is available and tofrom is the safest default approach. 1 real :: a(100), b(100) 2 integer :: i 34 !$omp target data map(from:a) 
+
+5 !$omp target map(to:b) 
+
+6 do i=1, 100 7 .... 8 end do 
+
+9 !$omp end target 
+
+10 !!$omp target update from(a) 
+
+11 !$omp end target data 
+
+Listing 1: Example of nested OpenMP data region 
+
+Consequently for implicit map types the host code must be able to determine whether a device variable is already present in the data region, and if so then this implicit omp.map_info can be ignored. This is handled by lowering the device.data_acquire ,
+
+device.data_release and device.data_check_exists to operate upon an integer counter which is incremented on each 
+
+device.data_acquire , decremented on each 
+
+device.data_release and device.data_check_exists checks whether the counter is greater than zero. Conditionals around device.alloc 
+
+and device.lookup , along with memref.dma_start and mem-ref.wait , handle this for the implicit case. An MLIR pipeline for offloading Fortran to FPGAs via OpenMP SC Workshops ’25, November 16–21, 2025, St Louis, MO, USA 
+
+The next transformation pass in Figure 2, lower omp target region ,transforms the omp.target operation into operations summarised below. (1) device.kernel_create defines a kernel and returns a handle to this. (2) device.kernel_launch will launch a kernel asynchronously based upon the provided kernel handle. (3) device.kernel_wait blocks until completion of a kernel. We undertake this transformation from omp.target to these op-erations because they provide more flexibility around how kernels are scheduled and launched, as well as it being a closer representa-tion to the OpenCL API calls that will drive FPGA execution from the host. At this point a transformation pass is executed which separates the region within the device.kernel_create operation into a function in a separate module. The result of this transfor-mation pass is sketched in Listing 2, where the first module will be compiled for the host and the second for the FPGA. The data allocation and acquisition at the start of this first function can be seen, but the copying of data between the host and device via mem-ref.dma_start and memref.wait has been omitted for brevity. In this separated IR the device.kernel_create operation contains an empty region, as this has been extracted, with the device_function 
+
+parameter specifying the name of the function to call on the device when the kernel is launched.        
+
+> builtin.module {
+> func.func @main() { %a = device .alloc (%44) <{name = "a", memory_space = 1 : i32}> : (index) -> memref<100xf64, 1 : i32> %b = device .alloc (%44) <{name = "b", memory_space = 1 : i32}> : (index) -> memref<100xf64, 1 : i32>
+> device .data_acquire () <{name = "a", memory_space = 1 : i32}> : () -> ()
+> device .data_acquire () <{name = "b", memory_space = 1 : i32}> : () -> () .... %kernel = device .kernel_create (%a, %b) <{device_function = @my_kernel}> ({ }) : (memref<100xf64, 1 : i32>, memref<100xf64, 1 : i32>) -> ! device .kernelhandle
+> device .kernel_launch (%kernel) : (! device .kernelhandle) -> ()
+> device .kernel_wait (%kernel) : (! device .kernelhandle) -> () ....
+> device .data_release () <{name = "a", memory_space = 1 : i32}> : () -> ()
+> device .data_release () <{name = "b", memory_space = 1 : i32}> : () -> ()
+> func .return
+> }}
+> builtin.module attributes {target = "fpga"} {
+> func.func @my_kernel(%a : memref<100xf64, 1 : i32>, %b : memref<100xf64, 1 : i32>) { ....
+> func .return
+> }}
+
+Listing 2: Separated host and device MLIR modules. 
+
+The second module in Listing 2 contains the device IR and the attribute target denotes which device this will be compiled for, in our case the FPGA. This module contains standard MLIR, including OpenMP IR to denote features such as parallel loops. At this point the two modules are split apart and the host code is fed into a printer that we developed which generates C++ with OpenCL that is then compiled by Clang for the host. For the device code a transformation that lowers OpenMP oper-ations to their corresponding structure using the hls dialect is then applied. We support OpenMP directives for fine grained control of 1 !$omp target parallel do 
+
+2 do i=1, 100 3 c(i)=a(i)+b(i) 4 end do 
+
+5 !$omp end target parallel do 
+
+Listing 3: Example of simple Fortran parallel loop offloaded to the FPGA 
+
+loop parallelism, such as parallel do and simd . Listing 3 sketches a simple Fortran loop to be offloaded to the FPGA and Listing 4 provides the resulting MLIR with the HLS dialect that is generated by the lower omp loops to HLS transformation in our pipeline. The 
+
+hls.interface operation directs the mapping of kernel inputs to ports, in this case gmem0 , gmem1 , and gmem2 , and determining the protocol via passing an hls.axi_protocol . For this kernel each input will be mapped to a separate m_axi port.                           
+
+> builtin.module {
+> func.func @my_kernel(%a : memref<100xf32>, %b : memref<100xf32>, %c : memref<100xf32>) { %m_axi = arith.constant 0 : i32 %proto = hls.axi_protocol (%m_axi) : (i32) -> ! hls .axi_protocol hls.interface %a, %proto {bundle="gmem0"} : (memref<100xf32>, !hls .axi_protocol ) -> ()
+> hls.interface %b, %proto {bundle="gmem1"} : (memref<100xf32>, !hls .axi_protocol ) -> ()
+> hls.interface %c, %proto {bundle="gmem2"} : (memref<100xf32>, !hls .axi_protocol ) -> () %one = arith.constant 1 : i32 %hundred = arith.constant 100 : i32 %low_idx = arith.index_cast %one : i32 to index %high_idx = arith.index_cast %hundred : i32 to index
+> scf.for %loop_idx = %low_idx to %high_idx step %low_idx {
+> hls.pipeline (%one) : (i32) -> () %array_idx = arith.subi %loop_idx, %one : index %a_val = memref.load %a[%array_idx] : memref<100xf32> %b_val = memref.load %b[%array_idx] : memref<100xf32> %result = arith.addf %a_val, %b_val fastmath<contract> : f32
+> memref.store %result, %c[%array_idx] : memref<100xf32> }
+> func.return
+> }}
+
+Listing 4: Sketch of generated MLIR, using the hls dialect, from Fortran code of Listing 3 
+
+After defining how kernel arguments are to be handled, several constants are then declared and converted into indexes which are used as operands to the scf.for loop, with the hls.pipeline op-eration signifying that this is a pipelined loop with the Iteration Interval (II) provided as an operand. The body of the loop will be pipelined by HLS and our transformation undertakes some simple canonicalisation to remove dependencies between loop iterations, and more complex dependency rewrite patterns can be added in the future. In addition to the parallel do that is illustrated in Listing 3, the OpenMP simd directive will unroll loops to run simdlen iterations concurrently on the FPGA. Our transformation also supports the 
+
+reduction clause which separates the reduction variable into n copies updating these copies round robin style, with the idea being that by the time this cycles around the previous update on that specific copy of the variable has been completed. These n copies are then combined at the end depending on the reduction operation. The SC Workshops ’25, November 16–21, 2025, St Louis, MO, USA Rodriguez-Canal et al. 
+
+datatype being reduced depends on the number of copies, and this is currently determined statically by the transformation. At this point we leverage the lower HLS to func call transforma-tion described in [20] to lower the hls dialect to func.call operations and these are then lowered by mlir-opt to the llvm MLIR dialect. From this dialect LLVM-IR is generated, and the work developed in [19] maps applicable function calls in the IR to corresponding AMD HLS LLVM-IR primitives, and downgrades the IR to be compatible with LLVM version 7. The resulting LLVM-IR is provided to the AMD Vitis HLS back-end along with precompiled IR containing our runtime library. The runtime library provides common functionality such as conversion between data types and reading and writing streams of data. The generated RTL is then packaged by Vitis into an IP block and run through the rest of the Vitis flow generating the FPGA bitstream. In this manner integration between the host and device code is entirely handled by the compiler, with the programmer just need-ing to decorate their existing Fortran loops with the appropriate OpenMP pragmas. 
+
+## 4 Evaluation 
+
+We chose two benchmarks from the well known scientific libraries LINPACK and LAPACK to evaluate this work. The first, SGESL, solves a system of linear equations of the form 𝐴𝑥 = 𝑏 where 𝐴 
+
+has been LU decomposed and is part of the Single-precision Gen-eral Matrix Factorization (SGEFA) routine. The second is SAXPY, 
+
+𝑦 = 𝑎 × 𝑥 + 𝑦 , where 𝑎 is a scalar and 𝑥 and 𝑦 are vectors, and this represents a fundamental computation in scientific codes. We retrieved both benchmarks from the Fortran LINPACK [12] and LAPACK [16] repositories and added the omp target directive to offload the compute intensive parts of the code to the FPGA and optimised the loops inside. Listing 5 shows the offloaded region of the SAXPY code, where we applied a parallel do directive to parallelise the loop with the 
+
+simd clause. We opted for vectorising the loop given all iterations are independent, where in our approach the simd clause will unroll the loop and replicate it by the given factor. This is known as partial unrolling and, although complete unrolling could be applied to the codes when the loop bounds are known and there are enough resources available on the FPGA, partial unrolling is more common on the FPGA as it is often the sweet spot between performance and resource utilisation. Whilst currently the unroll factor is provided by the simdlen modifier, design space exploration could be added in the future to automatically find the best combination of directives and their parameters. Vectorisation which is applied here through loop unrolling allows for multiply-accumulate (MAC) to occur in parallel and, when the code is transformed through our flow into HLS-compatible LLVM IR, this is represented as a Vitis HLS unrolling directive. Such directives provide hints to the compiler, in this case that it should replicate the multipliers and adders involved in the computation, here by ten times. Listing 6 shows the first offloaded loop of the SGESL subroutine. The second is optimised in a similar fashion and is omitted for brevity. This code demonstrates the simplicity of using our approach to construct a hardware pipeline from a loop in OpenMP via Fortran. The loop-carried dependency on 𝑏 in line 3 prevents the effective 1 !$omp target parallel do simd simdlen(10) 
+
+2 do i = 1, n 3 y(i) = y(i) + a ∗ x(j) 4 end do 
+
+5 !$omp end target parallel do simd 
+
+Listing 5: Optimised version of saxpy in Fortran with OpenMP target offload to run on the FPGA 
+
+construction of a pipeline for the outermost loop, but we offload the innermost loop, via parallel do , and as there are no dependency issues this loop will be represented effectively on the FPGA as a pipelined loop. 1 do k = 1, n − 1 2 l = ipvt(k) 3 t = b(l) 4 if ( l /= k ) then 
+
+5 b(l) = b(k) 6 b(k) = t 7 end if 
+
+8 !$omp target parallel do 
+
+9 do j=k+1,n 10 b(j) = b(j) + t ∗ a(j) 11 end do 
+
+12 !$omp target end parallel do 
+
+13 end do Listing 6: First loop of SGESL in Fortran using OpenMP target offload to run on the FPGA 
+
+We undertook a performance evaluation on a system containing an AMD EPYC 7502 32-Core processor with 220 GB of DRAM and an AMD Xilinx U280 FPGA. The host code was compiled with Clang 20.1.7 and bitstreams for the FPGA were built using AMD Xilinx Vi-tis 2020.2. The SAXPY benchmark was run with vectors of size 10K, 100K, 1M and 10M. SGESL was run with 𝑁 = 256 , 512 , 1024 , 2048 for square matrices with dimensions 𝑁 × 𝑁 and vectors of size 
+
+𝑁 . Each experiment was run a total of 10 times and the median reported here in order to account for variability. Tables 1 and 2 report the mean execution times for SAXPY and SGESL kernels, including the standard deviation, for both our For-tran OpenMP and a hand-written HLS version implemented manu-ally in Vitis. We see that in both cases the runtime is similar, and the greatest overall difference where our Fortran OpenMP version is 6.30% slower than the hand written HLS kernel in Table 1 is because the standard deviation of the Fortran runtime is relatively high. The conclusion from this experiment is that the our flow does not negatively impact performance whilst significantly improving programmer productivity compared to hand-written HLS by en-abling programmers to offload of Fortran loops via OpenMP to the FPGA in a seamless fashion. Tables 3 and 4 report resource utilisation on the FPGA for SAXPY and SGESL respectively for the largest problem sizes. It can be seen that both flows result in the same resource utilisation for the SAXY kernel regardless. For SGESL the pattern is slightly more complex, where the amount of BRAM, the on-chip fast memory, is the same An MLIR pipeline for offloading Fortran to FPGAs via OpenMP SC Workshops ’25, November 16–21, 2025, St Louis, MO, USA                             
+
+> N=10K
+> Runtime (ms)
+> N=100K
+> Runtime (ms)
+> N=1M
+> Runtime (ms)
+> N=10M
+> Runtime (ms)
+> Fortran OpenMP 1.251 ±0.028 10.931 ±0.017 110.245 ±0.018 1073.044 ±0.037
+> Hand-written HLS 1.258 ±0.025 10.925 ±0.149 110.148 ±0.018 1072.888 ±0.034
+> Difference +0.56% -0.06% -0.09% -0.01%
+
+Table 1: Comparison of the runtime (median ± std) of our Fortran OpenMP flow against hand-written HLS code for SAXPY across different problem sizes. Runtime difference is Hand-written HLS/Fortran OpenMP.                             
+
+> N=256
+> Runtime (ms)
+> N=512
+> Runtime (ms)
+> N=1024
+> Runtime (ms)
+> N=2048
+> Runtime(ms)
+> Fortran OpenMP 20.445 ±0.077 80.791 ±0.026 325.117 ±0.116 1317.247 ±0.101
+> Hand-written HLS 20.594 ±0.115 81.121 ±0.023 325.573 ±0.032 1318.418 ±0.042
+> Difference +0.73% +0.41% +0.14% +0.09%
+
+Table 2: Comparison of the runtime (median ± std) of our Fortran OpenMP flow against hand-written HLS code for SGESL across different problem sizes. Runtime difference is Hand-written HLS/Fortran OpenMP. Frontend LUT % BRAM % DSP % 
+
+Fortran OpenMP 8.29 10.07 0.10 Hand-written HLS 8.29 10.07 0.10 
+
+Table 3: Resource utilization of SAXPY in Fortran OpenMP flow compared to hand-written HLS code for problem size of N=10M. Frontend LUT % BRAM % DSP % 
+
+Fortran OpenMP 8.24 10.07 0.10 Hand-written HLS 8.22 10.07 0.23 
+
+Table 4: Resource utilization of SGESL in Fortran OpenMP flow compared to hand-written HLS code for problem size of N=2048. 
+
+between the Fortran and Vitis versions, however LUT and DSP utilisation is different. This difference is because Vitis is able to recognise the MAC operations that are produced in the IR by the AMD HLS Clang based frontend, but it is unable to recognise similar patterns in the IR generated by our approach. This was unexpected, and clearly the HLS backend has been tuned to optimise for specific pattern that are frequently generated by their Clang frontend but less effort has been undertaken by AMD engineers to generalise this. Consequently, the HLS backend maps the MAC operations to DSP slices in the hand-written HLS version, but to LUTs in the Fortran version. However, the it can be seen from Table 2 that the use of DSPs by the Vitis version does not provide any performance advantage here. Improving the IR generated to fit the MAC pattern expected by Vitis and memory optimisations will be addressed by future work. Tables 5 and 6 report median power draw on the FPGA com-paring our approach offloading Fortran OpenMP and hand-written HLS also against a single core of the CPU. It can be seen that both approaches on the FPGA result in similar power draw numbers, which is around half that of a single CPU core. Consequently it can be observed that our approach maintains the low power benefits of FPGAs compared with running on the CPU.             
+
+> N=10K
+> Power (W)
+> N=100K
+> Power (W)
+> N=1M
+> Power (W)
+> N=10M
+> Power (W)
+> Fortran OpenMP 21.847 23.528 25.535 24.167
+> Handwritten HLS 22.178 22.496 23.998 24.297
+> CPU single core 56.13 55.08 57.31 54.91
+
+Table 5: Median power draw of our Fortran OpenMP flow compared to hand-written HLS code for SAXPY across differ-ent problem sizes, with CPU results included.             
+
+> N=256
+> Power (W)
+> N=512
+> Power (W)
+> N=1024
+> Power (W)
+> N=2048
+> Power (W)
+> Fortran OpenMP 21.866 22.989 24.243 24.278
+> Handwritten HLS 22.363 23.121 23.640 24.066
+> CPU single core 52.70 53.71 52.44 52.82
+
+Table 6: Median power of our Fortran OpenMP flow compared to hand-written HLS code for SGESL across different matrix sizes. 
+
+Table 7 reports the lines of code across the dialects and trans-formations that we leverage in this work and described in Section 3. It can be seen that the work reported here, to connect the core dialects with the HLS dialect is 2363 lines of code and even the total number of lines across all these components is very modest compared to what would be required by bespoke compilers sitting outside of the MLIR ecosystem. 
+
+Component Lines of code 
+
+OpenMP to HLS dialect (this work) 2363 HLS dialect and lowering from [20] 2382 Integrating LLVM and AMD HLS backend [19] 1654 Lowering from HLFIR & FIR to core dialects [3] 5956 
+
+Table 7: Lines of code in MLIR dialects and transformations that are leveraged in this work 
+
+## 5 Conclusions and further work 
+
+In this paper we have explored the development of an MLIR-based compiler flow for offloading Fortran OpenMP loops to FPGAs. SC Workshops ’25, November 16–21, 2025, St Louis, MO, USA Rodriguez-Canal et al. 
+
+Whilst OpenMP offload to FPGAs has been studied in detail be-fore, to the best of our knowledge this work is the first to integrate this with MLIR and also the first to provide such a capability from Fortran. This paper acts as a case study to demonstrate the benefits of MLIR and how the flexibility and composability of the ecosystem significantly reduces the effort in developing complicated compiler flows. Indeed, we believe that this provides additional evidence to the HPC community to argue that it should continue investing in MLIR and building tools that leverage and enrich the ecosystem. Our compilation flow respects OpenMP data semantics and trans-lates directives into HLS-specific pragmas compatible with Vitis HLS. Leveraging, in the main, core MLIR dialects our approach supports any MLIR-compatible front end, and by situating FPGA acceleration inside the MLIR ecosystem our methodology provides a unified and extensible framework that bridges the gap between existing HLS tools and directive-based programming models. Unfor-tunately the Polygeist C MLIR frontend does not support OpenMP target offload, but as the CIR project which is integrating Clang with MLIR becomes more mature it should be trivial to integrate that work with our approach here. Fundamentally, MLIR enables us to reduce dependency on proprietary compilers and promotes porta-bility across hardware and front ends, representing a significant step towards mainstream adoption of FPGAs in HPC environments. The work presented in this paper matures support in MLIR for targeting FPGAs which can be extended in the future. Whilst we have focused in this paper on driving from Fortran and a subset of OpenMP pragmas, the MLIR dialect and transformations that we have developed, along with the existing building blocks being leveraged, are generic and can be extended to support a wider range of the OpenMP standard in future. We will also look to integrate with OpenACC which also has a corresponding MLIR dialect, this should be made significantly easier given the work undertaken in this paper and previously. 
+
+## Acknowledgments 
+
+This work has been funded by an EPSRC Doctoral Training Partner-ship (EP/T517884/1) and supported by a Royal Society of Edinburgh personal research fellowship award number 3271. The CPU runs in this paper ran on NextGenIO which was funded by the EU Horizon 2020 research and innovation programme under grant agreement No 671591. For the purposes of open access, the author has applied a CC BY public copyright license to any Author Accepted Manuscript version arising from this submission. 
+
+## References 
+
+[1] George Bisbas, Anton Lydike, Emilien Bauer, Nick Brown, Mathieu Fehr, Lawrence Mitchell, Gabriel Rodriguez-Canal, Maurice Jamieson, Paul HJ Kelly, Michel Steuwer, et al. 2024. A shared compilation stack for distributed-memory parallelism in stencil DSLs. In Proceedings of the 29th ACM International Confer-ence on Architectural Support for Programming Languages and Operating Systems, Volume 3 . 38–56. [2] Nick Brown. 2020. Exploring the acceleration of Nekbone on reconfigurable architectures. In 2020 IEEE/ACM International Workshop on Heterogeneous High-performance Reconfigurable Computing (H2RC) . IEEE, 19–28. [3] Nick Brown. 2024. Fully integrating the Flang Fortran compiler with standard MLIR. In SC24-W: Workshops of the International Conference for High Performance Computing, Networking, Storage and Analysis . IEEE, 939–949. [4] Nick Brown, Maurice Jamieson, Anton Lydike, Emilien Bauer, and Tobias Grosser. 2023. Fortran performance optimisation and auto-parallelisation by leveraging MLIR-based domain specific abstractions in Flang. In Proceedings of the SC’23 Workshops of the International Conference on High Performance Computing, Net-work, Storage, and Analysis . 904–913. [5] Rohit Chandra. 2001. Parallel programming in OpenMP . Morgan kaufmann. [6] Johannes de Fine Licht, Maciej Besta, Simon Meierhans, and Torsten Hoefler. 2020. Transformations of high-level synthesis codes for high-performance computing. 
+
+IEEE Transactions on Parallel and Distributed Systems 32, 5 (2020), 1014–1029. [7] Juan Miguel De Haro, Jaume Bosch, Antonio Filgueras, Miquel Vidal, Daniel Jiménez-González, Carlos Álvarez, Xavier Martorell, Eduard Ayguadé, and Jesús Labarta. 2021. OmpSs@ FPGA framework for high performance FPGA computing. 
+
+IEEE Trans. Comput. 70, 12 (2021), 2029–2042. [8] Mathieu Fehr, Michel Weber, Christian Ulmann, Alexandre Lopoukhine, Mar-tin Paul Lücke, Théo Degioanni, Christos Vasiladiotis, Michel Steuwer, and Tobias Grosser. 2025. xDSL: Sidekick Compilation for SSA-Based Compilers. In Pro-ceedings of the 23rd ACM/IEEE International Symposium on Code Generation and Optimization . 179–192. [9] Flang 2024. Flang Documentation . Retrieved Aug 16, 2024 from https://flang. llvm.org/docs/ [10] Andrew Gozillon, Ronan Keryell, Lin-Ya Yu, Gauthier Harnisch, and Paul Keir. 2020. triSYCL for Xilinx FPGA. In The 2020 International Conference on High Performance Computing & Simulation . IEEE. [11] Jens Huthmann, Lukas Sommer, Artur Podobas, Andreas Koch, and Kentaro Sano. 2020. OpenMP device offloading to FPGAs using the Nymble infrastructure. In 
+
+International Workshop on OpenMP . Springer, 265–279. [12] John Burkardt. [n. d.]. SGEFA_OPENMP: Sequential and OpenMP versions of the Linpack solver (FORTRAN90). https://people.math.sc.edu/Burkardt/f_src/ sgefa_openmp/sgefa_openmp.html. Accessed: 2025-08-16. [13] Chris Lattner and Vikram Adve. 2004. LLVM: A compilation framework for lifelong program analysis & transformation. In International symposium on code generation and optimization, 2004. CGO 2004. IEEE, 75–86. [14] Florian Mayer, Julian Brandner, Matthias Hellmann, Jesko Schwarzer, and Michael Philippsen. 2021. The ORKA-HPC compiler—practical OpenMP for FPGAs. In In-ternational Workshop on Languages and Compilers for Parallel Computing . Springer, 83–97. [15] Florian Mayer, Marius Knaust, and Michael Philippsen. 2019. OpenMP on FP-GAs—a survey. In International Workshop on OpenMP . Springer, 94–108. [16] Netlib. [n. d.]. SAXPY (single-precision BLAS level 1) Documenta-tion. https://netlib.org/lapack/explore-html-3.6.1/df/d28/group__single__blas_ _level1_gad2a52de0e32a6fc111931ece9b39726c.html. Accessed: 2025-08-16. [17] Tan Nguyen, Colin MacLean, Marco Siracusa, Douglas Doerfler, Nicholas J Wright, and Samuel Williams. 2022. FPGA-based HPC accelerators: An evaluation on performance and energy efficiency. Concurrency and Computation: Practice and Experience 34, 20 (2022), e6570. [18] James Reinders, Ben Ashbaugh, James Brodman, Michael Kinsner, John Penny-cook, and Xinmin Tian. 2021. Data parallel C++: mastering DPC++ for program-ming of heterogeneous systems using C++ and SYCL . Springer Nature. [19] Gabriel Rodriguez-Canal, Nick Brown, Tim Dykes, Jess Jones, and Utz-Uwe Haus. 2023. Fortran High-Level Synthesis: Reducing the barriers to accelerating HPC codes on FPGAs. In 2023 33rd International Conference on Field-Programmable Logic and Applications (FPL) . IEEE, 10–18. [20] Gabriel Rodriguez-Canal, Nick Brown, Maurice Jamieson, Emilien Bauer, Anton Lydike, and Tobias Grosser. 2023. Stencil-HMLS: A multi-layered approach to the automatic optimisation of stencil codes on FPGA. In Proceedings of the SC’23 Workshops of the International Conference on High Performance Computing, Network, Storage, and Analysis . 556–565. [21] AMD XILINX. 2022. Vitis High-Level Synthesis User Guide-UG1399 (v2022.2) . June.

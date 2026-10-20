@@ -1,0 +1,421 @@
+Title: Evaluating Cross-Architecture Performance Modeling of Distributed ML Workloads Using StableHLO
+
+URL Source: https://arxiv.org/pdf/2604.12090v1
+
+Published Time: Wed, 15 Apr 2026 00:19:46 GMT
+
+Number of Pages: 13
+
+Markdown Content:
+# Evaluating Cross-Architecture Performance Modeling of Distributed ML Workloads Using StableHLO 
+
+Jonas Svedas*, Nathan Laubeuf †, Ryan Harvey*, Arjun Singh*, Changhai Man ‡,Abubakr Nada †, Tushar Krishna ‡, James Myers*, Debjyoti Bhattacharjee †
+
+*imec, 20 Station Road, Cambridge CB1 2JD, UK †imec, Kapeldreef 75, 3001 Leuven, Belgium 
+
+> ‡
+
+Georgia Institute of Technology, Atlanta, GA, USA 
+
+*†firstname.lastname@imec.be ‡cman8@gatech.edu, tushar@ece.gatech.edu 
+
+Abstract —Predicting the performance of large-scale distributed machine learning (ML) workloads across multiple accelerator architectures remains a central challenge in ML system de-sign. Existing GPU and TPU focused simulators are typically architecture-specific, while distributed training simulators rely on workload-specific analytical models or costly post-execution traces, limiting portability and cross-platform comparison. This work evaluates whether MLIR’s StableHLO dialect can serve as a unified workload representation for cross-architecture and cross-fidelity performance modeling of distributed ML workloads. The study establishes a StableHLO-based simulation methodology that maps a single workload representation onto multiple performance models, spanning analytical, profiling-based, and simulator-driven predictors. Using this methodology, workloads are evaluated across GPUs and TPUs without requiring access to scaled-out physical systems, enabling systematic comparison across modeling fidelities. An empirical evaluation covering distributed GEMM kernels, ResNet, and large language model training workloads demonstrates that StableHLO preserves relative performance trends across architectures and fidelities, while exposing accuracy trade-offs and simulator limitations. Across evaluated scenarios, prediction errors remain within practical bounds for early-stage design exploration, and the methodology reveals fidelity-dependent limitations in existing GPU simulators. These results indicate that StableHLO provides a viable foundation for unified, distributed ML performance modeling across accelerator architectures and simulators, supporting reusable evaluation workflows and cross-validation throughout the ML system design process. 
+
+Index Terms —Distributed training, performance modeling, simulation methodology, StableHLO, GPUs, TPUs. 
+
+I. I NTRODUCTION 
+
+The ever-growing compute demands of machine learning (ML) models [1], particularly for large-scale distributed training, have driven rapid advances across both hardware and software. Compute, memory, and network capabilities continue to scale, while the software stack, model architectures, and algorithmic techniques evolve at an unprecedented pace [2]. Modern ML systems improve through concurrent innovations across the ML software–hardware stack, as illustrated in Fig. 1. Advances in model architectures [3]–[5], kernel and compiler optimizations [6]–[12], and hardware platforms [13]–[15] interact in complex ways, making performance optimization an inherently multi-dimensional and interdependent problem. In distributed training, these interactions extend beyond a single device to include collective communication, parallelization strategies, and network effects. As a consequence of this co-
+
+Fig. 1: Simplified ML stack overview: from model specification through frameworks, compilation, runtime, and system layers. evolution, understanding and optimizing performance has be-come increasingly difficult through empirical evaluation alone. Exhaustively benchmarking across model variants, compiler configurations, and hardware platforms is often prohibitively expensive or infeasible, particularly when target systems are unavailable or still under design. Simulation and performance modeling therefore play a critical role in exploring design trade-offs, enabling early-stage evaluation, and providing insight into system behavior that cannot be easily isolated on physical hardware. In practice, distributed ML training system evaluation relies on a collection of simulation tools operating at different fidelities and targeting different accelerator architectures. Fast analytical models are typically used for early-stage architectural exploration, while higher-fidelity simulators or profiling-based approaches are employed to study detailed performance charac-teristics on specific hardware platforms. In parallel, GPU and TPU focused simulators have evolved largely independently, each assuming distinct software stacks, workload abstractions, and modeling interfaces. While effective in isolation, such fragmentation is limiting. In particular, workloads, which are the main input, are not easily reproducible or interopera-ble across distributed ML simulators without substantial re-engineering effort. As workloads transition between fidelities, simulators, or target platforms, they are often reimplemented or approximated, hindering cross-correlation and validation, and making it difficult to attribute observed performance differences to true architectural effects rather than inconsistencies in workload representation or modeling assumptions. To address this fragmentation, this work evaluates whether MLIR’s StableHLO [16] dialect can serve as a common workload representation for distributed ML performance mod-eling across accelerator architectures, simulation fidelities, and modeling tools. The evaluation is conducted by establishing a unified simulation methodology, illustrated in Fig. 2, that 
+
+> arXiv:2604.12090v1 [cs.DC] 13 Apr 2026
+
+uses StableHLO as the workload abstraction and maps it onto multiple simulators of different fidelity levels. This study examines whether representing workloads once in StableHLO and applying the methodology across compute models—ranging from fast analytical estimators to higher-fidelity simulators—can reduce reimplementation effort, enable cross-correlation and validation across fidelities, and support fair comparison across heterogeneous accelerator architectures such as GPUs and TPUs. The feasibility and limitations of this approach are evaluated through case studies spanning workloads, architectures, and performance modeling techniques. This paper makes the following contributions:  
+
+> •
+
+Establishes a StableHLO-based distributed ML simulation methodology spanning the ML software–hardware stack.  
+
+> •
+
+Enables cross-architecture and cross-fidelity performance modeling , covering analytical, simulation-based, and profiling-based approaches, using a unified StableHLO representation.  
+
+> •
+
+Presents an empirical evaluation of StableHLO as a unified workload representation across distributed workloads, accelerator architectures (GPUs and TPUs), and simulator fidelities. This paper is organized as follows. Section II reviews the challenges of existing workload representations and motivates the need for a unified approach. Section III presents the proposed StableHLO-based methodology and outlines how it interfaces with analytical, profiling-based, and simulation-based predictors. Section IV describes the experimental setup and Section V evaluates the approach through case studies on GPUs, TPUs, and multi-node distributed configurations. Section VI discusses limitations, open challenges, and opportunities for future extensions, including integration with the detailed GPU simulators Accel-Sim [17]. Finally, Section VII concludes the paper. II. B ACKGROUND 
+
+Performance modeling for ML system design has led to the development of three broad classes of performance predictors: 
+
+analytical , profiling-based , and simulation-based . Analytical models (e.g., [18]–[22]) operate on coarse-grained abstractions and provide fast, low-cost estimates suitable for early-stage exploration. Profiling-based predictors (e.g., [23]–[30]) derive workloads from compiler intermediate representations (IRs) or execution traces, capturing realistic behavior but requiring access to target software stacks or hardware. Simulation-based tools (e.g., [31]) offer higher fidelity and enable evaluation of hypothetical architectures, but incur higher modeling and execution cost. Table I summarizes the trade-offs across these classes. In practice, these predictor classes are realized through largely independent simulator ecosystems, resulting in frag-mented evaluation workflows. A contributing factor to this fragmentation is the workload representation assumed by each simulator, which shapes how compiler transformations, compu-tation, and communication are modeled. As a result, workloads are frequently reimplemented or approximated when moving TABLE I: Trade-offs between three classes of distributed DNN training simulators: analytical, profiling-based and simulation-based.    
+
+> Aspect Analytical Profiling-based Simulation-based
+> WORKLOAD
+> TYPE
+> Configuration parameters of high level ML model Post-execution traces Executable IR or instruction traces WORKLOAD
+> FLEXIBILITY
+
+# • ◦ ◦ • • • • • ◦ 
+
+> HARDWARE
+> FLEXIBILITY
+
+# • • • • ◦ ◦ • ◦ ◦ 
+
+> CONFIGURATION
+> COMPLEXITY
+
+# • ◦ ◦ • • ◦ • • •    
+
+> TARGET
+> HARDWARE
+> REQUIRED
+> ✗✓✗
+> FIDELITY
+
+# • ◦ ◦ • • • • • • 
+
+> SIMULATION
+> RATE
+
+# • • • • • ◦ • ◦ ◦  
+
+> ACCURACY
+
+# • ◦ ◦ • • • • • • 
+
+> VALIDATION
+> DIFFICULTY
+
+# • • • • ◦ ◦ • • ◦ 
+
+> BOTTLENECK VISIBILITY
+
+# • ◦ ◦ • • ◦ • • •            
+
+> NOTES ⊕Fast exploration
+> ⊖Target-specific compiler opts not considered
+> ⊕Captures compiler effects
+> ⊖Framework and hardware coupled
+> ⊖No novel architectures sup-ported
+> ⊕Detailed bottleneck visibility
+> ⊖Hard to main-tain SIMULATORS [18]–[22] [23]–[30] [31]
+> This work StableHLO driven unified methodology enabling analytical, profiling-based, and simulation-based per-formance prediction.
+
+between analytical, profiling-based, and simulation-based tools, complicating cross-fidelity validation and obscuring whether observed performance differences stem from architectural effects or from inconsistencies in workload representation. These observations suggest that differences in workload representation play a central role in shaping interoperability, reuse, and comparability across predictor classes. To study whether a single representation can support cross-fidelity and cross-architecture performance modeling, we first articulate the properties such a representation should satisfy. Table II summarizes these properties across existing representations, and the following criteria describe the requirements considered in this work. 
+
+1) Expressive: The representation should be able to express a broad range of workloads executable by common machine learning frameworks. For distributed workloads, it must ex-plicitly represent communication operations, such as collective primitives, which are absent from some formats (e.g., ONNX). To support accurate performance modeling, the representation should capture essential operator semantics without introducing unnecessary complexity. In contrast, high-level configuration-Fig. 2: Overview of the StableHLO-based evaluation methodology for distributed ML performance modeling. Workloads are represented in StableHLO, subjected to compiler optimizations and slicing, and mapped through a common compute API to multiple compute backends, including analytical, simulation-based, and profiling-based estimators. The resulting latencies are added to a trace and input to a network simulation backend modeling distributed execution. This workflow enables reuse of a single workload representation across simulation fidelities, accelerator architectures, and modeling tools, supporting cross-correlation and validation of performance results. TABLE II: Comparison of workload representations, their properties, and their simulation capabilities.   
+
+> Representation Expressivity Portability Ahead of Time Train / Infer Framework agnostic Stability Used in Simulators Configuration-based
+
+# • ◦ ◦ ✗ ✓ ✓/✓ ✓ ✗ [18]–[22]  
+
+> Post-execution traces:
+> Chakra [32]
+
+# • • ◦ ✗ ✗ ✓/✓ ✓ ✗ [23], [33], This work  
+
+> GOAL [34]
+
+# • • ◦ ✗ ✗ ✓/✓ ✓ ✗ [27]  
+
+> ML Operator-level IRs:
+> DistIR [35]
+
+# • • • ✗ ✓ ✓/✓ ✓ ✗ [35] TorchFX [36] • • • ✓ ✓† ✓/✓ ✗ ✗ [30], [37] ONNX [38] • • ◦ ✓ ✓ ✗/✓ ✓ ✓ [39], [40] XLA HLO [41] • • • ✓ ✓ ✓/✓ ✓ ✗ − 
+
+> StableHLO [16]
+
+# • • • ✓ ✓ ✓/✓ ✓ ✓ This work   
+
+> †TorchFX graphs may be obtained via symbolic tracing, but are commonly produced at run time by TorchDynamo’s bytecode analysis [12].
+> ⊕Some specific backends implement this but not part of the core specifications of the representation.
+
+based descriptions are easy to simulate but typically target narrow workload classes and omit performance-critical details. 
+
+2) Interoperable: The representation should provide apathway for integration with analytical, profiling-based, and simulation-based predictors, enabling consistent cross-fidelity evaluation using a single source of truth. Fragmented IR ecosystems force each simulator to maintain custom workload pipelines, which impedes cross-validation and systematic comparison. 
+
+3) Portable: The representation should be portable across diverse hardware and runtime environments. It should enable execution through compilation or runtime interpretation on multiple systems for ground-truth validation, ensuring that relevant compiler and runtime optimizations are visible to the simulation. 
+
+4) Ahead-of-Time: The workload description should be avail-able without requiring execution on the target system. Trace-based representations, such as Chakra execution traces [32] or Dynamo -generated torch.fx graphs, are therefore less suitable, as they depend on prior execution and restrict modeling flexibility. 
+
+5) Capture a Full Training Step: The representation must include the forward pass, backward pass, and optimizer update to reflect the complete training workload. Formats primarily designed for inference, such as ONNX, limit their applicability for end-to-end training simulation. 
+
+6) Framework-Agnostic: The representation should be gen-eratable from multiple ML frameworks, improving usability and adoption. Framework-specific solutions such as torch.fx 
+
+lack this flexibility. 
+
+7) Stable: Rapid IR evolution, including the introduction of new operators and execution patterns, introduces forward-compatibility risks. Stability helps ensure reproducibility and long-term viability of workload descriptions. III. M ETHODOLOGY 
+
+In this section, we describe the StableHLO-based simulation methodology evaluated in this work and outline how it enables cross-architecture and cross-fidelity performance modeling. 
+
+A. StableHLO as a Unified Workload Representation 
+
+StableHLO [16], [42] provides a fixed, versioned operator set with precise semantics. When extended with sharding annotations, such as mhlo.sharding or operations from OpenXLA’s sdy dialect [43], it captures computation, data par-titioning, and collective communication semantics required for distributed training workloads. Implemented within MLIR [44], StableHLO exposes programmatic interfaces and transformation utilities that integrate with existing compiler passes. This abstraction level is well suited for performance modeling: operators expose tensor shapes, layouts, and communication patterns without incurring kernel- or instruction-level trace overhead. A fragment of StableHLO syntax is shown in Fig. 3.                                           
+
+> %0 =stablehlo.dot_general %a, %b {lhs_contracting_dimensions =[0], rhs_contracting_dimensions =[0] }:(tensor<4x6xf32>, tensor<4x3xf32>) -> tensor<6x3xf32> %1 =stablehlo.transpose %0 {permutation =[1, 0] }:(tensor<6x3xf32>) -> tensor<3x6xf32> %2 =stablehlo.all_reduce %1 (ˆbb0(%x: f32, %y: f32): %s =stablehlo.add %x, %y :f32 stablehlo.return %s :f32 ):(tensor<3x6xf32>) -> tensor<3x6xf32> ...
+
+Fig. 3: Fragment of StableHLO-MLIR illustrating a matrix multiplication, followed by a transpose and an all reduce collective. This representation can be consumed by analytical models, simulation tools, or compiled for profiling via toolchains such as XLA or IREE (Fig. 4), enabling a unified evaluation pipeline across simulator classes. 
+
+B. Unified Performance Evaluation Methodology 
+
+Building on StableHLO as the common workload representa-tion, we now describe the performance evaluation methodology 
+
+Fig. 4: Compiler pathways enabled by StableHLO-MLIR. StableHLO serves as a common input to multiple compiler toolchains, including XLA, IREE, and custom flows. used in this study (illustrated in Fig. 2), which proceeds in four stages: (a) Workload Export, 
+
+(b) Workload Optimization, Slicing and Mapping, 
+
+(c) Compute Estimation, 
+
+(d) Network Simulation .
+
+(a) Workload Export: Workloads are exported as distributed StableHLO with sharding annotations and collectives preserved from reference implementation libraries (e.g., MaxText 1). Workloads may also be constructed directly in StableHLO to enable targeted studies via parameterized microbenchmarks. 
+
+(b) Optimization, Slicing and Mapping: This stage performs three transformations on the StableHLO workload: (i) com-piler optimizations; (ii) workload slicing and communication extraction; and (iii) mapping to a compute estimator. For analytical and simulation-based simulators, a raw Sta-bleHLO export does not represent real compiled execution. Typically, compilation for a real hardware backend entails multiple stages of optimization and code generation. Since StableHLO is compatible with multiple compiler toolchains (e.g., XLA, IREE), optional compiler passes can be applied to the workload to approximate hardware-specific compilation effects and obtain a more representative input for performance modeling. For the slicing stage we distinguish compute and communica-tion operators because they are typically consumed by different simulators: compute operators (e.g., matrix multiplication, convolution, elementwise operations) are evaluated on compute hardware simulators, while communication operators (e.g., all reduce, all gather) usually drive the network simulation stage. This separation enables independent modeling of accel-erator execution and system-level communication, allowing compute performance to be evaluated without requiring full system simulation. To enable this, we identify communication primitives and separate them from computation using two slicing algorithms. The first is a linear split that partitions the program into alternating communication and compute regions following dependency order. All consecutive compute operations between communication primitives are grouped into a single compute region, resulting in larger regions with minimal analysis overhead. This approach is well suited for profiling-based 
+
+> 1MaxText [45] provides ready-to-use distributed training implementations of large language models with configurable model size and parallelism, however any frontend that lowers to StableHLO can be used
+
+estimators, as it enables a broader compilation scope and exposes more compiler optimization opportunities. The second is a dependency-aware split that operates at the individual operator level, capturing exact data dependencies. This typically produces smaller compute regions, which are more suitable for analytical or simulation-based modeling and may expose additional compute–communication overlap. Finally, each compute region is mapped to a compute latency estimator to obtain an execution latency. 
+
+(c) Compute Estimation: Three pathways are supported: (i) analytical modeling, where operator-level metrics are aggre-gated (e.g., a roofline model over the region); (ii) simulation-based estimation, where regions are evaluated using a compute simulator; and (iii) profiling-based estimation, where regions are compiled and executed on target hardware to obtain measured runtimes. To make this process consistent across estimators, we expose a minimal Compute API that each estimator implements:  
+
+> •
+
+get_run_time_estimate() : returns the estimated latency for a compute region. Internally, this may compile and execute the region or evaluate an analytical model such as roofline over its operators.  
+
+> •
+
+get_compile_args() (optional): supplies compiler flags and configuration (e.g., target, passes) when using compilation and profiling.  
+
+> •
+
+get_exec_args() (optional): supplies runtime flags (e.g., number of runs, etc.) for execution or simulator runs. This shared interface also enables mixing multiple compute la-tency estimators within the same workload—useful when some operators are unsupported on a given estimator (e.g., systolic-array simulators limited to matrix multiplications)—while preserving a single point of control for latency collection. By decoupling workload IR from the estimator, the methodology supports evaluation across fidelity levels: analytical models, detailed simulators, and real devices (GPU, CPU, TPU). To reduce evaluation cost, we exploit the repetition in modern ML models (e.g., stacked transformer blocks) by caching latency results per compute region. The caching key is the tuple 
+
+(target hardware H × compilation toolchain C × compute region R), since changing any of H, C, or R can affect latency. This eliminates redundant simulations and lowers runtime, especially for profiling and simulation-based estimation. On profiling runs, we observe this caching mechanism to result in an 89.7% average reduction in evaluation time on Llama-3 and 26.8% on ResNet workloads. At the end of this stage, the workload is annotated with latency values for each compute region, making it ready for system-level simulation. 
+
+(d) Network Simulation: 
+
+Once the compute regions’ latencies are modeled, we proceed to full system simulation. Distributed ML Network simulators, such as ASTRA-sim [23] and ATLAHS [27], accept a trace-graph representation in which vertices denote compute or communication collectives and edges denote data dependencies. These simulators model the workload scheduler and network TABLE III: Overview of workloads and configurations, con-sidering DP and FSDP parallelization strategies.                  
+
+> Workload #Parameters Datatype Nodes Batch size/device Parallelism
+> ResNet 18-200 11–65M FP16 4256 DP Llama-3.1 0.1–3B BF16 41FSDP Llama-2 7B BF16 16–128 2–1 DP
+
+TABLE IV: GPU system and analytical roofline parameters used in the evaluation.                      
+
+> GPU Model Peak Compute Memory BW NVLink BW
+> TFLOP/s TB/s GB/s
+> A100 (40GB SXM) 312 1.94 100 H100 (80GB SXM) 1979 3.35 150 H200 (141GB SXM) 1979 4.80 150 B200 (180GB HGX) 4500 7.70 300
+> GPU count 4 GPUs
+> Topology All-to-all NVLink
+> GPU count 16/128 GPUs
+> Topology, Link Intranode: all-to-all (NVLink) Internode: dragonfly (Slingshot)
+
+behavior to estimate end-to-end performance for distributed workloads. In this study, we use ASTRA-sim’s analytical backend [23] for simple network configurations and to enable detailed network modeling we extend ASTRA-sim with an SST [46] network backend. The performance-annotated StableHLO graph is mapped to the Chakra [32] format, a version-controlled ML trace format adopted by MLCommons. Chakra traces are then ingested by ASTRA-sim: each compute region is mapped to a COMP node, communication operators are mapped to COMM 
+
+nodes, communication sizes are inferred from tensor types, and communication semantics are derived from the corresponding StableHLO collective operator. IV. E XPERIMENTAL SETUP 
+
+A. Workload Setup 1) Workload Selection: We evaluate three representative distributed training workloads: data-parallel ResNet training, fully sharded data-parallel Llama-3 training, and large-scale data-parallel Llama-2 training following ATLAHS [27] scale-out configurations as a reference. Workloads are exported to StableHLO from JAX [47] during just-in-time compilation of the training step. ResNet workloads are generated using reference examples from the flax library [48], while Llama workloads are generated using the MaxText library [45]. The workloads and configurations used in this study are summarized in Table III. 
+
+2) Optimization pipeline: We apply selective optimization passes to StableHLO workloads using OpenXLA’s hlo-opt 
+
+tool to capture realistic compilation effects. The optimization pipeline consists of three stages: (1) lowering StableHLO to HLO via xla-translate , (2) optimizing with hlo-opt 
+
+in deviceless mode, and (3) raising the optimized HLO back to StableHLO. (a) (b)         
+
+> Parameter Value
+> Cores 8Systolic Array/Core 2Peak Compute †63.3 TFLOP/s Peak Memory BW †429.2 GB/s Clock Rate 940 MHz System Topology Mesh ICI BW/link 656 Gb/s
+
+Fig. 5: TPUv3-8 system diagram and key parameters. † Per-core peak compute and memory bandwidth values are taken from OpenXLA’s xprof [49] tool. All standard GPU passes remain enabled except those related to autotuning and asynchronous collectives. Disabling autotuning limits optimizations to those that do not require hardware feedback. Passes related to asynchronous collectives are disabled because they are incompatible with the system-simulation input construction methodology. 
+
+B. Validation Platforms 1) GPU setup: We consider three GPU system configura-tions with 4, 16, and 128 GPUs for reference executions used to validate the proposed methodology. Table IV summarizes the corresponding system-level parameters. 
+
+2) TPU setup: We reserve an 8-core TPUv3 pod slice for our reference runs. The system configuration is shown in Fig. 5. 
+
+3) Software stack: Workloads on both GPUs and TPUs are deployed using the JAX-based implementations de-scribed IV-A1. We use the timing collected from the de-ployment of these workloads as our references. Reference measurements for TPUs were measured using the xprof [49], and cross-checked against [50]. 
+
+C. Simulation Setup 1) Analytical Estimator: The analytical estimator imple-ments a per-operator roofline model [51], using peak FLOP/s and peak memory-bandwidth parameters to estimate each operator’s runtime and selecting the dominant bottleneck. Fused regions are modeled as a single compute region, with memory traffic accounted only at the region boundaries while preserving the full compute cost of all constituent operations. This formulation allows optimized StableHLO inputs to be consumed directly and yields substantially improved accuracy relative to the raw exports. 
+
+2) Profiling Estimator: For the GPU backend, the profiling estimator executes each compute region on actual hardware using hlo_runner_main from the OpenXLA toolchain to obtain measured runtimes. Profiling latencies are averaged over five runs to reduce measurement noise. Due to the closed-source nature of the TPU runtime, we do not use a profiling-based estimator for TPUs. 
+
+3) Simulation-based Estimators: Two systolic-array simula-tors are selected for the TPU evaluation, ONNXim [39] and COCOSSim [52], and integrated as compute estimators via the Compute API. Because these tools primarily target matrix-multiplication workloads, they are paired with an analytical TPU estimator to model StableHLO operators outside their native support. Both simulators are configured to approximate the architecture of a single TPUv3 core [53] as closely as their configurability allows, enabling controlled comparison of simulation fidelity and cost. 
+
+4) Network Simulator: For 4-GPU and TPU configurations, collective communication is modeled using ASTRA-sim’s analytical network backend, representing NVLink and the TPU inter-chip interconnect (ICI), respectively. For 16- and 128-GPU systems, we use ASTRA-sim integrated with SST-Merlin [46] as a network simulation backend to enable packet-level network simulation. ASTRA-sim schedules collective operations derived from StableHLO communication operators, while SST-Merlin performs detailed interconnect modeling. 
+
+5) Evaluation metrics: We report simulated runtime (the predicted execution time), simulation runtime (wall-clock time), and mean absolute percentage error (MAPE) relative to a hardware reference run (ground truth). V. C ASE STUDIES 
+
+A. 4-Node GPU Configuration 
+
+We first evaluate the proposed methodology across multiple GPU generations (A100, H100, H200, and B200), using a common StableHLO representation of a Llama-3 training work-load. All workloads are exported in configurations targeting four GPUs. We model a 4-GPU system using ASTRA-sim’s analytical backend, with all-to-all NVLink connectivity between GPUs, representative of the reference system configurations summarized in Table IV. The experimental results are shown in Fig. 6. Across all GPU generations, the analytical estimator achieves approximately 35% MAPE, while the profiling-based estimator achieves 25–40% MAPE for the Llama-3 workloads. As expected analytical runs are optimistic whereas profiling runs pessimistic with respect to the ground truth. A primary source of error in the profiling-based estimator is tied to OpenXLA compiler’s inability to apply global, end-to-end optimizations across the sliced compute region boundaries. To assess the relative performance trends across hardware generations, we compute speedups across GPU generations. Speedup between platforms is defined as S = Tprev /T next ,and the relative speedup error measures deviation from the reference: 
+
+ϵS = SReference − SSimulated 
+
+SReference 
+
+(1) Table V shows speedup errors averaged across Llama-3 work-loads. The profiling-based estimator achieves lower speedup errors (mean absolute 4.3%) compared to the analytical model (12.0%), indicating it better captures architectural scaling trends. Fig. 6: Training-step latency estimates of single training step of Llama-3 variants on a 4-GPU node across three NVIDIA GPU generations. Each color denotes a different performance estimator: analytical models using optimized StableHLO workloads, a profiling-based estimator, and a reference ground-truth measurements. Absolute percentage errors are shown alongside each estimator. TABLE V: Relative speedup error across GPU generations, averaged over Llama-3 workloads.                 
+
+> Transition Profiling Analytical
+> A100 →H100 3% 15% H100 →H200 7% −7%
+> H200 →B200 −3% 14% Mean Absolute 4.3% 12.0%
+
+A comparison of simulation runtimes highlights the cost– accuracy tradeoff between the two estimators. Analytical roofline evaluations complete in under 12 seconds for Llama-3 workloads, making them suitable for rapid design-space exploration. In contrast, profiling-based estimation requires several minutes (median ≈ 377 s), due to repeated compila-tion and on-device execution of compute regions. This gap underscores the value of supporting multiple fidelity levels within a unified methodology: analytical models enable fast estimates, while profiling-based approaches capture detailed kernel-level behavior at increased cost, though their accuracy can be affected by the loss of end-to-end compiler optimizations when workloads are evaluated in isolation. Fig. 7 shows simulation results for multiple ResNet variants using the same compute estimator configuration on a 4-GPU A100 system. This illustrates that the proposed StableHLO-based methodology generalizes beyond LLM workloads to conventional deep neural network training. 
+
+Fig. 7: Training-step latency estimate for ResNet variants on a 4-GPU A100 system.             
+
+> (a) Illustration of the simulated dragonfly topology.
+> (b) Dragonfly topology parameters
+> #Nodes GPUs/node Nodes/router Routers/group Groups
+> 32 444244122
+
+Fig. 8: Large-scale GPU system with dragonfly topology 
+
+B. Large-scale GPU Configuration (16-128 GPUs) 
+
+To evaluate the applicability of StableHLO as a workload representation at scale, we study large-scale distributed training configurations spanning tens to hundreds of GPUs. We consider the Llama-2 7B workload using the system configurations reported in ATLAHS [27]. Each node consists of four GH200 GPUs connected via an all-to-all NVLink fabric, with nodes arranged in a dragonfly topology [54]. The modeled topology parameters are summarized in Fig. 8. The scale-out results in Fig. 9 show that both compute estimators reproduce the qualitative scaling trends reported in ATLAHS. At 16 GPUs, the analytical estimator exhibits a 39% error relative to the reference, while the profiling-based estimator achieves a lower deviation of 29%. At 128 GPUs, the analytical estimator remains comparatively stable with a 26% error, whereas the profiling-based approach becomes less reliable, yielding a 54% deviation. This degradation is attributed to reduced compiler optimization opportunities when compute regions are evaluated in isolation across deeper communication hierarchies. Despite differences in absolute accuracy, both estimators capture the relative increase in communication cost with scale. These results demonstrate that StableHLO enables end-to-end scale-out simulation across large GPU systems while preserving global performance trends of distributed training workloads across modeling fidelities. Across all evaluated GPU configurations, the analytical Fig. 9: Llama-2 scale-out simulation results using ASTRA-sim with an SST-Merlin [46] network backend for 16- and 128-GPU systems, compared against reference results from [27].         
+
+> Simulator Simulation Time (s) MAPE (%) ONNXim 20724.63 2.47 COCOSSim 477.72 18.29
+
+Fig. 10: Operator-level benchmarking of matrix multiplica-tion (expressed as StableHLO dot_general operator) with square matrix dimensions M = N = K, across four systolic-array simulators, each configured to approximate a TPUv3 core with two systolic arrays. roofline estimator consistently produces optimistic latency estimates relative to the hardware reference, while the profiling-based estimator consistently overestimates execution time. This behavior reflects the complementary biases of the two approaches: the roofline model is based on peak performance limits, whereas profiling-based estimation incurs pessimism due to compute-region isolation and the loss of end-to-end compiler optimizations. As a result, reference measurements fall between the analytical and profiling-based estimates. 
+
+C. TPUv3 system evaluation (8 cores) 
+
+We next evaluate the methodology on TPUs [55] to assess whether the StableHLO workloads can also drive a funda-mentally different accelerator architecture. This experiment demonstrates how a single StableHLO representation enables consistent evaluation across heterogeneous compute latency estimators. 
+
+1) TPU matrix multiplication study: We evaluate four systolic-array simulators: COCOSSim [52], ONNXim [39], SCALE-Sim [56], and ZigZag [57] using matrix-multiplication operation across a range of problem sizes, expressed as 
+
+dot general StableHLO operator. As shown in Fig. 10, ON-NXim and COCOSSim most closely track TPUv3 latency trends for large GEMMs, achieving mean absolute percentage 
+
+Fig. 11: Llama-3 Training Step across different TPU per-formance estimators. Mean runtime for the analytical and COCOSSim estimator is 6.42s and 826.55s respectively. errors of approximately 2% and 18%, respectively. In con-trast, SCALE-Sim and ZigZag exhibit substantial deviations, resulting in large errors even at larger matrix sizes. Simulation cost varies significantly across tools. ONNXim delivers high accuracy but requires several hours to simulate large matrix multiplications, whereas COCOSSim provides a more favorable accuracy–runtime tradeoff and remains practical for full-model studies. Based on this operator-level analysis, COCOSSim is selected as the primary systolic-array estimator for end-to-end TPU experiments. 
+
+2) End-to-end evaluation: Building on the operator-level results, we next evaluate full Llama-3 training-step workloads on an 8-core TPUv3 system using both COCOSSim and an analytical TPU estimator. As the XLA compilation toolchain for TPU backends is closed source, we use the optimized StableHLO variant obtained via hlo-opt using the GPU configuration as an input to the analytical estimator. This approximation relies on the assumption that key compiler transformations, particularly fusion and common subgraph simplifications, are largely device-agnostic. System-level results for Llama-3 training steps are shown in Fig. 11. The analytical TPU estimator achieves the closest alignment with reference TPU runtimes, yielding absolute errors of 19–24% across all model sizes. The COCOSSim backend also captures the overall performance trend but exhibits higher deviations, with errors of 27–38% for the optimized representation. Runtime differences between the estimators are substantial: the analytical model completes in a few seconds per workload, whereas COCOSSim requires several minutes depending on model scale. In this case study, the simulation-based estimator does not improve accuracy relative to the analytical model. A primary contributing factor is the lack of visibility into TPU-specific compiler decisions, such as scratchpad memory allocation and scheduling, which likely leads to pessimistic predictions compared to the reference. This experiment highlights the flexibility of the proposed methodology. The same StableHLO workload executes unmod-ified across multiple compute estimators, including a detailed systolic-array simulator, enabling the integration of diverse Fig. 12: IREE–Accel-Sim integration flow used to evaluate StableHLO workloads with detailed GPU simulation. performance models within a unified evaluation framework. VI. D ISCUSSION 
+
+A. Evaluating StableHLO for Detailed GPU Simulation 
+
+Detailed architectural simulators such as Accel-Sim [17] provide instruction-level visibility that is inaccessible on real GPUs, making them valuable for microarchitectural exploration. However, integrating such simulators into modern ML compiler toolchains remains challenging. To evaluate whether StableHLO can serve as a viable input representation for detailed GPU simulation, we developed the workflow shown in Fig. 12 and integrated it into our methodology via the Compute API. The workflow translates StableHLO programs into PTX suitable for Accel-Sim simulation. Although XLA is used elsewhere in this work, this flow relies on the IREE [58] com-piler. OpenXLA frequently dispatches to precompiled SASS kernels (e.g., cuDNN and cuBLAS), which are incompatible with PTX-level tracing. In contrast, IREE can be configured to generate all kernels in PTX. However, IREE does not expose kernel launch parameters or runtime inputs. To recover this information, we intercept kernel launches using an NVBit-based instrumentation tool while executing the program against the NVIDIA stub driver, allowing IREE to proceed as if running on real hardware. Due to the high cost of Accel-Sim simulation, we evaluate this flow using a small transformer model with approximately 4M parameters, exported from Flax examples [48]. Even at this scale, significant practical challenges arise. Of the 42 kernels generated for this workload, 38 required manual PTX modifications due to Accel-Sim parsing limitations, unsupported instructions, or failures related to dynamic shared-memory allocation. Ultimately, only 20 kernels could be simulated successfully. Simulation runtimes were also substantial. The median simulation time for a single kernel exceeded 2.1 hours, with several kernels requiring more than 15 hours to complete. These results indicate a fundamental mismatch between detailed GPU simulators and the rapidly evolving compiler stacks and kernel generation strategies used by modern ML frameworks. While Accel-Sim remains a powerful tool for targeted microarchi-tectural studies, using Accel-Sim for end-to-end ML training workloads, even at modest scale, remains impractical .Taken together, these findings motivate the need for intermediate-fidelity GPU performance models that balance accuracy, compiler compatibility, and scalability. StableHLO en-ables such models by providing a portable, compiler-compatible workload representation. 
+
+B. Limitations of StableHLO for Simulation 
+
+While StableHLO provides a unified and compiler-compatible workload representation, using it as the foundation for distributed ML performance simulation exposes several limitations. These limitations stem largely from the fact that StableHLO was designed as a high-level interchange format for XLA, rather than as a complete or self-contained specification for detailed performance modeling. Although StableHLO enables interaction with XLA’s opti-mization pipeline, many performance-critical transformations such as: operator fusion, layout decisions, and sharding propagation, are performed internally on XLA’s native HLO representation. These transformations may introduce operations or semantics that are not representable in StableHLO. As a result, exporting a post-optimization StableHLO workload requires selectively disabling compiler passes via hlo-opt 
+
+to avoid constructs that cannot be raised back into StableHLO. This process depends on undocumented interactions between passes and can lead to the loss of important optimization effects, limiting the fidelity of post-export representations and making it difficult to trace just-in-time compilation behavior. In addition, practical StableHLO exports often rely on auxiliary MLIR dialects, such as SDY or MHLO, to express semantics that are not fully captured in StableHLO itself, in-cluding sharding annotations and certain operators. Support for these dialects is inconsistent outside the OpenXLA ecosystem; for example, some compiler toolchains have deprecated MHLO support entirely. Consequently, StableHLO cannot function as a fully standalone workload representation and instead requires a tightly coupled compilation environment to remain usable and accurate. These limitations indicate that StableHLO is best viewed as a compiler-compatible workload abstraction rather than a complete simulation IR. While it enables reuse across modeling fidelities and architectures, achieving high-fidelity simulation still requires careful control of compiler pipelines and an understanding of where information is lost across representation boundaries. 
+
+C. JAX vs. PyTorch 
+
+While PyTorch remains the dominant ML framework and recent work [30], [37], [59], has explored simulation us-ing PyTorch-based representations, several factors motivated the choice of StableHLO and JAX for this study. First, the torch.compile API is less mature than the Sta-bleHLO/XLA compilation stack for compile-driven parallelism and static graph transformations. torch.compile cannot guarantee a complete ahead-of-time graph for all workloads due to graph breaks caused by untraceable control flow, which is particularly limiting for complex training workloads such as mixture-of-experts models. Second, while ahead-of-time compilation is supported for PyTorch inference via torch.export , full AoT compilation of training workloads— including backward and optimizer update phases—is an active area of development. In contrast, StableHLO naturally repre-sents a complete training step. Third, StableHLO’s portability across compilation backends (XLA, IREE, custom flows) provides flexibility critical for cross-architecture evaluation. Finally, if the PyTorch frontend is indispensable, StableHLO can still be emitted from PyTorch via torch_xla , the compilation path used to execute PyTorch programs on TPUs. VII. C ONCLUSION 
+
+This work evaluated whether MLIR’s StableHLO dialect can serve as a unified workload representation for distributed ML performance modeling across a variety of modeling tools, simulation fidelities and compute architectures. The results demonstrate that StableHLO enables a single workload description to drive analytical, profiling-based, and simulation-based estimators for GPUs and TPUs, supporting consistent cross-fidelity evaluation without requiring repeated workload reimplementation. Across GPU and TPU case studies, the methodology captures global performance trends and scaling behavior while exposing clear accuracy–cost tradeoffs between estimator classes. An-alytical models provide fast, optimistic estimates suitable for early-stage exploration, while profiling- and simulation-based estimators offer higher fidelity at increased computational cost and with biases introduced by workload partitioning and limited compiler visibility. Importantly, reference measurements con-sistently fall between analytical and profiling-based estimates, highlighting the complementary nature of these approaches when used within a unified framework. The evaluation also exposes inherent limitations of Sta-bleHLO as a simulation input. While it enables portable workload reuse and access to mature compiler optimizations, StableHLO does not encode backend-specific scheduling, memory placement, or kernel-level execution details. These gaps limit the effectiveness of detailed architectural simulators and explain why higher-fidelity models do not consistently outperform analytical estimators in this study. Overall, StableHLO enables reusable, cross-architecture performance evaluation workflows that span multiple sim-ulator classes and fidelity levels. By decoupling workload representation from performance estimation, the methodology supports systematic comparison and validation of distributed ML systems. ACKNOWLEDGMENT 
+
+This work is funded by the Advanced Research + Invention Agency (ARIA). 
+
+REFERENCES [1] J. Sevilla and E. Rold´ an, “Training compute of frontier ai models grows by 4-5x per year,” 2024, available at: https://epoch.ai/blog/ training-compute-of-frontier-ai-models-grows-by-4-5x-per-year, Ac-cessed: 2024-12-03. [2] S. Yun, S. Park, H. Nam, Y. Lee, G. Lee, K. Kyung, S. Kim, N. S. Kim, J. Kim, H. Kim et al. , “The new llm bottleneck: A systems perspective on latent attention and mixture-of-experts,” arXiv preprint arXiv:2507.15465 ,2025. [3] N. Shazeer, A. Mirhoseini, K. Maziarz, A. Davis, Q. Le, G. Hinton, and J. Dean, “Outrageously large neural networks: The sparsely-gated mixture-of-experts layer,” arXiv preprint arXiv:1701.06538 , 2017. [4] A. Gu and T. Dao, “Mamba: Linear-time sequence modeling with selective state spaces,” in First conference on language modeling , 2024. [5] Z. Li, X. Wu, H. Du, F. Liu, H. Nghiem, and G. Shi, “A survey of state of the art large vision language models: Benchmark evaluations and challenges,” in Proceedings of the Computer Vision and Pattern Recognition Conference , 2025, pp. 1587–1606. [6] T. Dao, D. Fu, S. Ermon, A. Rudra, and C. R´ e, “Flashattention: Fast and memory-efficient exact attention with io-awareness,” Advances in neural information processing systems , vol. 35, pp. 16 344–16 359, 2022. [7] P. Tillet, H.-T. Kung, and D. Cox, “Triton: an intermediate language and compiler for tiled neural network computations,” in Proceedings of the 3rd ACM SIGPLAN International Workshop on Machine Learning and Programming Languages , 2019, pp. 10–19. [8] S. Chetlur, C. Woolley, P. Vandermersch, J. Cohen, J. Tran, B. Catanzaro, and E. Shelhamer, “cudnn: Efficient primitives for deep learning,” arXiv preprint arXiv:1410.0759 , 2014. [9] J. Khan, P. Fultz, A. Tamazov, D. Lowell, C. Liu, M. Melesse, M. Nandhimandalam, K. Nasyrov, I. Perminov, T. Shah et al. , “Miopen: An open source library for deep learning primitives,” arXiv preprint arXiv:1910.00078 , 2019. [10] J. Li, Z. Qin, Y. Mei, J. Cui, Y. Song, C. Chen, Y. Zhang, L. Du, X. Cheng, B. Jin et al. , “onednn graph compiler: A hybrid approach for high-performance deep learning compilation,” in 2024 IEEE/ACM International Symposium on Code Generation and Optimization (CGO) .IEEE, 2024, pp. 460–470. [11] A. Sabne, “Xla : Compiling machine learning for peak performance,” 2020. [12] J. Ansel, E. Yang, H. He, N. Gimelshein, A. Jain, M. Voznesensky, B. Bao, P. Bell, D. Berard, E. Burovski et al. , “Pytorch 2: Faster machine learning through dynamic python bytecode transformation and graph compilation,” in Proceedings of the 29th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 2 , 2024, pp. 929–947. [13] NVIDIA, “Nvidia blackwell architecture technical overview,” NVIDIA Corporation, Tech. Rep., March 2024, accessed: December 10, 2025. [On-line]. Available: https://resources.nvidia.com/en-us-blackwell-architecture [14] AMD, “Introducing amd CDNA 3 architecture,” Advanced Micro Devices, Inc., White Paper 2258402-A, 2023, accessed: December 10, 2025. [On-line]. Available: https://www.amd.com/content/dam/amd/en/documents/ instinct-tech-docs/white-papers/amd-cdna-3-white-paper.pdf [15] Google Cloud, “Ironwood: The first Google TPU for the age of inference,” https://blog.google/products/google-cloud/ ironwood-tpu-age-of-inference/, 2025, updated April 23, 2025; accessed: December 10, 2025. [16] OpenXLA Community, “Stablehlo specification,” https://openxla.org/ stablehlo/spec, 2023, accessed: 2025-09-24. [17] M. Khairy, Z. Shen, T. M. Aamodt, and T. G. Rogers, “Accel-sim: An extensible simulation framework for validated gpu modeling,” in 
+
+2020 ACM/IEEE 47th Annual International Symposium on Computer Architecture (ISCA) . IEEE, 2020, pp. 473–486. [18] D. Moolchandani, J. Kundu, F. Ruelens, P. Vrancx, T. Evenblij, and M. Perumkunnil, “Amped: An analytical model for performance in dis-tributed training of transformers,” in 2023 IEEE International Symposium on Performance Analysis of Systems and Software (ISPASS) . IEEE, 2023, pp. 306–315. [19] M. Isaev, N. McDonald, L. Dennison, and R. Vuduc, “Calculon: a methodology and tool for high-level co-design of systems and large language models,” in Proceedings of the International Conference for High Performance Computing, Networking, Storage and Analysis , 2023, pp. 1–14. [20] J. Kundu, W. Guo, A. BanaGozar, U. De Alwis, S. Sengupta, P. Gupta, and A. Mallik, “Performance modeling and workload analysis of distributed large language model training and inference,” arXiv preprint arXiv:2407.14645 , 2024. [21] G. Lu, R. Chen, Y. Wang, Y. Zhou, R. Zhang, Z. Hu, Y. Miao, Z. Cai, L. Li, J. Leng et al. , “Distsim: A performance model of large-scale hybrid distributed dnn training,” in Proceedings of the 20th ACM International Conference on Computing Frontiers , 2023, pp. 112–122. [22] N. Ardalani, S. Pal, and P. Gupta, “Deepflow: A cross-stack pathfinding framework for distributed ai systems,” ACM Transactions on Design Automation of Electronic Systems , vol. 29, no. 2, pp. 1–20, 2024. [23] W. Won, T. Heo, S. Rashidi, S. Sridharan, S. Srinivasan, and T. Krishna, “Astra-sim2.0: Modeling hierarchical networks and disaggregated systems for large-model training at scale,” in 2023 IEEE International Symposium on Performance Analysis of Systems and Software (ISPASS) , 2023, pp. 283–294. [24] X. Wang, Q. Li, Y. Xu, G. Lu, D. Li, L. Chen, H. Zhou, L. Zheng, S. Zhang, Y. Zhu et al. , “ {SimAI }: Unifying architecture design and performance tuning for {Large-Scale } large language model training with scalability and precision,” in 22nd USENIX Symposium on Networked Systems Design and Implementation (NSDI 25) , 2025, pp. 541–558. [25] F. Gui, K. Gao, L. Chen, D. Li, V. Liu, R. Zhang, H. Yang, and D. Xiong, “Accelerating design space exploration for {LLM } training systems with multi-experiment parallel simulation,” in 22nd USENIX Symposium on Networked Systems Design and Implementation (NSDI 25) , 2025, pp. 473–488. [26] J. Bang, Y. Choi, M. Kim, Y. Kim, and M. Rhu, “vtrain: A simulation framework for evaluating cost-effective and compute-optimal large lan-guage model training,” in 2024 57th IEEE/ACM International Symposium on Microarchitecture (MICRO) . IEEE, 2024, pp. 153–167. [27] S. Shen, T. Bonato, Z. Hu, P. Jordan, T. Chen, and T. Hoefler, “Atlahs: An application-centric network simulator toolchain for ai, hpc, and distributed storage,” arXiv preprint arXiv:2505.08936 , 2025. [28] J. Duan, X. Li, P. Xu, X. Zhang, S. Yan, Y. Liang, and D. Lin, “Proteus: Simulating the performance of distributed dnn training,” IEEE Transactions on Parallel and Distributed Systems , 2024. [29] H. Zhu, A. Phanishayee, and G. Pekhimenko, “Daydream: Accurately estimating the efficacy of optimizations for {DNN } training,” in 2020 USENIX Annual Technical Conference (USENIX ATC 20) , 2020, pp. 337–352. [30] Y. Feng, Y. Chen, K. Chen, J. Li, T. Wu, P. Cheng, C. Wu, W. Wang, T.-Y. Ho, and H. Xu, “Echo: Simulating distributed training at scale,” 
+
+arXiv preprint arXiv:2412.12487 , 2024. [31] H. Zhang, A. Ning, R. B. Prabhakar, and D. Wentzlaff, “Llmcompass: Enabling efficient hardware design for large language model inference,” in 2024 ACM/IEEE 51st Annual International Symposium on Computer Architecture (ISCA) . IEEE, 2024, pp. 1080–1096. [32] S. Sridharan, T. Heo, L. Feng, Z. Wang, M. Bergeron, W. Fu, S. Zheng, B. Coutinho, S. Rashidi, C. Man et al. , “Chakra: Advancing performance benchmarking and co-design using standardized execution traces,” arXiv preprint arXiv:2305.14516 , 2023. [33] J. Cho, M. Kim, H. Choi, G. Heo, and J. Park, “Llmservingsim: A hw/sw co-simulation infrastructure for llm inference serving at scale,” arXiv preprint arXiv:2408.05499 , 2024. [34] T. Hoefler, C. Siebert, and A. Lumsdaine, “Group operation assembly language-a flexible way to express collective communication,” in 2009 International Conference on Parallel Processing . IEEE, 2009, pp. 574–581. [35] K. Santhanam, S. Krishna, R. Tomioka, A. Fitzgibbon, and T. Harris, “Distir: An intermediate representation for optimizing distributed neural networks,” in Proceedings of the 1st Workshop on Machine Learning and Systems , 2021, pp. 15–23. [36] J. Reed, Z. DeVito, H. He, A. Ussery, and J. Ansel, “torch. fx: Practical program capture and transformation for deep learning in python,” 
+
+Proceedings of Machine Learning and Systems , vol. 4, pp. 638–651, 2022. [37] S. Lee, A. Phanishayee, and D. Mahajan, “Forecasting gpu performance for deep learning training and inference,” in Proceedings of the 30th ACM International Conference on Architectural Support for Programming Languages and Operating Systems, Volume 1 , 2025, pp. 493–508. [38] J. Bai, F. Lu, K. Zhang et al. , “Onnx: Open neural network exchange,” https://github.com/onnx/onnx, 2019. [39] H. Ham, W. Yang, Y. Shin, O. Woo, G. Heo, S. Lee, J. Park, and G. Kim, “Onnxim: A fast, cycle-level multi-core npu simulator,” arXiv preprint arXiv:2406.08051 , 2024, available at https://arxiv.org/abs/2406.08051. [40] L. Mei, P. Houshmand, V. Jain, S. Giraldo, and M. Verhelst, “Zigzag: A memory-centric rapid dnn accelerator design space exploration framework,” arXiv preprint arXiv:2007.11360 , 2020. [41] OpenXLA Contributors, “Xla architecture and high-level optimizer (hlo),” https://openxla.org/xla/architecture, 2024, accessed: 2025-05-14. [42] OpenXLA Community, “Stablehlo: A portable, stable, and versioned ir for ml workloads,” https://github.com/openxla/stablehlo, 2023, accessed: 2025-09-24. [43] “’sdy’ dialect — openxla project,” https://openxla.org/shardy/sdy dialect, accessed: 2025-12-10. [44] C. Lattner, M. Amini, U. Bondhugula, A. Cohen, A. Davis, A. Pienaar, R. Riddle, and T. Shpeisman, “Mlir: A compiler infrastructure for the end of moore’s law,” Proceedings of the IEEE , 2021. [45] AI-Hypercomputer, “Maxtext: A simple, performant llm library in jax,” https://github.com/AI-Hypercomputer/maxtext, 2025, accessed: 2025-09-30. [46] A. F. Rodrigues, K. S. Hemmert, B. W. Barrett, C. Kersey, R. Oldfield, M. Weston, R. Risen, J. Cook, P. Rosenfeld, E. Cooper-Balis, and B. Jacob, “The structural simulation toolkit,” SIGMETRICS Perform. Eval. Rev. , vol. 38, no. 4, p. 37–42, Mar. 2011. [Online]. Available: https://doi.org/10.1145/1964218.1964225 [47] Google Research, Brain Team, “Jax: composable transformations of python+numpy programs,” https://github.com/google/jax, 2018, accessed: 2025-09-30. [48] J. Heek, A. Levskaya, A. Oliver, M. Ritter, B. Rondepierre, A. Steiner, and M. van Zee, “Flax: A neural network library and ecosystem for JAX,” 2024. [Online]. Available: http://github.com/google/flax [49] OpenXLA contributors, “xprof: A profiling and performance analysis tool for machine learning,” OpenXLA, gitHub repository, Apache-2.0 license. [Online]. Available: https://github.com/openxla/xprof [50] A. G. Lewis, J. Beall, M. Ganahl, M. Hauru, S. B. Mallick, and G. Vidal, “Large-scale distributed linear algebra with tensor processing units,” 
+
+Proceedings of the National Academy of Sciences , vol. 119, no. 33, p. e2122762119, 2022. [51] C. Yang, “The current and future of roofline,” 2019, available at https: //www.nersc.gov/assets/Uploads/Talk-LBNL-BrownBagSeminar-2019. pdf. [52] M. Choudhary, C. Kjellqvist, J. Ma, and L. W. Wills, “Cocossim: A cycle-accurate simulator for heterogeneous systolic array architectures,” in 2025 IEEE International Symposium on Performance Analysis of Systems and Software (ISPASS) . IEEE, 2025, pp. 174–185. [53] N. P. Jouppi, D. H. Yoon, G. Kurian, S. Li, N. Patil, J. Laudon, C. Young, D. A. Patterson et al. , “A domain-specific supercomputer for training deep neural networks,” Communications of the ACM , vol. 63, no. 7, pp. 67–78, 2020. [54] J. Kim, W. J. Dally, S. Scott, and D. Abts, “Technology-driven, highly-scalable dragonfly topology,” ACM SIGARCH Computer Architecture News , vol. 36, no. 3, pp. 77–88, 2008. [55] N. P. Jouppi, C. Young, N. Patil, D. Patterson, G. Agrawal, R. Bajwa, S. Bates, S. Bhatia, N. Boden, A. Borchers et al. , “In-datacenter performance analysis of a tensor processing unit,” in Proceedings of the 44th annual international symposium on computer architecture , 2017, pp. 1–12. [56] R. Raj, S. Banerjee, N. Chandra, Z. Wan, J. Tong, A. Samajdar, and T. Krishna, “Scale-sim v3: A modular cycle-accurate systolic accelerator simulator for end-to-end system analysis,” arXiv preprint arXiv:2504.15377 , 2025, available at https://arxiv.org/abs/2504.15377. [57] L. Mei, P. Houshmand, V. Jain, S. Giraldo, and M. Verhelst, “Zigzag: Enlarging joint architecture-mapping design space exploration for dnn accelerators,” IEEE Transactions on Computers , vol. 70, no. 8, pp. 1160– 1174, 2021. [58] T. I. Authors, B. Vanik, and S. Laurenzo, “Iree: An mlir-based compiler and runtime for machine learning models,” 2019, software available at https://github.com/iree-org/iree. [Online]. Available: https://github.com/iree-org/iree [59] W. Yang, Y. Shin, O. Woo, G. Park, H. Ham, J. Kang, J. Park, and G. Kim, “Pytorchsim: A comprehensive, fast, and accurate npu simulation framework,” in Proceedings of the 58th IEEE/ACM International Symposium on Microarchitecture , ser. MICRO ’25. New York, NY, USA: Association for Computing Machinery, 2025, p. 1363–1380. [Online]. Available: https://doi.org/10.1145/3725843.3756045 APPENDIX 
+
+ARTIFACT APPENDIX 
+
+A. Abstract 
+
+This artifact appendix describes how to access and install the simulation framework introduced in Figure 2. It also describes how to reproduce the experiments in Section V (Figures 6, 7, and 11). All input configuration files and datasets are included in the artifact. 
+
+B. Artifact check-list (meta-information)                              
+
+> •Program: hespas - simulation framework for distributed ML training
+> •Model: ResNet variants, Llama-3 (100M–3B), Llama-2 7B
+> •Data set: StableHLO-MLIR of ResNet-18/34/50/101/200, Llama-3 (100M–3B), Llama-2 (7B)
+> •Run-time environment: Linux-based distribution
+> •Execution: Automated through bash scripts and configuration files
+> •Metrics: Training step time
+> •Output: Log files, CSV summaries, graphs (PDF, PNG, SVG)
+> •Experiments: Figures 6, 7, and 11
+> •How much disk space required (approximately)?: 5 GB
+> •How much time is needed to prepare workflow?: Approx. 5 min
+> •How much time is needed to complete experiments?: Approx. 25 min
+> •Publicly available: Yes
+> •Code licenses: MIT
+
+C. Description 1) How to access: The artifact for results reproduction is available at https://doi.org/10.5281/zenodo.18874691. The source code is planned to be open-sourced on GitHub at https://github.com/imec-int/hespas. 
+
+2) Hardware dependencies: The core simulation framework can be run on any Linux-based system. To reproduce the profiling-based estimator results, matching GPU and TPU hardware is required as specified in Table IV and Figure 5. 
+
+3) Software dependencies: The core simulation framework is written in Python 3.10+. For network simulation, it uses ASTRA-sim and therefore depends on the following two repositories:  
+
+> •
+
+ASTRA-sim [23] for network modeling,  
+
+> •
+
+Chakra [32] as the trace format input for ASTRA-sim. The following systolic array estimators are utilized as compute estimators in the TPU case study (Section V-C):  
+
+> •
+
+COCOSSim [52],  
+
+> •
+
+ONNXim [39]. Note that only COCOSSim is used in the system-level experiments. The framework has been tested on Ubuntu 22.04. All paths in this appendix are relative to the root directory of the distribution. 
+
+4) Data sets: The simulation framework takes two types of inputs:  
+
+> •
+
+System configuration files,  
+
+> •
+
+StableHLO ML workloads. All datasets are included in the release package. 
+
+D. Installation 
+
+The framework is released as a self-contained package. Upon extraction, the root directory contains a single bash script that installs all required dependencies and executes the experiments. Users may be prompted to install additional system dependencies (e.g., cmake and protobuf ). To install and run all experiments, execute the following command: 
+
+./run_all.sh 
+
+E. Experiment workflow 
+
+To reproduce all artifact-supported paper results, execute: 
+
+./run_all.sh .This is the only required command. It will automatically:  
+
+> •
+
+Build all required components (HeSPaS, ASTRA-sim, COCOSSim).  
+
+> •
+
+Run paper experiments.  
+
+> •
+
+Generate CSV summaries and final graphs. After completion, all outputs are placed in results/ :
+
+*.csv for raw experiment data and *.png , *.svg , *.pdf 
+
+for graphs. The main run script will automatically simulate the Sta-bleHLO input files using the compute estimators and produce a Chakra trace for each configuration, which is then fed into ASTRA-sim for system simulation. The final training step time is accumulated into a CSV file and a graphing script is used to produce the final plots. The experiment scripts containing the inputs and setup are found under repos/hespas/experiments/paper/ .
+
+Note on profiling-based estimator: The profiling-based esti-mator results found in Figures 6 and 7 require a GPU to profile the StableHLO workloads. For convenience, we provide Chakra traces pre-annotated with the profiling-based estimator results, e.g., repos/hespas/experiments/paper/llama3/ profiling/workloads/A100/llama3-100m/ . This allows reproduction of results without GPU access. A Docker instance with JAX installation is provided for users who wish to re-run the profiling-based estimator with their own GPU hardware. Configuration details can be found in README_docker.md .
+
+F. Evaluation and expected results 
+
+The provided run flow reproduces the core paper experiments: Figures 6, 7, and 11. Figure 9 is not part of the reproducible artifact as it relies on a closed-source SST-Merlin-based network simulator. The TPU microarchitectural meta-study in Figure 10 is excluded from the artifact evaluation scope. 
+
+G. Experiment customization 
+
+There are several options for experiment customization.  
+
+> •
+
+Inputs: the simplest way to change experiments is to modify the system configuration files by changing the hardware or network topology parameters. Exam-ples of system configuration files can be found in 
+
+repos/hespas/configs .• Compute estimators: users may add additional com-pute estimators or choose to modify existing ones. The Compute Estimator API is implemented in 
+
+repos/hespas/src/hespas/estimator , where users may also find examples of existing estimators.  
+
+> •
+
+Network Simulators: The simulation framework uses ASTRA-sim as its network backend. Refer to the ASTRA-sim [23] documentation to add new or extend existing network simulators via the ASTRA-sim Network API.

@@ -1,0 +1,297 @@
+{
+  "date": "20251020-20261019",
+  "date_label": "2025-10-20 ～ 2026-10-19",
+  "generated_at": "2026-10-20T09:16:42.494035+00:00",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2605.12445v2",
+      "route": "20251020-20261019/2605.12445v2",
+      "title": "Scalable Packed Layouts for Vector-Length-Agnostic ML Code Generation",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 9.0,
+      "evidence": "面向MLIR/IREE的VLA向量化代码生成，属ML编译与可伸缩向量优化专题。",
+      "first_seen_at": "2026-10-20T09:16:42.389506+00:00",
+      "updated_at": "2026-10-20T09:16:42.389506+00:00"
+    },
+    {
+      "paper_id": "2607.18254v1",
+      "route": "20251020-20261019/2607.18254v1",
+      "title": "Cross-Dialect Generalization Without Retraining: Benchmarks and Evaluation of Schema-Derived Constrained Decoding for MLIR",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "面向MLIR/IREE的跨方言约束解码基准与评测，属编译中间表示生成专题。",
+      "first_seen_at": "2026-10-20T09:16:42.407380+00:00",
+      "updated_at": "2026-10-20T09:16:42.407380+00:00"
+    },
+    {
+      "paper_id": "2606.00601v1",
+      "route": "20251020-20261019/2606.00601v1",
+      "title": "ScanWeaver: Compiler-Driven Parallelization of Affine Recurrences via Associative Scan Lowering",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "面向MLIR/IREE编译专题，展示仿射递推经MLIR下沉至GPU结合扫描的编译路径。",
+      "first_seen_at": "2026-10-20T09:16:42.398892+00:00",
+      "updated_at": "2026-10-20T09:16:42.398892+00:00"
+    },
+    {
+      "paper_id": "2609.30099v1",
+      "route": "20251020-20261019/2609.30099v1",
+      "title": "Compiler and Hardware Co-Design for Accelerator Architectures",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-10-20T09:16:42.494035+00:00",
+      "updated_at": "2026-10-20T09:16:42.494035+00:00"
+    },
+    {
+      "paper_id": "2609.04585v1",
+      "route": "20251020-20261019/2609.04585v1",
+      "title": "JLIR: A Julia-Native MLIR-Inspired Intermediate Representation with Automatic JACC Kernel Extraction",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-10-20T09:16:42.481247+00:00",
+      "updated_at": "2026-10-20T09:16:42.481247+00:00"
+    },
+    {
+      "paper_id": "2607.15865v2",
+      "route": "20251020-20261019/2607.15865v2",
+      "title": "An MLIR-Based Compilation Method for Large Language Models",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-10-20T09:16:42.473869+00:00",
+      "updated_at": "2026-10-20T09:16:42.473869+00:00"
+    },
+    {
+      "paper_id": "2606.25244v1",
+      "route": "20251020-20261019/2606.25244v1",
+      "title": "Reading AI Model Compilation in MLIR Through the Lens of Formal Theories",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-10-20T09:16:42.467816+00:00",
+      "updated_at": "2026-10-20T09:16:42.467816+00:00"
+    },
+    {
+      "paper_id": "2605.01124v1",
+      "route": "20251020-20261019/2605.01124v1",
+      "title": "Practical Formal Verification for MLIR Programs",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-10-20T09:16:42.462026+00:00",
+      "updated_at": "2026-10-20T09:16:42.462026+00:00"
+    },
+    {
+      "paper_id": "2604.19906v2",
+      "route": "20251020-20261019/2604.19906v2",
+      "title": "Demonstrating a Future for MLIR-native DSL Compilers on a NumPy-like Example",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-10-20T09:16:42.456391+00:00",
+      "updated_at": "2026-10-20T09:16:42.456391+00:00"
+    },
+    {
+      "paper_id": "2604.16571v1",
+      "route": "20251020-20261019/2604.16571v1",
+      "title": "EquivFusion: Unifying Hardware Equivalence Checking from Algorithms to Netlists via MLIR",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-10-20T09:16:42.450896+00:00",
+      "updated_at": "2026-10-20T09:16:42.450896+00:00"
+    },
+    {
+      "paper_id": "2604.13523v3",
+      "route": "20251020-20261019/2604.13523v3",
+      "title": "TensorLift: Automatic Extraction of Tensor-Level ISA Semantics from Accelerator RTL via MLIR Semantic Lifting",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "",
+      "first_seen_at": "2026-10-20T09:16:42.445642+00:00",
+      "updated_at": "2026-10-20T09:16:42.445642+00:00"
+    },
+    {
+      "paper_id": "2604.12090v1",
+      "route": "20251020-20261019/2604.12090v1",
+      "title": "Evaluating Cross-Architecture Performance Modeling of Distributed ML Workloads Using StableHLO",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "评估StableHLO作为统一负载表示用于跨架构分布式ML性能建模，属MLIR/IREE编译与性能建模专题。",
+      "first_seen_at": "2026-10-20T09:16:42.440581+00:00",
+      "updated_at": "2026-10-20T09:16:42.440581+00:00"
+    },
+    {
+      "paper_id": "2603.16437v7",
+      "route": "20251020-20261019/2603.16437v7",
+      "title": "Dimensional Type Systems and Deterministic Memory Management: Design-Time Semantic Preservation in Native Compilation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "该论文面向MLIR/IREE编译栈，讨论量纲类型与确定性内存管理在lowering中的语义保持，与专题的编译基础设施方向相关。",
+      "first_seen_at": "2026-10-20T09:16:42.435817+00:00",
+      "updated_at": "2026-10-20T09:16:42.435817+00:00"
+    },
+    {
+      "paper_id": "2603.06731v2",
+      "route": "20251020-20261019/2603.06731v2",
+      "title": "PolyBlocks: A Compiler Infrastructure for AI Chips and Programming Frameworks",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "该论文属于MLIR/IREE编译基础设施专题，展示基于MLIR的AI芯片编译器设计与自动代码生成实践。",
+      "first_seen_at": "2026-10-20T09:16:42.429915+00:00",
+      "updated_at": "2026-10-20T09:16:42.429915+00:00"
+    },
+    {
+      "paper_id": "2602.20204v1",
+      "route": "20251020-20261019/2602.20204v1",
+      "title": "Analyzing Latency Hiding and Parallelism in an MLIR-based AI Kernel Compiler",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向MLIR编译流水线的AI内核并行与延迟隐藏机制基准评测，属MLIR/IREE编译专题。",
+      "first_seen_at": "2026-10-20T09:16:42.422695+00:00",
+      "updated_at": "2026-10-20T09:16:42.422695+00:00"
+    },
+    {
+      "paper_id": "2602.19762v1",
+      "route": "20251020-20261019/2602.19762v1",
+      "title": "Hexagon-MLIR: An AI Compilation Stack For Qualcomm's Neural Processing Units (NPUs)",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "该论文介绍基于 MLIR 的 Hexagon NPU 开源编译栈，与 MLIR/IREE 编译专题相关，属邻近参考而非直接解决专题问题。",
+      "first_seen_at": "2026-10-20T09:16:42.418493+00:00",
+      "updated_at": "2026-10-20T09:16:42.418493+00:00"
+    },
+    {
+      "paper_id": "2601.17754v1",
+      "route": "20251020-20261019/2601.17754v1",
+      "title": "An MLIR Lowering Pipeline for Stencils at Wafer-Scale",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向MLIR/IREE编译专题，展示stencil经MLIR降级到WSE的自动编译路径。",
+      "first_seen_at": "2026-10-20T09:16:42.414584+00:00",
+      "updated_at": "2026-10-20T09:16:42.414584+00:00"
+    },
+    {
+      "paper_id": "2511.08713v1",
+      "route": "20251020-20261019/2511.08713v1",
+      "title": "An MLIR pipeline for offloading Fortran to FPGAs via OpenMP",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向MLIR生态的FPGA卸载编译流水线，属MLIR编译基础设施专题。",
+      "first_seen_at": "2026-10-20T09:16:42.410910+00:00",
+      "updated_at": "2026-10-20T09:16:42.410910+00:00"
+    }
+  ]
+}
