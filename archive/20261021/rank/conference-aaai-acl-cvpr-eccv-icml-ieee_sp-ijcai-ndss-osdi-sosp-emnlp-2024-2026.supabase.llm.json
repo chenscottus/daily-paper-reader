@@ -1,0 +1,1645 @@
+{
+  "top_k": 200,
+  "generated_at": "2026-10-21T11:26:06.352009+00:00",
+  "papers": [
+    {
+      "id": "aaai-2026-39779",
+      "source": "AAAI-2026-Accepted",
+      "title": "CloserToMe: A Unified Framework for Accurate and Transferable Latency Prediction Across Heterogeneous Devices",
+      "abstract": "Hardware accelerators such as GPUs, NPUs, and FPGAs are essential to meeting AI’s computational demands. With the proliferation of heterogeneous devices across cloud and edge, various model optimization techniques adapt to diverse hardware characteristics through operator transformations and structural modifications.  Accurate, efficient latency prediction enables rapid selection of optimal strategies across hardware backends.\nMany existing methods treat hardware as a black-box executor, directly regressing latency without explicitly modeling the intricate interactions between neural network (NN) structures and device-specific execution behaviors. To address these challenges, we introduce a new modeling perspective that captures the interaction between neural architectures and hardware execution. To capture device-specific characteristics, we propose two complementary modeling strategies. The Device Behavior Signature Selector (DBSel) characterizes hardware execution behavior by selectively probing a small set of representative architectures, forming a compact, workload-driven profile. In parallel, we construct capability vectors that capture the hierarchical memory of each device and compute characteristics, providing a structured abstraction of its architectural capacity. To unify both behavioral and structural views, we introduce the Hardware–Operation Dialogue Module (HODM), which models fine-grained interactions between neural operators and hardware properties. Together, these components empower CloserToMe to deliver accurate and transferable latency predictions across unseen and diverse platforms.",
+      "authors": [
+        "Cheng Tang",
+        "Guochong Sui",
+        "Wenqi Lou",
+        "Zihan Wang",
+        "Jiayi Tuo",
+        "Wenqian Xie",
+        "Yinkang Gao",
+        "Yixuan Zhu",
+        "Lei Gong",
+        "Chao Wang",
+        "Xuehai Zhou"
+      ],
+      "primary_category": "AAAI-26 Technical Tracks 30",
+      "categories": [
+        "AAAI-2026",
+        "AAAI-26 Technical Tracks 30"
+      ],
+      "published": "2026-03-17T00:00:00+00:00",
+      "link": "https://ojs.aaai.org/index.php/AAAI/article/view/39779",
+      "pdf_url": "https://ojs.aaai.org/index.php/AAAI/article/download/39779/43740",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "openreview-icml-2026-wrp7d18h9t",
+      "source": "ICML-2026-Accepted",
+      "title": "Spik4lite: Refactoring Neuromorphic Sparsity for Efficient Spiking Neural Networks on Commodity Edge Devices",
+      "abstract": "Recently, the spiking neural networks (SNNs) have shown great promise in enhancing AI task performance by utilizing the brain-inspired and energy-efficient computational paradigm via the binary (0/1) spikes. Modern SNNs, especially those based on transformers, often require FPGA accelerators or neuromorphic chips to enable spike-driven computations. However, this domain-specific hardware is not always accessible on commodity edge devices like NVIDIA Jetsons, which may degrade SNNs' energy efficiency due to massive computational waste on inactive \"0\" spikes and finally undermine the usage boundary. This limitation raises an interesting question: is it possible to make SNNs edge-friendly and tame the computations mostly on active \"1\" spikes? We present the answer yes and propose Spik4lite, which serves as a lightweight plug-and-play module to significantly improve SNN's performance between model accuracy and computational efficiency. The key is to refactor SNN's channel-wise neuromorphic sparsity by zeroing out low-efficiency channels while proactively compensating for the eliminated spikes. Different from prior methods mainly focusing on optimizing the theoretical synaptic operations, our design philosophy can evolve the SNNs into a physically compact manner, thus inherently saving more computational and energy costs. Extensive experiments based on real edge devices show that Spik4lite can be integrated into existing SNN baselines to further improve their accuracy-and-efficiency performance, guaranteeing the model accuracy while saving the computational and energy costs.",
+      "authors": [
+        "Yongzhi She",
+        "Qihua Zhou",
+        "Yuhao Wang",
+        "Yaodong Huang",
+        "Laizhong Cui",
+        "Jingcai Guo"
+      ],
+      "primary_category": "Spiking Neural Network",
+      "categories": [
+        "Spiking Neural Network",
+        "Edge Intelligence"
+      ],
+      "published": "2026-04-30T19:10:34.429+00:00",
+      "link": "https://openreview.net/forum?id=WRP7d18h9t",
+      "pdf_url": "https://openreview.net/pdf/b2695c2d9782d84af09e7d5865b5f20b8a2660c2.pdf",
+      "tags": [
+        "keyword:coral-npu"
+      ]
+    },
+    {
+      "id": "anthology-2026.findings-acl.2106",
+      "source": "ACL-2026-Findings",
+      "title": "Unlocking the Edge deployment and ondevice acceleration of multi-LoRA enabled one-for-all foundational LLM",
+      "abstract": "Deploying large language models (LLMs) on smartphones poses significant engineering challenges due to stringent constraints on memory, latency, and runtime flexibility. In this work, we present a hardware-aware framework for efficient on-device inference of a LLaMA-based multilingual foundation model supporting multiple use cases on Samsung Galaxy S24 and S25 devices with SM8650 and SM8750 Qualcomm chipsets respectively. Our approach integrates application-specific LoRAs as runtime inputs to a single frozen inference graph, enabling dynamic task switching without recompilation or memory overhead. We further introduce a multi-stream decoding mechanism that concurrently generates stylistic variations—such as formal, polite, or jovial responses—within a single forward pass, reducing latency by up to 6×. To accelerate token generation, we apply Dynamic Self-Speculative Decoding (DS2D), a tree-based strategy that predicts future tokens without requiring a draft model, yielding up to 2.3× speedup in decode time. Combined with quantization to INT4 and architecture-level optimizations, our system achieves 4–6× overall improvements in memory and latency while maintaining accuracy across 9 languages and 8 tasks. These results demonstrate practical feasibility of deploying multi-use-case LLMs on edge devices, advancing the commercial viability of Generative AI in mobile platforms.",
+      "authors": [
+        "Sravanth Kodavanti",
+        "Sowmya Vajrala",
+        "Srinivas Soumitri Miriyala",
+        "Utsav Tiwari",
+        "Uttam Kumar",
+        "Utkarsh Kumar Mahawar",
+        "Achal Pratap Singh",
+        "Arya D",
+        "Narendra Mutyala",
+        "Vikram Nelvoy Rajendiran",
+        "Sharan Kumar Allur",
+        "Euntaik Lee",
+        "Dohyoung Kim",
+        "HyeonSu Lee",
+        "Gyusung Cho",
+        "JungBae Kim"
+      ],
+      "primary_category": "ACL-2026-Findings",
+      "categories": [
+        "ACL-2026-Findings"
+      ],
+      "published": "2026-07-01T00:00:00+00:00",
+      "link": "https://aclanthology.org/2026.findings-acl.2106/",
+      "pdf_url": "https://aclanthology.org/2026.findings-acl.2106.pdf",
+      "tags": [
+        "keyword:coral-npu"
+      ]
+    },
+    {
+      "id": "ijcai-2026-14",
+      "source": "IJCAI-2026-Accepted",
+      "title": "Going Beyond the Edge: Distributed Inference of Transformer Models on Ultra-Low-Power Wireless Devices",
+      "abstract": "Transformer models are rapidly becoming a cornerstone of modern Internet of Things (IoT) applications, yet their computational and memory demands far exceed the capabilities of a single typical ultra-low-power IoT device. We present CATS, a framework for distributed transformer inference on ultra-low-power wireless devices, enabling multiple devices to collaboratively execute models far larger than what a single device can sustain. At its core, CATS is a communication-aware distributed transformer inference scheme co-designed across transformer partitioning, wireless communication and training. It employs SomeGather, a new pruned communication primitive that selectively broadcasts activation columns to reduce communication bandwidth and RAM usage without sacrificing model accuracy. Building on SomeGather, we design a partitioning method that exploits this primitive for efficient model parallelism. To cope with unreliable wireless communication, CATS employs message-dropout during training, which mimics packet losses and yields models that are robust to message loss during inference. In real-world experiments, we show that CATS brings distributed transformer inference to ultra-low-power wireless devices for the first time, with deployments on up to 16 devices that collaboratively execute transformer models up to 14 times larger than what a single device can run.",
+      "authors": [
+        "Alexander Gräfe",
+        "Ding Huo",
+        "Vincent de Bakker",
+        "Johannes Berger",
+        "Marco Zimmerling",
+        "Sebastian Trimpe"
+      ],
+      "primary_category": "IJCAI-2026",
+      "categories": [
+        "IJCAI-2026"
+      ],
+      "published": "2026-09-16T00:00:00+00:00",
+      "link": "https://www.ijcai.org/proceedings/2026/14",
+      "pdf_url": "https://www.ijcai.org/proceedings/2026/0014.pdf",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "aaai-2026-39406",
+      "source": "AAAI-2026-Accepted",
+      "title": "HALO: Hardware-Aware Quantization with Low Critical-Path-Delay Weights for LLM Acceleration",
+      "abstract": "Quantization is critical for efficiently deploying large language models (LLMs). Yet conventional methods remain hardware-agnostic, limited to bit-width constraints, and do not account for intrinsic circuit characteristics such as the timing behaviors and energy profiles of Multiply-Accumulate (MAC) units. This disconnect from circuit-level behavior limits the ability to exploit available timing margins and energy-saving opportunities, reducing the overall efficiency of deployment on modern accelerators. To address these limitations, we propose HALO, a versatile framework for Hardware-Aware Post-Training Quantization (PTQ). Unlike traditional methods, HALO explicitly incorporates detailed hardware characteristics, including critical-path timing and power consumption, into its quantization approach. HALO strategically selects weights with low critical-path-delays enabling higher operational frequencies and dynamic frequency scaling without disrupting the architecture's dataflow. Remarkably, HALO achieves these improvements with only a few dynamic voltage and frequency scaling (DVFS) adjustments, ensuring simplicity and practicality in deployment. Additionally, by reducing switching activity within the MAC units, HALO effectively lowers energy consumption. Evaluations on accelerators such as Tensor Processing Units (TPUs) and Graphics Processing Units (GPUs) demonstrate that HALO significantly enhances inference efficiency, achieving average performance improvements of 270% and energy savings of 51% over baseline quantization methods, all with minimal impact on accuracy.",
+      "authors": [
+        "Rohan Juneja",
+        "Shivam Aggarwal",
+        "Safeen Huda",
+        "Tulika Mitra",
+        "Li-Shiuan Peh"
+      ],
+      "primary_category": "AAAI-26 Technical Tracks 27",
+      "categories": [
+        "AAAI-2026",
+        "AAAI-26 Technical Tracks 27"
+      ],
+      "published": "2026-03-17T00:00:00+00:00",
+      "link": "https://ojs.aaai.org/index.php/AAAI/article/view/39406",
+      "pdf_url": "https://ojs.aaai.org/index.php/AAAI/article/download/39406/43367",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "openreview-icml-2026-5vok9nuvsd",
+      "source": "ICML-2026-Accepted",
+      "title": "Diversity-aware Weight Perturbation Promotes Robust Adaptation",
+      "abstract": "Compute-In-Memory (CIM) accelerators are promising for energy-efficient edge inference, yet they faces fundamental challenges when deploying Deep Neural Networks (DNNs), as hardware-induced weight perturbations from intrinsic noise and device drift degrade accuracy and impede reliable inference. To tackle this challenge, we propose Diversity-aware Weight \nPerturbation (DWP), an immune-system-inspired training method that \nemulates affinity-based selection by exploiting sample-level \nprediction disagreement under diverse noise realizations to guide \nadaptive sample weighting, building robustness to weight perturbation. Experiments show that DWP-trained models consistently yield superior robustness, achieving over 15\\% accuracy improvements compared to standard-trained models under severe weight perturbations (mismatch level up to 70\\%) and maintaining \ninference accuracy at 90\\% over a simulated one-year CIM operation \nwith only 2\\%–4\\% variation in accuracy. Moreover, under matched model and inference configurations, deployment on low-precision CIM hardware reduces inference energy by 38\\% compared to a GPU baseline. These results demonstrate that DWP enables robust and energy-efficient neural network deployment on resource-constrained edge devices with inherent hardware uncertainties.",
+      "authors": [
+        "Zibo Chen",
+        "Ruxin Li",
+        "Zilu Wang"
+      ],
+      "primary_category": "Robust training",
+      "categories": [
+        "Robust training",
+        "Diversity",
+        "Immune-inspired learning",
+        "Compute-In-Memory",
+        "Hardware-induced weight perturbation"
+      ],
+      "published": "2026-04-30T19:09:44.587+00:00",
+      "link": "https://openreview.net/forum?id=5VoK9nUVSD",
+      "pdf_url": "https://openreview.net/pdf/2de006a9cdd8145cc96ea782be2554c11d0744d0.pdf",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "openreview-icml-2026-u2o6hpe8ik",
+      "source": "ICML-2026-Accepted",
+      "title": "Faster Activation Functions at the Edge for Post-Training Speedups",
+      "abstract": "On-device AI has gained significant attention for enabling efficient, low-latency inference on edge devices.\nHowever, tight resource constraints on these platforms make the deployment of accurate and lightweight deep\nlearning models challenging.\nIn particular,\nadvanced activation functions (AFs) like Swish and GELU often incur\nhigh inference overhead due to the lack of hardware fast-paths for exponentiation and division,\nrestricting edge-ML applications to simple AFs like ReLU, limiting model accuracy.\nTo address this, we propose FFCC, a compiler that automatically\ngenerates efficient approximations of AFs through floating-point reinterpretation.\nThese functions do not require hardware fast-paths, meaning they remain fast\non edge devices, but are accurate enough to be used as post-training drop-ins.\nFFCC takes a specification of AFs using basic floating-point operators\nand applies derivation rules to lower these expressions into\nefficient instruction sequences.\nOur experiments show that FFCC provides fast approximations of AFs, achieving order-of-magnitude\nspeed-ups over accurate baselines on Arm M7, Aarch64 and Intel platforms.\nUsing ConvNeXt as an example, we demonstrate how these activation-level gains translate to end-to-end speed-ups,\nand do not result in significant loss of model accuracy.",
+      "authors": [
+        "Anton Lydike",
+        "Jun Bi",
+        "Jackson Woodruff"
+      ],
+      "primary_category": "Machine Learning",
+      "categories": [
+        "Machine Learning",
+        "Systems",
+        "Machine Learning Systems",
+        "Edge ML",
+        "Activation Functions",
+        "Approximations",
+        "Bitcasting",
+        "IEEE Float"
+      ],
+      "published": "2026-04-30T19:19:27.874+00:00",
+      "link": "https://openreview.net/forum?id=u2o6hPE8ik",
+      "pdf_url": "https://openreview.net/pdf/c6e7359c8ec05ad034329553bc37bb6b26299da4.pdf",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "openreview-icml-2026-8xc5ebkgii",
+      "source": "ICML-2026-Accepted",
+      "title": "RTInfer: Real-Time Inference of Multiple DNNs on Edge GPUs",
+      "abstract": "While edge GPUs are increasingly used for latency-critical DNN tasks, limited resources often fail to meet strict real-time (RT) requirements under concurrent workloads. \nExisting preemption and early-exit mechanisms often underutilize GPU resources through single-task queuing and sacrifice excessive accuracy during task bursts.\nTo address this, we propose RTInfer, a novel system that enables concurrent RT task execution while balancing throughput and accuracy.\nRTInfer integrates an accuracy-calibrated lightweight variant co-optimization to generate efficient models, a memory-layout-aware scheduler to mitigate fragmentation during preemption, and an on-demand loading strategy to minimize host-to-GPU latency.\nExtensive evaluations demonstrate that RTInfer outperforms state-of-the-art methods by reducing average deadline miss rate (DMR) from 32.8\\% to 0\\% and improving accuracy by up to 56.5\\%.",
+      "authors": [
+        "Renjie Li",
+        "Tong Sun",
+        "Yi Gao",
+        "Wei Dong"
+      ],
+      "primary_category": "Edge Computing",
+      "categories": [
+        "Edge Computing",
+        "Deep Neural Networks",
+        "Real-time Inference",
+        "GPU Memory Management",
+        "Concurrent Execution",
+        "Model Pruning",
+        "Early-exit Mechanism",
+        "Task Scheduling"
+      ],
+      "published": "2026-04-30T19:22:04.578+00:00",
+      "link": "https://openreview.net/forum?id=8XC5ebkGII",
+      "pdf_url": "https://openreview.net/pdf/2615fa9a88e81a5951dafef1908976df7b230fe6.pdf",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus",
+      "source": "OSDI-2026-USENIX",
+      "title": "Unleash All Cores: {Asymmetry-Aware} Scalable {DNN} Inference on Mobile {CPUs}",
+      "abstract": "Asymmetric Multiprocessing (AMP) CPUs are now central to mobile devices, but exploiting them for efficient Deep Neural Network (DNN) inference remains challenging. Naive scheduling across heterogeneous cores often triggers a performance-collapse paradox: adding LITTLE cores degrades throughput due to workload imbalance. Existing approaches rely on static partitioning, which partially mitigates imbalance but fails to adapt to runtime interference, incurs extra task acquisition overhead, and ignores core–kernel affinities—leaving substantial performance untapped. We present SANI, a scalable, asymmetry-aware inference framework that unleashes the full potential of AMP architectures. SANI introduces three key mechanisms: (1) an affinity-aware kernel issuer that selects cluster-optimal kernels to exploit core–kernel efficiency from the outset; (2) an adaptive granularity scheduler that dynamically merges or splits tasks, balancing load under runtime interference by mapping smaller tasks to slower cores and larger ones to faster cores; and (3) an on-demand kernel switcher that efficiently transforms kernels during workload migration, preserving affinity across clusters. We implement SANI atop Arm-CL and evaluate it on five mobile SoCs. SANI reduces DNN inference latency by 17.6%–23.7% on average (up to 29.5% on some models) while lowering energy consumption by up to 39% compared to state-of-the-art baselines, scaling efficiently across both symmetric and asymmetric CPU configurations.",
+      "authors": [
+        "Qianlong Sang",
+        "Puyi He",
+        "Huanghuang Liang",
+        "Yili Gong",
+        "Chuang Hu",
+        "Xiaobo Zhou",
+        "Dazhao Cheng"
+      ],
+      "primary_category": "osdi",
+      "categories": [
+        "osdi",
+        "systems"
+      ],
+      "published": "2026-01-01T00:00:00+00:00",
+      "link": "https://www.usenix.org/conference/osdi26/presentation/sang",
+      "pdf_url": "https://www.usenix.org/system/files/osdi26-sang.pdf",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "sosp-2024-scaling-deep-learning-computation-over-the-inter-core-connected-intelligence-processor-with-t10",
+      "source": "SOSP-2024-ACM",
+      "title": "Scaling Deep Learning Computation over the Inter-Core Connected Intelligence Processor with T10",
+      "abstract": "As AI chips incorporate numerous parallelized cores to scale deep learning (DL) computing, inter-core communication is enabled recently by employing high-bandwidth and low-latency interconnect links on the chip (e.g., Graphcore IPU). It allows each core to directly access the fast scratchpad memory in other cores, which enables new parallel computing paradigms. However, without proper support for the scalable inter-core connections in current DL compilers, it is hard for developers to exploit the benefits of this new architecture. We present T10, the first DL compiler to exploit the inter-core communication bandwidth and distributed on-chip memory on AI chips. To formulate the computation and communication patterns of tensor operators in this new architecture, T10 introduces a distributed tensor abstraction rTensor. T10 maps a DNN model to execution plans with a generalized compute-shift pattern, by partitioning DNN computation into sub-operators and mapping them to cores, so that the cores can exchange data following predictable patterns. T10 makes globally optimized trade-offs between on-chip memory consumption and inter-core communication overhead, selects the best execution plan from a vast optimization space, and alleviates unnecessary inter-core communications. Our evaluation with a real inter-core connected AI chip, the Graphcore IPU, shows up to 3.3× performance improvement, and scalability support for larger models, compared to state-of-the-art DL compilers and vendor libraries.",
+      "authors": [
+        "Yiqi Liu",
+        "Yuqi Xue",
+        "Yu Cheng",
+        "Lingxiao Ma",
+        "Ziming Miao",
+        "Jilong Xue",
+        "Jian Huang"
+      ],
+      "primary_category": "sosp",
+      "categories": [
+        "sosp",
+        "systems"
+      ],
+      "published": "2024-11-04T00:00:00+00:00",
+      "link": "https://dl.acm.org/doi/10.1145/3694715.3695955",
+      "pdf_url": "https://dl.acm.org/doi/pdf/10.1145/3694715.3695955",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "openreview-icml-2026-nhbvqf35ch",
+      "source": "ICML-2026-Accepted",
+      "title": "No Retraining at Edge: Efficient Resource-Aware Mixed-Precision Quantization via Federated Supernet Learning",
+      "abstract": "Federated learning (FL) enables collaborative training across distributed edge devices, but deploying lightweight models in dynamic edge environments remains challenging. Existing methods typically require retraining whenever device resource constraints change, resulting in excessive computational overhead. We propose DFMPQ, a dynamic federated mixed-precision quantization framework that enables retraining-free deployment at the edge. DFMPQ trains a weight-sharing mixed-precision supernet via FL, which jointly represents diverse bit-width configurations. After training, resource-aware quantized subnets can be derived on demand to satisfy heterogeneous and time-varying resource constraints without additional optimization. Optimizing such a supernet in federated settings is difficult due to optimization interference among heterogeneous bit-widths and the coupling of quantization noise with non-IID data. DFMPQ addresses these issues through semantic-aware training and aggregation mechanisms that stabilize supernet optimization. In addition, a sensitivity-guided greedy search strategy is adopted to efficiently identify suitable quantization configurations under given resource budgets. Extensive experiments on multiple datasets and network architectures demonstrate that DFMPQ achieves competitive accuracy with significantly reduced computational cost, enabling efficient deployment for dynamic edge computing environments.",
+      "authors": [
+        "Lianbo Ma",
+        "Yonghui Su",
+        "Nan Li",
+        "Xingwei Wang"
+      ],
+      "primary_category": "Quantization",
+      "categories": [
+        "Quantization",
+        "Federated Learning"
+      ],
+      "published": "2026-04-30T19:08:55.604+00:00",
+      "link": "https://openreview.net/forum?id=nHbvQF35ch",
+      "pdf_url": "https://openreview.net/pdf/e7fd4baac965eeb8d48dcf88c6b552de23ab5c20.pdf",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "openreview-icml-2026-qul7jp4qdq",
+      "source": "ICML-2026-Accepted",
+      "title": "ZipMoE: Efficient On-Device MoE Serving via Lossless Compression and Cache-Affinity Scheduling",
+      "abstract": "While Mixture-of-Experts (MoE) architectures substantially bolster the expressive power of large-language models, their prohibitive memory footprint severely impedes the practical deployment on resource-constrained edge devices, especially when model behavior must be preserved without relying on lossy quantization. In this paper, we present ZipMoE, an efficient and semantically lossless on-device MoE serving system. ZipMoE exploits the synergy between the hardware properties of edge devices and the statistical redundancy inherent to MoE parameters via a caching-scheduling co-design with provable performance guarantee. Fundamentally, our design shifts the paradigm of on-device MoE inference from an I/O-bound bottleneck to a compute-centric workflow that enables efficient parallelization. We implement a prototype of ZipMoE and conduct extensive experiments on representative edge computing platforms using popular open-source MoE models and real-world workloads. Our evaluation reveals that ZipMoE achieves up to 72.77% inference latency reduction and up to $6.76\\times$ higher throughput than the state-of-the-art systems. Our code is available at:  https://github.com/npnothard/ZipMoE-ICML26.",
+      "authors": [
+        "Yuchen Yang",
+        "Yaru Zhao",
+        "Pu Yang",
+        "Shaowei Wang",
+        "Zhi-Hua Zhou"
+      ],
+      "primary_category": "On-device LLM",
+      "categories": [
+        "On-device LLM",
+        "Machine Learning Systems",
+        "Scheduling",
+        "Mixture-of-Experts",
+        "Edge Computing"
+      ],
+      "published": "2026-04-30T19:14:01.638+00:00",
+      "link": "https://openreview.net/forum?id=QUL7jp4QDQ",
+      "pdf_url": "https://openreview.net/pdf/49bf4e4e63ca3db10c69e66da0ec207b033b7226.pdf",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "sosp-2025-characterizing-mobile-soc-for-accelerating-heterogeneous-llm-inference",
+      "source": "SOSP-2025-ACM",
+      "title": "Characterizing Mobile SoC for Accelerating Heterogeneous LLM Inference",
+      "abstract": "With the rapid advancement of artificial intelligence technologies such as ChatGPT, AI agents, and video generation, contemporary mobile systems have begun integrating these AI capabilities on local devices to enhance privacy and reduce response latency. To meet the computational demands of AI tasks, current mobile SoCs are equipped with diverse AI accelerators, including GPUs and Neural Processing Units (NPUs). However, there has not been a comprehensive characterization of these heterogeneous processors, and existing designs typically only leverage a single AI accelerator for LLM inference, leading to suboptimal use of computational resources and memory bandwidth. In this paper, we first summarize key performance characteristics of heterogeneous processors, SoC memory bandwidth, etc. Drawing on these observations, we propose different heterogeneous parallel mechanisms to fully exploit both GPU and NPU computational power and memory bandwidth. We further design a fast synchronization mechanism between heterogeneous processors that leverages the unified memory architecture. By employing these techniques, we present HeteroInfer, the fastest LLM inference engine in mobile devices which supports GPU-NPU heterogeneous execution. Evaluation shows that HeteroInfer delivers a 1.34× to 6.02× end-to-end speedup over state-of-the-art GPU-only and NPU-only LLM engines, while maintaining negligible interference with other applications.",
+      "authors": [
+        "Le Chen",
+        "Dahu Feng",
+        "Erhu Feng",
+        "Yingrui Wang",
+        "Rong Zhao",
+        "Yubin Xia",
+        "Pinjie Xu",
+        "Haibo Chen"
+      ],
+      "primary_category": "sosp",
+      "categories": [
+        "sosp",
+        "systems"
+      ],
+      "published": "2025-10-12T00:00:00+00:00",
+      "link": "https://dl.acm.org/doi/10.1145/3731569.3764808",
+      "pdf_url": "https://dl.acm.org/doi/pdf/10.1145/3731569.3764808",
+      "tags": [
+        "keyword:coral-npu"
+      ]
+    },
+    {
+      "id": "eccv-2026-1cd694904909dbecdb1da038",
+      "source": "ECCV-2026-Accepted-Program",
+      "title": "NanoVSR: Towards Real-Time Video Super-Resolution on Edge Devices",
+      "abstract": "Recent Video Super-Resolution (VSR) methods rely heavilyon transformers and explicit optical flow, creating computational over-head and custom operations that hinder deployment on hardware acceler-ators like TensorRT. To address this, we introduce NanoVSR, a scalable,fully convolutional architecture designed for resource-constrained edgedevices. Using structural reparameterization, NanoVSR collapses intostandard convolutions during inference, ensuring seamless hardware com-patibility and negligible runtime overhead. Furthermore, despite lackingexplicit motion compensation, it maintains competitive restoration qual-ity by implicitly learning spatio-temporal alignments through progres-sive training. Evaluated on the REDS4 benchmark, NanoVSR demon-strates an exceptional balance between accuracy and computational ef-ficiency, significantly improving the trade-off for compact architectures.Our NanoVSR-644k baseline yields 28.64 dB PSNR on REDS4 whiledelivering 27.20 FPS on the NVIDIA Jetson Orin NX 16GB (25W),offering massive speed gains over heavier models. The scaled NanoVSR-1.7M variant reaches 29.15 dB with a throughput of 19.58 FPS, providingsuperior, edge-optimized upscaling.",
+      "authors": [
+        "Filip Pawlicki",
+        "Marcel Kańduła",
+        "Marcin Pucek",
+        "Kamil Dobies"
+      ],
+      "primary_category": "ECCV-2026",
+      "categories": [
+        "ECCV-2026",
+        "Video Understanding, Generation and Multimodal Learning"
+      ],
+      "published": "2026-09-08T00:00:00+00:00",
+      "link": "https://eccv.ecva.net/virtual/2026/poster/5988",
+      "pdf_url": "https://media.eventhosts.cc/Conferences/ECCV2026/pdfs/15115.pdf",
+      "tags": [
+        "keyword:coral-npu"
+      ]
+    },
+    {
+      "id": "aaai-2026-39789",
+      "source": "AAAI-2026-Accepted",
+      "title": "DIAA: A Decoding-Efficient Inference Acceleration Approach for On-Device Large Language Models",
+      "abstract": "Large Language Models (LLMs) have revolutionized intelligent interactions, enabling mobile applications such as personal assistants on edge devices for local execution. Speculative decoding (SD) has emerged as a promising paradigm to accelerate LLM inference without compromising generation quality, employing a draft-then-verify manner. However, due to the constrained computing and memory resources on edge devices, existing SD works heavily rely on an auxiliary draft model that incurs additional memory burden and hinders the adaptability, as well as static token trees that yield suboptimal inference performance. To this end, we propose DIAA, a Decoding-efficient Inference Acceleration Approach for on-device LLMs. DIAA achieves plug-and-play and model-agnostic inference speedup with memory and computation efficiency for edge devices. Specifically, a pair of lightweight look-up tables (LUTs) is constructed by Top-K token sampling to cache historical tokens and probabilities for rapid candidate drafting. DIAA integrates a dynamic token tree with prior LUTs enabling paralleled verification, updated during decoding process, to adapt the online context. A computation overlap is then employed to pipeline the update operations of token tree, LUTs, and KV cache to improve the computational efficiency. Finally, through extensive experiments implemented on edge platform NVIDIA Jetson, DIAA outperforms existing baselines in generation speed and inference wall-clock time, while incurring minimal memory overhead.",
+      "authors": [
+        "Hao Tian",
+        "Sheng Lu",
+        "Fuwen Tian",
+        "Guangming Cui",
+        "Zheng Li",
+        "Xuyun Zhang",
+        "Quan Z. Sheng",
+        "Wanchun Dou"
+      ],
+      "primary_category": "AAAI-26 Technical Tracks 31",
+      "categories": [
+        "AAAI-2026",
+        "AAAI-26 Technical Tracks 31"
+      ],
+      "published": "2026-03-17T00:00:00+00:00",
+      "link": "https://ojs.aaai.org/index.php/AAAI/article/view/39789",
+      "pdf_url": "https://ojs.aaai.org/index.php/AAAI/article/download/39789/43750",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "eccv-2026-da3005651d6f39b4146ac504",
+      "source": "ECCV-2026-Accepted-Program",
+      "title": "SWIFT: Spatial-Window Integrated Frequency-aware Token Pruning for Efficient MLLMs on Edge Devices",
+      "abstract": "While Multimodal Large Language Models (MLLMs) ex-cel in visual understanding, the quadratic complexity imposed by densehigh-resolution visual tokens poses significant challenges for edge-devicedeployment. Current training-free pruning strategies predominantly de-pend on attention weights. However, viewed from the frequency domain,the self-attention mechanism functions as a low-pass filter, causing thediscard of essential high-frequency signals (e.g., textures and edges) andresulting in feature over-smoothing. In this paper, we present Spatial-Window Integrated Frequency-aware Token Pruning (SWIFT), a seam-less plug-and-play framework designed for efficient token compression.SWIFT leverages two novel components: a Frequency-Aware Indicator(FAI), which identifies fine-grained details by estimating high-frequencyresiduals through matrix factorization, and a Spatial-Window Integra-tion (SWI) module, which prevents spatial structure collapse and posi-tional bias via localized retention. Extensive evaluations on Qwen2.5VL-3B and LLaVA benchmarks show that under a practical 50% compressionratio, SWIFT achieves a 2.10× speedup with near-lossless performance.Under an extreme 75% compression stress test, SWIFT yields an averageperformance drop of 5.1% across 8 benchmarks, while delivering a 2.66×speedup and 69.07% KV cache reduction. SWIFT exhibits superior ro-bustness in detail-intensive tasks compared to SOTA methods, providinga potent lightweight solution for on-device MLLM applications. Our codeis available at https://github.com/damo-lgl/SWIFT.",
+      "authors": [
+        "Guanglai Liu",
+        "Jubo Chen",
+        "Xiaosheng Yu"
+      ],
+      "primary_category": "ECCV-2026",
+      "categories": [
+        "ECCV-2026",
+        "Multimodal, Video & Document Understanding"
+      ],
+      "published": "2026-09-08T00:00:00+00:00",
+      "link": "https://eccv.ecva.net/virtual/2026/poster/3307",
+      "pdf_url": "https://media.eventhosts.cc/Conferences/ECCV2026/pdfs/866.pdf",
+      "tags": [
+        "keyword:coral-npu"
+      ]
+    },
+    {
+      "id": "cvpr-2026-wei-nuwa-deriving-lightweight-class-specific-vision-transformers-for-edge-devices-cvpr-2026-paper",
+      "source": "CVPR-2026-Accepted",
+      "title": "NuWa: Deriving Lightweight Class-Specific Vision Transformers for Edge Devices",
+      "abstract": "Vision Transformers (ViTs) often need to be compressed for deployment on resource-constrained edge devices like drones and smart vehicles. However, existing model compression methods ignore that many edge devices only require the knowledge of specific classes for their applications. As a result, the derived all-class ViTs retain redundant knowledge and perform suboptimally on these classes. We discovered that simply replacing the calibration dataset with class-specific data does not suffice to address this issue, as these methods face two fundamental limitations. First, they overlook the existence of class-detrimental weights, which interfere with specialization, while removing them can improve class-specific performance. Second, the diversity of target classes and resource constraints on edge devices demand numerous customized models. Existing methods are time-consuming and computationally expensive, thus unscalable. In this work, we present NuWa, a cost-efficient method that addresses these challenges by deriving small ViTs from base ViTs for edge devices with specific class requirements. NuWa performs self-knowledge purification to prune class-detrimental weights and efficiently derives compact ViTs through closed-form optimization. Without post-pruning retraining, the derived edge ViTs surpass the base ViT in class-specific accuracy and accelerate inference. Comprehensive experiments demonstrate that NuWa outperforms state-of-the-art training-free pruning methods on class-specific tasks by up to 29.00% in accuracy. Compared with the best-performing training-dependent pruning method, NuWa achieves a 33.69x pruning speedup and reduces pruning cost by up to 99.83%, with only a 0.61% average accuracy loss.",
+      "authors": [
+        "Wei, Ziteng",
+        "He, Qiang",
+        "Li, Bing",
+        "Chen, Feifei",
+        "Jin, Hai",
+        "Yang, Yun"
+      ],
+      "primary_category": "CVPR-2026",
+      "categories": [
+        "CVPR-2026"
+      ],
+      "published": "2026-06-01T00:00:00+00:00",
+      "link": "https://openaccess.thecvf.com/content/CVPR2026/html/Wei_NuWa_Deriving_Lightweight_Class-Specific_Vision_Transformers_for_Edge_Devices_CVPR_2026_paper.html",
+      "pdf_url": "https://openaccess.thecvf.com/content/CVPR2026/papers/Wei_NuWa_Deriving_Lightweight_Class-Specific_Vision_Transformers_for_Edge_Devices_CVPR_2026_paper.pdf",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    },
+    {
+      "id": "openreview-icml-2026-6qbb6iccvy",
+      "source": "ICML-2026-Accepted",
+      "title": "PsumQuant: In-line Post-training Partial Sum Quantizer for Energy Efficient NPU Inference",
+      "abstract": "The rapid growth of deep neural networks (DNNs) has intensified the demand for efficient hardware acceleration under quantization. \nWhile prior research has successfully reduced weight and activation precision, partial sums generated during accumulation often retain high precision, resulting in significant energy overhead.\nIn this work, we analyze psum distributions in tiled architectures and reveal that within-tile outliers are input-dependent.\nWe propose PsumQuant, a post-training, input-aware quantization that predicts psum scales on-the-fly.\nBy leveraging the crest factor of input activations, our learnable scale predictor effectively bounds the psum bit-width while handling the extreme outliers in DNNs.\nExperimental results on a $128 \\times 128$ systolic array demonstrate that PsumQuant compresses psum precision down to 8-bit within only a 1\\% accuracy drop on ResNet-18 and a marginal 0.04 perplexity increase on Llama-3.1. \nFurthermore, bit-width reduction with PsumQuant results in a 45\\% reduction in total energy with minimal accuracy loss, demonstrating that PsumQuant provides a highly efficient solution for actual NPU architectures.",
+      "authors": [
+        "Sangwoo Hwang",
+        "Yeeun Hong",
+        "Jaeha Kung"
+      ],
+      "primary_category": "Quantization",
+      "categories": [
+        "Quantization",
+        "Efficient Inference",
+        "Hardware Acceleration"
+      ],
+      "published": "2026-04-30T19:17:44.535+00:00",
+      "link": "https://openreview.net/forum?id=6Qbb6IcCVy",
+      "pdf_url": "https://openreview.net/pdf/1f8197be0a88018a5d9092450db9ded9f256a7cd.pdf",
+      "tags": [
+        "keyword:coral-npu",
+        "query:coral-npu"
+      ]
+    }
+  ],
+  "queries": [
+    {
+      "type": "intent_query",
+      "tag": "coral-npu",
+      "paper_tag": "query:coral-npu",
+      "query_text": "Coral neural processing unit hardware acceleration for TensorFlow Lite runtime",
+      "sim_scores": {
+        "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus": {
+          "score": 0.01639344262295082,
+          "rank": 1
+        },
+        "openreview-icml-2026-8xc5ebkgii": {
+          "score": 0.014925373134328358,
+          "rank": 7
+        },
+        "aaai-2026-39779": {
+          "score": 0.0125,
+          "rank": 20
+        },
+        "openreview-icml-2026-u2o6hpe8ik": {
+          "score": 0.010309278350515464,
+          "rank": 37
+        },
+        "sosp-2024-scaling-deep-learning-computation-over-the-inter-core-connected-intelligence-processor-with-t10": {
+          "score": 0.009615384615384616,
+          "rank": 44
+        }
+      },
+      "ranked": [
+        {
+          "paper_id": "openreview-icml-2026-u2o6hpe8ik",
+          "score": 1.0,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus",
+          "score": 0.9586435070306036,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "aaai-2026-39779",
+          "score": 0.9586435070306036,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "sosp-2025-characterizing-mobile-soc-for-accelerating-heterogeneous-llm-inference",
+          "score": 0.9185999185999183,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-6qbb6iccvy",
+          "score": 0.9185999185999183,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-8xc5ebkgii",
+          "score": 0.8798076923076922,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "openreview-icml-2026-5vok9nuvsd",
+          "score": 0.8422090729783037,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "anthology-2026.findings-acl.2106",
+          "score": 0.8057498057498057,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "openreview-icml-2026-wrp7d18h9t",
+          "score": 0.7703788748564866,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "aaai-2026-39406",
+          "score": 0.73604826546003,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "aaai-2026-39789",
+          "score": 0.702712746191007,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "eccv-2026-1cd694904909dbecdb1da038",
+          "score": 0.6703296703296702,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "ijcai-2026-14",
+          "score": 0.578503688092729,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "sosp-2024-scaling-deep-learning-computation-over-the-inter-core-connected-intelligence-processor-with-t10",
+          "score": 0.5213675213675214,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "cvpr-2026-wei-nuwa-deriving-lightweight-class-specific-vision-transformers-for-edge-devices-cvpr-2026-paper",
+          "score": 0.41577409931840303,
+          "star_rating": 3
+        },
+        {
+          "paper_id": "openreview-icml-2026-qul7jp4qdq",
+          "score": 0.1933160472486314,
+          "star_rating": 3
+        },
+        {
+          "paper_id": "openreview-icml-2026-nhbvqf35ch",
+          "score": 0.0483743061062648,
+          "star_rating": 2
+        }
+      ]
+    },
+    {
+      "type": "intent_query",
+      "tag": "coral-npu",
+      "paper_tag": "query:coral-npu",
+      "query_text": "How to deploy LiteRT models on Coral NPU hardware for edge inference",
+      "sim_scores": {
+        "aaai-2026-39789": {
+          "score": 0.014925373134328358,
+          "rank": 7
+        },
+        "openreview-icml-2026-5vok9nuvsd": {
+          "score": 0.014705882352941176,
+          "rank": 8
+        },
+        "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus": {
+          "score": 0.012987012987012988,
+          "rank": 17
+        },
+        "cvpr-2026-wei-nuwa-deriving-lightweight-class-specific-vision-transformers-for-edge-devices-cvpr-2026-paper": {
+          "score": 0.012048192771084338,
+          "rank": 23
+        },
+        "openreview-icml-2026-nhbvqf35ch": {
+          "score": 0.011904761904761904,
+          "rank": 24
+        },
+        "openreview-icml-2026-qul7jp4qdq": {
+          "score": 0.011764705882352941,
+          "rank": 25
+        },
+        "ijcai-2026-14": {
+          "score": 0.011627906976744186,
+          "rank": 26
+        },
+        "openreview-icml-2026-8xc5ebkgii": {
+          "score": 0.01020408163265306,
+          "rank": 38
+        }
+      },
+      "ranked": [
+        {
+          "paper_id": "openreview-icml-2026-8xc5ebkgii",
+          "score": 1.0,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-u2o6hpe8ik",
+          "score": 1.0,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "aaai-2026-39779",
+          "score": 0.9586435070306036,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "anthology-2026.findings-acl.2106",
+          "score": 0.9586435070306036,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-qul7jp4qdq",
+          "score": 0.9185999185999183,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-5vok9nuvsd",
+          "score": 0.9185999185999183,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "aaai-2026-39406",
+          "score": 0.8798076923076922,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "openreview-icml-2026-6qbb6iccvy",
+          "score": 0.8422090729783037,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "aaai-2026-39789",
+          "score": 0.8422090729783037,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "eccv-2026-1cd694904909dbecdb1da038",
+          "score": 0.7703788748564866,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "ijcai-2026-14",
+          "score": 0.73604826546003,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "cvpr-2026-wei-nuwa-deriving-lightweight-class-specific-vision-transformers-for-edge-devices-cvpr-2026-paper",
+          "score": 0.578503688092729,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "openreview-icml-2026-nhbvqf35ch",
+          "score": 0.5495495495495496,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "eccv-2026-da3005651d6f39b4146ac504",
+          "score": 0.5213675213675214,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus",
+          "score": 0.41577409931840303,
+          "star_rating": 3
+        },
+        {
+          "paper_id": "sosp-2024-scaling-deep-learning-computation-over-the-inter-core-connected-intelligence-processor-with-t10",
+          "score": 0.3668882557771445,
+          "star_rating": 3
+        },
+        {
+          "paper_id": "openreview-icml-2026-wrp7d18h9t",
+          "score": 0.3433395872420263,
+          "star_rating": 3
+        },
+        {
+          "paper_id": "sosp-2025-characterizing-mobile-soc-for-accelerating-heterogeneous-llm-inference",
+          "score": 0.25462134764460337,
+          "star_rating": 3
+        }
+      ]
+    },
+    {
+      "type": "intent_query",
+      "tag": "coral-npu",
+      "paper_tag": "query:coral-npu",
+      "query_text": "How to deploy quantized TensorFlow Lite models on Coral edge accelerators?",
+      "sim_scores": {
+        "openreview-icml-2026-nhbvqf35ch": {
+          "score": 0.014084507042253521,
+          "rank": 11
+        },
+        "aaai-2026-39406": {
+          "score": 0.013888888888888888,
+          "rank": 12
+        },
+        "openreview-icml-2026-6qbb6iccvy": {
+          "score": 0.012048192771084338,
+          "rank": 23
+        },
+        "openreview-icml-2026-5vok9nuvsd": {
+          "score": 0.010309278350515464,
+          "rank": 37
+        },
+        "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus": {
+          "score": 0.010101010101010102,
+          "rank": 39
+        },
+        "openreview-icml-2026-u2o6hpe8ik": {
+          "score": 0.01,
+          "rank": 40
+        },
+        "openreview-icml-2026-8xc5ebkgii": {
+          "score": 0.009708737864077669,
+          "rank": 43
+        }
+      },
+      "ranked": [
+        {
+          "paper_id": "aaai-2026-39406",
+          "score": 1.0,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-6qbb6iccvy",
+          "score": 1.0,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-nhbvqf35ch",
+          "score": 0.9586435070306036,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-u2o6hpe8ik",
+          "score": 0.9185999185999183,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-5vok9nuvsd",
+          "score": 0.9185999185999183,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-8xc5ebkgii",
+          "score": 0.8422090729783037,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "anthology-2026.findings-acl.2106",
+          "score": 0.8057498057498057,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "aaai-2026-39779",
+          "score": 0.8057498057498057,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "openreview-icml-2026-qul7jp4qdq",
+          "score": 0.7703788748564866,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "ijcai-2026-14",
+          "score": 0.73604826546003,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "aaai-2026-39789",
+          "score": 0.702712746191007,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "cvpr-2026-wei-nuwa-deriving-lightweight-class-specific-vision-transformers-for-edge-devices-cvpr-2026-paper",
+          "score": 0.6703296703296702,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus",
+          "score": 0.5213675213675214,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "eccv-2026-1cd694904909dbecdb1da038",
+          "score": 0.5213675213675214,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "sosp-2024-scaling-deep-learning-computation-over-the-inter-core-connected-intelligence-processor-with-t10",
+          "score": 0.4411571334648256,
+          "star_rating": 3
+        },
+        {
+          "paper_id": "eccv-2026-da3005651d6f39b4146ac504",
+          "score": 0.41577409931840303,
+          "star_rating": 3
+        },
+        {
+          "paper_id": "openreview-icml-2026-wrp7d18h9t",
+          "score": 0.32035835650293487,
+          "star_rating": 3
+        },
+        {
+          "paper_id": "sosp-2025-characterizing-mobile-soc-for-accelerating-heterogeneous-llm-inference",
+          "score": 0.29792429792429775,
+          "star_rating": 3
+        }
+      ]
+    },
+    {
+      "type": "intent_query",
+      "tag": "coral-npu",
+      "paper_tag": "query:coral-npu",
+      "query_text": "What software runtime and compiler support does Coral NPU provide?",
+      "sim_scores": {},
+      "ranked": [
+        {
+          "paper_id": "sosp-2024-scaling-deep-learning-computation-over-the-inter-core-connected-intelligence-processor-with-t10",
+          "score": 0.9586435070306036,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "openreview-icml-2026-6qbb6iccvy",
+          "score": 0.9185999185999183,
+          "star_rating": 5
+        },
+        {
+          "paper_id": "aaai-2026-39779",
+          "score": 0.8422090729783037,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "sosp-2025-characterizing-mobile-soc-for-accelerating-heterogeneous-llm-inference",
+          "score": 0.8057498057498057,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "anthology-2026.findings-acl.2106",
+          "score": 0.7703788748564866,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "openreview-icml-2026-wrp7d18h9t",
+          "score": 0.73604826546003,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "openreview-icml-2026-8xc5ebkgii",
+          "score": 0.702712746191007,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus",
+          "score": 0.6703296703296702,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "eccv-2026-1cd694904909dbecdb1da038",
+          "score": 0.6703296703296702,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "openreview-icml-2026-qul7jp4qdq",
+          "score": 0.608262108262108,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "openreview-icml-2026-u2o6hpe8ik",
+          "score": 0.5495495495495496,
+          "star_rating": 4
+        },
+        {
+          "paper_id": "aaai-2026-39789",
+          "score": 0.1737891737891738,
+          "star_rating": 3
+        },
+        {
+          "paper_id": "ijcai-2026-14",
+          "score": 0.1360089186176142,
+          "star_rating": 3
+        }
+      ]
+    },
+    {
+      "type": "keyword",
+      "tag": "coral-npu",
+      "paper_tag": "keyword:coral-npu",
+      "query_text": "Coral edge hardware platform for deploying machine learning models at the edge",
+      "sim_scores": {
+        "openreview-icml-2026-5vok9nuvsd": {
+          "score": 0.015625,
+          "rank": 4
+        },
+        "openreview-icml-2026-nhbvqf35ch": {
+          "score": 0.015151515151515152,
+          "rank": 6
+        },
+        "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus": {
+          "score": 0.014705882352941176,
+          "rank": 8
+        },
+        "openreview-icml-2026-qul7jp4qdq": {
+          "score": 0.014492753623188406,
+          "rank": 9
+        },
+        "aaai-2026-39779": {
+          "score": 0.0136986301369863,
+          "rank": 13
+        },
+        "openreview-icml-2026-u2o6hpe8ik": {
+          "score": 0.012345679012345678,
+          "rank": 21
+        },
+        "eccv-2026-da3005651d6f39b4146ac504": {
+          "score": 0.011764705882352941,
+          "rank": 25
+        },
+        "openreview-icml-2026-8xc5ebkgii": {
+          "score": 0.01098901098901099,
+          "rank": 31
+        },
+        "cvpr-2026-wei-nuwa-deriving-lightweight-class-specific-vision-transformers-for-edge-devices-cvpr-2026-paper": {
+          "score": 0.010416666666666666,
+          "rank": 36
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "tag": "coral-npu",
+      "paper_tag": "keyword:coral-npu",
+      "query_text": "Coral neural processing unit hardware for edge AI acceleration",
+      "sim_scores": {
+        "openreview-icml-2026-5vok9nuvsd": {
+          "score": 0.015625,
+          "rank": 4
+        },
+        "openreview-icml-2026-u2o6hpe8ik": {
+          "score": 0.015384615384615385,
+          "rank": 5
+        },
+        "aaai-2026-39779": {
+          "score": 0.015151515151515152,
+          "rank": 6
+        },
+        "openreview-icml-2026-8xc5ebkgii": {
+          "score": 0.014705882352941176,
+          "rank": 8
+        },
+        "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus": {
+          "score": 0.014492753623188406,
+          "rank": 9
+        },
+        "sosp-2024-scaling-deep-learning-computation-over-the-inter-core-connected-intelligence-processor-with-t10": {
+          "score": 0.012658227848101266,
+          "rank": 19
+        },
+        "openreview-icml-2026-wrp7d18h9t": {
+          "score": 0.011363636363636364,
+          "rank": 28
+        },
+        "openreview-icml-2026-nhbvqf35ch": {
+          "score": 0.01,
+          "rank": 40
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "tag": "coral-npu",
+      "paper_tag": "keyword:coral-npu",
+      "query_text": "LiteRT runtime execution environment for on-device machine learning inference",
+      "sim_scores": {
+        "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus": {
+          "score": 0.01639344262295082,
+          "rank": 1
+        },
+        "anthology-2026.findings-acl.2106": {
+          "score": 0.011904761904761904,
+          "rank": 24
+        },
+        "openreview-icml-2026-qul7jp4qdq": {
+          "score": 0.010526315789473684,
+          "rank": 35
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "tag": "coral-npu",
+      "paper_tag": "keyword:coral-npu",
+      "query_text": "compiler and toolchain support for deploying models on Coral accelerators",
+      "sim_scores": {}
+    },
+    {
+      "type": "keyword",
+      "tag": "coral-npu",
+      "paper_tag": "keyword:coral-npu",
+      "query_text": "edge AI accelerator",
+      "sim_scores": {
+        "aaai-2026-39779": {
+          "score": 0.01639344262295082,
+          "rank": 1
+        },
+        "openreview-icml-2026-wrp7d18h9t": {
+          "score": 0.016129032258064516,
+          "rank": 2
+        },
+        "anthology-2026.findings-acl.2106": {
+          "score": 0.015384615384615385,
+          "rank": 5
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "tag": "coral-npu",
+      "paper_tag": "keyword:coral-npu",
+      "query_text": "edge AI accelerator hardware for low-latency on-device inference",
+      "sim_scores": {
+        "aaai-2026-39779": {
+          "score": 0.01639344262295082,
+          "rank": 1
+        },
+        "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus": {
+          "score": 0.016129032258064516,
+          "rank": 2
+        },
+        "openreview-icml-2026-8xc5ebkgii": {
+          "score": 0.015625,
+          "rank": 4
+        },
+        "openreview-icml-2026-qul7jp4qdq": {
+          "score": 0.015384615384615385,
+          "rank": 5
+        },
+        "sosp-2025-characterizing-mobile-soc-for-accelerating-heterogeneous-llm-inference": {
+          "score": 0.014925373134328358,
+          "rank": 7
+        },
+        "openreview-icml-2026-u2o6hpe8ik": {
+          "score": 0.014705882352941176,
+          "rank": 8
+        },
+        "openreview-icml-2026-5vok9nuvsd": {
+          "score": 0.013888888888888888,
+          "rank": 12
+        },
+        "ijcai-2026-14": {
+          "score": 0.0136986301369863,
+          "rank": 13
+        },
+        "anthology-2026.findings-acl.2106": {
+          "score": 0.013157894736842105,
+          "rank": 16
+        },
+        "sosp-2024-scaling-deep-learning-computation-over-the-inter-core-connected-intelligence-processor-with-t10": {
+          "score": 0.011494252873563218,
+          "rank": 27
+        },
+        "eccv-2026-1cd694904909dbecdb1da038": {
+          "score": 0.010638297872340425,
+          "rank": 34
+        },
+        "aaai-2026-39789": {
+          "score": 0.009433962264150943,
+          "rank": 46
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "tag": "coral-npu",
+      "paper_tag": "keyword:coral-npu",
+      "query_text": "hardware compiler toolchain",
+      "sim_scores": {}
+    },
+    {
+      "type": "keyword",
+      "tag": "coral-npu",
+      "paper_tag": "keyword:coral-npu",
+      "query_text": "low power inference",
+      "sim_scores": {
+        "ijcai-2026-14": {
+          "score": 0.01639344262295082,
+          "rank": 1
+        },
+        "aaai-2026-39406": {
+          "score": 0.011363636363636364,
+          "rank": 28
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "tag": "coral-npu",
+      "paper_tag": "keyword:coral-npu",
+      "query_text": "low power machine learning inference on embedded edge devices",
+      "sim_scores": {
+        "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus": {
+          "score": 0.015873015873015872,
+          "rank": 3
+        },
+        "ijcai-2026-14": {
+          "score": 0.015384615384615385,
+          "rank": 5
+        },
+        "openreview-icml-2026-5vok9nuvsd": {
+          "score": 0.014705882352941176,
+          "rank": 8
+        },
+        "openreview-icml-2026-qul7jp4qdq": {
+          "score": 0.014084507042253521,
+          "rank": 11
+        },
+        "aaai-2026-39779": {
+          "score": 0.013333333333333334,
+          "rank": 15
+        },
+        "openreview-icml-2026-u2o6hpe8ik": {
+          "score": 0.012345679012345678,
+          "rank": 21
+        },
+        "openreview-icml-2026-nhbvqf35ch": {
+          "score": 0.012048192771084338,
+          "rank": 23
+        },
+        "eccv-2026-da3005651d6f39b4146ac504": {
+          "score": 0.01098901098901099,
+          "rank": 31
+        },
+        "cvpr-2026-wei-nuwa-deriving-lightweight-class-specific-vision-transformers-for-edge-devices-cvpr-2026-paper": {
+          "score": 0.010752688172043012,
+          "rank": 33
+        },
+        "eccv-2026-1cd694904909dbecdb1da038": {
+          "score": 0.010416666666666666,
+          "rank": 36
+        },
+        "sosp-2025-characterizing-mobile-soc-for-accelerating-heterogeneous-llm-inference": {
+          "score": 0.009433962264150943,
+          "rank": 46
+        },
+        "openreview-icml-2026-6qbb6iccvy": {
+          "score": 0.009259259259259259,
+          "rank": 48
+        },
+        "anthology-2026.findings-acl.2106": {
+          "score": 0.00909090909090909,
+          "rank": 50
+        }
+      }
+    }
+  ],
+  "global_candidate_ids": [
+    "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus",
+    "openreview-icml-2026-sbjxtqrat1",
+    "aaai-2026-39198",
+    "openreview-icml-2026-qndqul17un",
+    "openreview-icml-2026-gq17djsbcq",
+    "openreview-icml-2026-5ktn1c3vtt",
+    "sosp-2026-turning-linux-into-a-high-performance-library-os-with-flux",
+    "osdi-2026-moonbright-a-gpu-memory-allocator-with-device-side-page-table-materialization-and-deferred-tlb-coherence",
+    "aaai-2026-39655",
+    "ijcai-2025-4",
+    "ijcai-2025-705",
+    "openreview-icml-2026-htq2lotqtl",
+    "openreview-icml-2026-wcf17wim9e",
+    "aaai-2026-39779",
+    "openreview-icml-2026-wrp7d18h9t",
+    "aaai-2026-38457",
+    "ndss-2025-compiled-models-built-in-exploits-uncovering-pervasive-bit-flip-attack-surfaces-in-dnn-executables",
+    "ijcai-2026-14",
+    "openreview-icml-2026-w86r5sisxe",
+    "anthology-2026.acl-long.2007",
+    "aaai-2026-39351",
+    "openreview-icml-2026-5vok9nuvsd",
+    "openreview-icml-2026-qmikrq3e4n",
+    "anthology-2026.acl-short.15",
+    "openreview-icml-2026-8xc5ebkgii",
+    "openreview-icml-2026-u2o6hpe8ik",
+    "ijcai-2025-549",
+    "openreview-icml-2026-qul7jp4qdq",
+    "openreview-icml-2026-nhbvqf35ch",
+    "ijcai-2025-615",
+    "openreview-icml-2026-paohstvuit",
+    "anthology-2026.findings-acl.2106",
+    "aaai-2026-39403",
+    "openreview-icml-2026-rmzc1j19n8",
+    "ijcai-2026-101",
+    "openreview-icml-2026-dvhpvumd60",
+    "aaai-2026-39901",
+    "osdi-2024-usher-holistic-interference-avoidance-for-resource-optimized-ml-inference",
+    "openreview-icml-2026-kyqj5ggjhe",
+    "osdi-2026-achieving-cloud-grade-slos-for-local-mixture-of-experts-inference-through-cpu-gpu-hybrid-design",
+    "openreview-icml-2026-yhmt5v4fnb",
+    "openreview-icml-2026-1vshjguvbs",
+    "osdi-2025-kperfir-towards-a-open-and-compiler-centric-ecosystem-for-gpu-kernel-performance-tooling-on-modern-ai-workloads",
+    "openreview-icml-2026-txcfjdt7at",
+    "openreview-icml-2026-w6jvbu7vfo",
+    "cvpr-2026-fang-taskit-memory-efficient-fine-tuning-of-multi-lora-llms-via-cross-task-importance-transfer-cvpr-2026-paper",
+    "cvpr-2026-xu-cross-architecture-adaptation-cloud-edge-continual-test-time-adaptation-with-dynamic-sampling-and-cvpr-2026-paper",
+    "ijcai-2025-621",
+    "aaai-2026-39703",
+    "anthology-2025.emnlp-main.1627",
+    "ijcai-2025-774",
+    "aaai-2026-39771",
+    "openreview-icml-2026-hwhvjhxc0m",
+    "openreview-icml-2026-erxwuwjlt2",
+    "openreview-icml-2026-hroxrfmoxj",
+    "sosp-2024-scaling-deep-learning-computation-over-the-inter-core-connected-intelligence-processor-with-t10",
+    "ijcai-2025-768",
+    "ijcai-2026-722",
+    "cvpr-2026-wei-nuwa-deriving-lightweight-class-specific-vision-transformers-for-edge-devices-cvpr-2026-paper",
+    "ijcai-2025-951",
+    "openreview-icml-2026-qhno3qmxst",
+    "anthology-2026.acl-long.619",
+    "osdi-2026-batchgen-an-architecture-for-scalable-and-efficient-batch-inference",
+    "openreview-icml-2026-ekfwg67mzb",
+    "eccv-2026-a0a4ffb25cae73597be9a16f",
+    "openreview-icml-2026-t2bqt6m7qh",
+    "eccv-2026-8d0fb0fccd874ab22d04cf9b",
+    "openreview-icml-2026-owvuk1mbyq",
+    "openreview-icml-2026-yxexsghwpq",
+    "anthology-2026.acl-long.732",
+    "eccv-2026-9a2ab2cbd50dcbe0463588d4",
+    "ijcai-2025-690",
+    "osdi-2026-strata-hierarchical-context-caching-for-long-context-language-model-serving",
+    "sosp-2025-mercury-unlocking-multi-gpu-operator-optimization-for-llms-via-remote-memory-scheduling",
+    "aaai-2026-38693",
+    "cvpr-2026-lv-memflow-a-lightweight-forward-memorizing-framework-for-quick-domain-adaptive-cvpr-2026-paper",
+    "aaai-2026-39406",
+    "sosp-2024-apparate-rethinking-early-exits-to-tame-latency-throughput-tensions-in-ml-serving",
+    "ijcai-2025-783",
+    "aaai-2026-39224",
+    "openreview-icml-2026-1whpsjtycz",
+    "osdi-2026-revisiting-pipeline-parallelism-for-llm-serving",
+    "aaai-2026-39789",
+    "sosp-2025-characterizing-mobile-soc-for-accelerating-heterogeneous-llm-inference",
+    "openreview-icml-2026-w65t2zdf3a",
+    "openreview-icml-2026-xjtrtfxk9g",
+    "openreview-icml-2026-vzia4masxk",
+    "openreview-icml-2026-ptaijziuoy",
+    "openreview-icml-2026-wik0ajfcbk",
+    "sosp-2026-tensorhub-scalable-and-elastic-weight-transfer-for-llm-rl-training",
+    "eccv-2026-86ffb6ccb6a6b14168bde164",
+    "sosp-2026-tamias-feedback-guided-systematic-concurrency-exploration-for-transparent-distributed-system-fuzzing",
+    "sosp-2025-lithos-an-operating-system-for-efficient-machine-learning-on-gpus",
+    "openreview-icml-2026-gxrcjut5a0",
+    "sosp-2026-ave-guiding-agentic-gpu-optimization-using-data-flow-invariants",
+    "osdi-2025-qimeng-xpiler-transcompiling-tensor-programs-for-deep-learning-systems-with-a-neural-symbolic-approach",
+    "eccv-2026-da3005651d6f39b4146ac504",
+    "eccv-2026-bf518482f5c31a1e4ba12224",
+    "openreview-icml-2026-os54cnlmbr",
+    "osdi-2025-zen-empowering-distributed-training-with-sparsity-driven-data-synchronization",
+    "openreview-icml-2026-6qbb6iccvy",
+    "osdi-2026-inference-in-the-shadows-taming-memory-bandwidth-contention-in-mobile-llm-inference-with-sereno",
+    "eccv-2026-1cd694904909dbecdb1da038",
+    "sosp-2026-lion-modular-verification-of-async-runtime-liveness",
+    "sosp-2025-sailor-automating-distributed-training-over-dynamic-heterogeneous-and-geo-distributed-clusters",
+    "sosp-2026-taming-dynamism-on-gpus-cross-sm-kernel-fusion-via-sm-cooperation-and-just-in-time-reduction",
+    "osdi-2025-nanoflow-towards-optimal-large-language-model-serving-throughput",
+    "anthology-2026.acl-long.226",
+    "eccv-2026-f6720a36c0a384f12caaee0f",
+    "ieee-sp-2026-parasol-compiler-pushing-the-boundaries-of-fhe-program-efficiency",
+    "osdi-2025-neutrino-fine-grained-gpu-kernel-profiling-via-programmable-probing",
+    "ijcai-2026-167",
+    "openreview-icml-2026-kb5wjkqu8q",
+    "ieee-sp-2026-coral-fast-succinct-non-interactive-zero-knowledge-cfg-proofs",
+    "openreview-icml-2026-1pirnqjhlc",
+    "openreview-icml-2026-3n7s2eqxfu",
+    "openreview-icml-2026-dqxu56qnbi",
+    "openreview-icml-2026-vt0tmqhfdm",
+    "eccv-2026-26c6277a7d103623b5420e93",
+    "openreview-icml-2026-trbgtwwmhb"
+  ],
+  "global_pool_lane_top_k": 30,
+  "global_pool_limit": 120,
+  "global_pool_guaranteed_per_lane": 2,
+  "global_pool_effective_size": 120,
+  "reranked_at": "2026-10-21T11:27:16.208403+00:00",
+  "llm_ranked": [
+    {
+      "paper_id": "sosp-2025-characterizing-mobile-soc-for-accelerating-heterogeneous-llm-inference",
+      "score": 6.0,
+      "evidence_en": "characterizing mobile SoC NPUs and GPUs for low-latency on-device LLM inference",
+      "evidence_cn": "刻画移动SoC中NPU与GPU以加速设备端低延迟大模型推理",
+      "canonical_evidence": "刻画移动SoC中NPU与GPU以加速设备端低延迟大模型推理",
+      "tldr_en": "Characterizes mobile SoC AI accelerators including NPUs and GPUs for on-device LLM inference, showing that single-accelerator designs underuse compute and memory bandwidth.",
+      "tldr_cn": "移动系统开始本地集成AI能力以提升隐私并降低响应延迟，当前SoC配备GPU与神经处理单元等多样加速器，但缺乏对异构处理器的系统刻画，且现有设计通常只用单一加速器做推理，导致算力与内存带宽利用不足。论文系统总结了异构处理器的关键性能特征，并据此提出协同利用多种加速器的推理方案。该工作为边缘NPU等加速器上的低延迟设备端推理提供了实测依据与优化方向。",
+      "title_zh": "面向异构大模型推理加速的移动SoC特性刻画",
+      "motivation_cn": "移动SoC虽集成NPU与GPU等加速器，但缺乏系统刻画，单加速器推理导致资源利用不足。",
+      "method_cn": "对移动SoC中GPU与NPU等异构加速器进行系统性能刻画，并据此设计协同推理方案。",
+      "result_cn": "揭示单一加速器方案在算力与内存带宽上的利用不足，验证异构协同的收益。",
+      "conclusion_cn": "为边缘设备上利用NPU等加速器实现低延迟推理提供了实测指导。",
+      "matched_requirement_id": "req-2",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "edge AI accelerator hardware for low-latency on-device inference"
+    },
+    {
+      "paper_id": "openreview-icml-2026-u2o6hpe8ik",
+      "score": 6.0,
+      "evidence_en": "compiler generating fast activation functions for edge inference",
+      "evidence_cn": "为边缘推理生成快速激活函数的编译器",
+      "canonical_evidence": "为边缘推理生成快速激活函数的编译器",
+      "tldr_en": "FFCC is a compiler that automatically generates fast, accurate approximations of advanced activation functions via floating-point reinterpretation, enabling low-latency edge inference without hardware exponentiation fast-paths.",
+      "tldr_cn": "边缘设备资源紧张，Swish、GELU等高级激活函数因缺少指数与除法硬件快路径而推理开销高，迫使端侧只能用ReLU类简单函数、牺牲精度。作者提出FFCC编译器，通过浮点重解释自动生成高效近似激活函数，无需硬件快路径即可在端侧保持快速。该方法以编译手段直接支撑边缘低延迟推理，与边缘加速器工具链需求高度相关。",
+      "title_zh": "边缘端更快的激活函数：面向训练后加速",
+      "motivation_cn": "高级激活函数在边缘设备缺少硬件快路径导致开销高，限制模型精度。",
+      "method_cn": "提出FFCC编译器，通过浮点重解释自动生成高效的激活函数近似。",
+      "result_cn": "无需硬件快路径即可在边缘设备上获得快速且准确的激活函数。",
+      "conclusion_cn": "以编译优化方式提升边缘推理速度并释放高精度模型潜力。",
+      "matched_requirement_id": "req-4",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "compiler and toolchain support for deploying models on Coral accelerators"
+    },
+    {
+      "paper_id": "openreview-icml-2026-8xc5ebkgii",
+      "score": 6.0,
+      "evidence_en": "real-time concurrent DNN inference on edge GPU accelerators",
+      "evidence_cn": "边缘GPU加速器上的实时并发DNN推理",
+      "canonical_evidence": "边缘GPU加速器上的实时并发DNN推理",
+      "tldr_en": "RTInfer enables concurrent real-time DNN execution on resource-limited edge GPUs by co-optimizing lightweight model variants, a memory-layout-aware scheduler, and on-demand loading to balance throughput and accuracy.",
+      "tldr_cn": "边缘GPU日益用于延迟敏感的DNN任务，但资源有限，并发负载下难以满足严格实时要求，现有抢占与早退机制利用率低且精度损失大。作者提出RTInfer系统，结合精度校准的轻量变体协同优化、内存布局感知调度与按需加载策略。实验表明其能在并发场景下兼顾吞吐与精度，直接支撑边缘加速器上的低延迟推理部署。",
+      "title_zh": "RTInfer：边缘GPU上多DNN的实时推理",
+      "motivation_cn": "边缘GPU资源有限，并发负载下现有机制难以满足严格实时要求且精度损失大。",
+      "method_cn": "提出RTInfer，融合轻量变体协同优化、内存布局感知调度与按需加载。",
+      "result_cn": "在并发实时任务下实现吞吐与精度的更优平衡并降低主机到GPU延迟。",
+      "conclusion_cn": "为边缘加速器上的低延迟多任务DNN推理提供了系统级方案。",
+      "matched_requirement_id": "req-2",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "edge AI accelerator hardware for low-latency on-device inference"
+    },
+    {
+      "paper_id": "openreview-icml-2026-6qbb6iccvy",
+      "score": 6.0,
+      "evidence_en": "energy-efficient quantization for NPU inference",
+      "evidence_cn": "面向NPU推理的能效量化",
+      "canonical_evidence": "面向NPU推理的能效量化",
+      "tldr_en": "PsumQuant introduces an input-aware post-training quantizer that bounds partial-sum bit-width on NPUs by predicting scales on the fly from activation crest factors, cutting accumulation energy while handling outliers.",
+      "tldr_cn": "深度神经网络加速中，累加产生的部分和往往保留高精度，带来显著能耗开销。本文分析分块架构中部分和的分布，发现块内离群值依赖输入，进而提出PsumQuant，一种后训练、输入感知的量化方法，利用激活的峰值因子在线预测部分和尺度以约束位宽。实验表明该方法在抑制离群值的同时降低了NPU推理能耗，为高能效硬件加速提供了实用方案。",
+      "title_zh": "PsumQuant：面向高能效NPU推理的在线后训练部分和量化器",
+      "motivation_cn": "累加过程中部分和保留高精度导致显著能耗开销，成为NPU高效推理的瓶颈。",
+      "method_cn": "提出PsumQuant，利用输入激活的峰值因子在线预测部分和尺度，动态约束位宽。",
+      "result_cn": "实验表明该方法能有效处理离群值并降低NPU推理的累加能耗。",
+      "conclusion_cn": "该工作为量化下的高能效NPU推理提供了可落地的后训练量化方案。",
+      "matched_requirement_id": "req-3",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "low power machine learning inference on embedded edge devices"
+    },
+    {
+      "paper_id": "eccv-2026-1cd694904909dbecdb1da038",
+      "score": 5.0,
+      "evidence_en": "architecture collapsing to standard convolutions for hardware accelerator compatibility on edge devices",
+      "evidence_cn": "可折叠为标准卷积、便于边缘硬件加速器部署的实时视频超分架构",
+      "canonical_evidence": "可折叠为标准卷积、便于边缘硬件加速器部署的实时视频超分架构",
+      "tldr_en": "NanoVSR is a fully convolutional video super-resolution architecture for resource-constrained edge devices that uses structural reparameterization to collapse into standard convolutions, ensuring accelerator compatibility with negligible runtime overhead.",
+      "tldr_cn": "现有视频超分方法依赖Transformer与显式光流，带来额外计算与自定义算子，难以部署到TensorRT等硬件加速器。作者提出NanoVSR，一种面向资源受限边缘设备的全卷积可扩展架构，借助结构重参数化在推理时折叠为标准卷积，从而保证硬件兼容性并几乎不增加运行时开销。在REDS4基准上取得有竞争力的复原质量，为边缘端低延迟实时推理部署提供了实用路径。",
+      "title_zh": "NanoVSR：面向边缘设备的实时视频超分",
+      "motivation_cn": "现有视频超分依赖Transformer与显式光流，计算开销大且含自定义算子，阻碍在边缘硬件加速器上的部署。",
+      "method_cn": "提出全卷积可扩展架构NanoVSR，用结构重参数化使推理阶段折叠为标准卷积，并通过渐进训练隐式学习时空对齐。",
+      "result_cn": "在REDS4基准上以极小运行时开销获得有竞争力的复原质量，并具备良好的硬件兼容性。",
+      "conclusion_cn": "表明通过架构重参数化设计可兼顾复原质量与边缘加速器部署可行性。",
+      "matched_requirement_id": "req-2",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "edge AI accelerator hardware for low-latency on-device inference"
+    },
+    {
+      "paper_id": "anthology-2026.findings-acl.2106",
+      "score": 5.0,
+      "evidence_en": "hardware-aware on-device inference framework for low-latency LLM acceleration on smartphone chipsets",
+      "evidence_cn": "面向智能手机芯片的低延迟端侧推理硬件感知框架",
+      "canonical_evidence": "面向智能手机芯片的低延迟端侧推理硬件感知框架",
+      "tldr_en": "This paper presents a hardware-aware framework for on-device inference of a multi-LoRA LLaMA foundation model on Samsung Galaxy S24/S25, using runtime LoRA inputs and multi-stream decoding to cut memory and latency.",
+      "tldr_cn": "针对在智能手机上部署大模型受内存、延迟与运行时灵活性严格约束的问题，本文提出一种硬件感知的端侧推理框架，将多任务LoRA作为运行时输入注入单一冻结推理图，并设计多流解码机制。实验在三星Galaxy S24与S25的高通SM8650与SM8750芯片上验证了无需重编译的动态任务切换与高效并发生成。该工作为资源受限移动设备上部署多用途基础模型提供了可行路径，与低延迟端侧推理加速目标一致。",
+      "title_zh": "释放多LoRA一体化基础大模型的边缘部署与端侧加速",
+      "motivation_cn": "在智能手机上部署大语言模型面临内存、延迟与运行时灵活性的严格约束。",
+      "method_cn": "提出硬件感知框架，将应用特定LoRA作为运行时输入接入单一冻结推理图，并引入多流解码机制。",
+      "result_cn": "在三星Galaxy S24与S25的高通芯片上实现无重编译的动态任务切换与高效端侧推理。",
+      "conclusion_cn": "为资源受限移动设备上的多用途基础模型部署提供了低延迟、低内存开销的解决方案。",
+      "matched_requirement_id": "req-2",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "edge AI accelerator hardware for low-latency on-device inference"
+    },
+    {
+      "paper_id": "aaai-2026-39789",
+      "score": 5.0,
+      "evidence_en": "decoding-efficient inference acceleration for on-device LLMs under edge memory constraints",
+      "evidence_cn": "面向边缘内存受限端侧大模型的高效解码推理加速",
+      "canonical_evidence": "面向边缘内存受限端侧大模型的高效解码推理加速",
+      "tldr_en": "DIAA accelerates on-device LLM inference with a decoding-efficient speculative scheme that avoids an auxiliary draft model and static token trees, reducing memory burden on edge devices.",
+      "tldr_cn": "针对端侧大模型受限于算力与内存、现有推测解码依赖额外草稿模型与静态令牌树导致内存开销大且推理次优的问题，本文提出DIAA，一种解码高效的端侧推理加速方法。该方法在草稿-验证范式下避免引入辅助模型并动态构造验证结构，以降低内存占用并提升推理效率。实验表明其能在不损生成质量的前提下加速端侧推理，为边缘设备上的低延迟本地大模型服务提供了可行方案。",
+      "title_zh": "DIAA：面向端侧大模型的解码高效推理加速方法",
+      "motivation_cn": "端侧设备算力与内存受限，现有推测解码依赖额外草稿模型与静态令牌树，带来内存负担与次优性能。",
+      "method_cn": "提出解码高效的推测解码加速方法，去除辅助草稿模型并改进验证结构以适配端侧资源。",
+      "result_cn": "在不损生成质量前提下提升端侧大模型推理效率并降低内存开销。",
+      "conclusion_cn": "为边缘设备上的低延迟本地大模型推理提供了资源友好的加速方案。",
+      "matched_requirement_id": "req-2",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "edge AI accelerator hardware for low-latency on-device inference"
+    },
+    {
+      "paper_id": "osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus",
+      "score": 5.0,
+      "evidence_en": "scalable low-latency DNN inference on mobile heterogeneous embedded CPUs",
+      "evidence_cn": "面向移动异构嵌入式CPU的可扩展低延迟DNN推理",
+      "canonical_evidence": "面向移动异构嵌入式CPU的可扩展低延迟DNN推理",
+      "tldr_en": "SANI is an asymmetry-aware inference framework that schedules DNN kernels across big.LITTLE mobile CPUs with affinity-aware placement, avoiding the performance-collapse of naive heterogeneous scheduling.",
+      "tldr_cn": "针对移动设备上非对称多核CPU难以高效运行DNN推理、朴素调度会因负载不均导致增加小核反而降低吞吐的问题，本文提出SANI框架。该框架引入核-内核亲和感知的调度、动态负载均衡与运行时干扰自适应三项机制，突破静态划分的局限。实验表明其能充分释放异构移动CPU的算力，实现可扩展的低延迟推理，为嵌入式边缘设备上的高效机器学习推理提供了通用调度思路。",
+      "title_zh": "释放全部核心：移动CPU上非对称感知的可扩展DNN推理",
+      "motivation_cn": "移动设备广泛采用非对称多核CPU，但朴素跨核调度会因负载不均导致增加小核反而降低吞吐。",
+      "method_cn": "提出SANI框架，包含核与内核亲和感知调度、动态负载均衡和运行时干扰自适应机制。",
+      "result_cn": "在移动CPU上实现可扩展的DNN推理加速，充分释放异构核心算力。",
+      "conclusion_cn": "为嵌入式边缘设备上的低延迟DNN推理提供了可迁移的异构调度方法。",
+      "matched_requirement_id": "req-3",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "low power machine learning inference on embedded edge devices"
+    },
+    {
+      "paper_id": "aaai-2026-39779",
+      "score": 5.0,
+      "evidence_en": "latency prediction across NPU and edge accelerator backends",
+      "evidence_cn": "面向NPU与边缘加速器后端的延迟预测",
+      "canonical_evidence": "面向NPU与边缘加速器后端的延迟预测",
+      "tldr_en": "CloserToMe proposes a unified latency prediction framework that explicitly models NN-structure and device-execution interactions to support optimization selection across heterogeneous edge and cloud accelerators such as NPUs and FPGAs.",
+      "tldr_cn": "在云边异构设备上为神经网络挑选最优优化策略需要准确高效的延迟预测，但现有方法把硬件视为黑盒直接回归延迟，忽略网络结构与设备执行行为的交互。作者提出CloserToMe统一建模框架，显式刻画结构与硬件执行特性的关系以提升跨设备迁移能力。该工作有助于在含NPU、FPGA等边缘加速器上快速选择部署策略，支撑低延迟推理优化。",
+      "title_zh": "CloserToMe：跨异构设备准确且可迁移的延迟预测统一框架",
+      "motivation_cn": "异构边缘与云端加速器上需要准确延迟预测来快速选择模型优化策略。",
+      "method_cn": "提出统一建模框架，显式建模神经网络结构与设备执行行为的交互关系。",
+      "result_cn": "实现跨GPU、NPU、FPGA等异构设备的准确且可迁移的延迟预测。",
+      "conclusion_cn": "为跨硬件后端的优化策略选择提供了更可靠的延迟建模支撑。",
+      "matched_requirement_id": "req-2",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "edge AI accelerator hardware for low-latency on-device inference"
+    },
+    {
+      "paper_id": "openreview-icml-2026-nhbvqf35ch",
+      "score": 5.0,
+      "evidence_en": "retraining-free mixed-precision quantization for edge deployment",
+      "evidence_cn": "面向边缘部署的免重训练混合精度量化",
+      "canonical_evidence": "面向边缘部署的免重训练混合精度量化",
+      "tldr_en": "DFMPQ trains a weight-sharing mixed-precision supernet via federated learning so that resource-aware quantized subnets can be derived on demand, enabling retraining-free lightweight model deployment under varying edge constraints.",
+      "tldr_cn": "联邦学习可在分布式边缘设备上协同训练，但设备资源动态变化时现有方法需反复重训练，开销巨大。作者提出DFMPQ动态联邦混合精度量化框架，通过联邦学习训练权重共享的混合精度超网，训练后可按需导出满足资源约束的量化子网。该方法无需重训练即可适配异构且时变的边缘资源，对端侧量化模型部署具有参考价值。",
+      "title_zh": "边缘免重训练：基于联邦超网学习的资源感知混合精度量化",
+      "motivation_cn": "边缘资源动态变化时，现有量化方法需反复重训练，计算开销过大。",
+      "method_cn": "通过联邦学习训练权重共享的混合精度超网，按需导出资源感知量化子网。",
+      "result_cn": "无需额外重训练即可满足异构且时变的边缘资源约束。",
+      "conclusion_cn": "为动态边缘环境下的轻量模型部署提供了免重训练的量化方案。",
+      "matched_requirement_id": "req-3",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "low power machine learning inference on embedded edge devices"
+    },
+    {
+      "paper_id": "cvpr-2026-wei-nuwa-deriving-lightweight-class-specific-vision-transformers-for-edge-devices-cvpr-2026-paper",
+      "score": 5.0,
+      "evidence_en": "compressing ViTs for resource-constrained edge deployment",
+      "evidence_cn": "为资源受限边缘设备压缩视觉Transformer",
+      "canonical_evidence": "为资源受限边缘设备压缩视觉Transformer",
+      "tldr_en": "NuWa derives lightweight class-specific ViTs for edge devices by removing class-detrimental weights and preserving class-relevant diversity, enabling efficient on-device deployment of only the classes an application needs.",
+      "tldr_cn": "现有视觉Transformer压缩方法忽视了边缘设备往往只需识别特定类别这一事实，导致压缩模型保留冗余知识、在目标类别上表现欠佳。本文提出NuWa，通过识别并剔除对类别有害的权重、并保持类别相关特征的多样性，直接导出面向特定类别的轻量模型。实验表明该方法在目标类别精度上优于常规压缩方案，为资源受限边缘设备上部署专用视觉模型提供了有效途径。",
+      "title_zh": "NuWa：为边缘设备导出轻量级类别专用视觉Transformer",
+      "motivation_cn": "边缘设备通常只需识别特定类别，而现有压缩方法保留冗余知识导致目标类别性能不佳。",
+      "method_cn": "提出NuWa，剔除干扰类别专精的有害权重并保持类别相关数据多样性来导出轻量ViT。",
+      "result_cn": "实验显示导出的类别专用轻量模型在目标类别上取得优于常规压缩方法的性能。",
+      "conclusion_cn": "该工作为资源受限边缘设备上部署高效专用视觉模型提供了新思路。",
+      "matched_requirement_id": "req-3",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "low power machine learning inference on embedded edge devices"
+    },
+    {
+      "paper_id": "openreview-icml-2026-wrp7d18h9t",
+      "score": 5.0,
+      "evidence_en": "energy-efficient SNN inference on commodity edge devices",
+      "evidence_cn": "在通用边缘设备上高效运行脉冲神经网络",
+      "canonical_evidence": "在通用边缘设备上高效运行脉冲神经网络",
+      "tldr_en": "Spik4lite refactors neuromorphic sparsity so spiking neural networks run efficiently on commodity edge devices like Jetson, avoiding reliance on FPGAs or neuromorphic chips while cutting wasted computation on inactive spikes.",
+      "tldr_cn": "脉冲神经网络依赖FPGA或神经形态芯片才能高效运行，而通用边缘设备难以获得此类硬件，导致大量无效零脉冲计算浪费能耗。本文提出Spik4lite，通过重构神经形态稀疏性，使脉冲驱动计算在Jetson等通用边缘设备上高效执行。该工作降低了SNN对专用硬件的依赖，提升了边缘部署的能效与可用性，扩展了SNN的实际应用边界。",
+      "title_zh": "Spik4lite：为通用边缘设备上的高效脉冲神经网络重构神经形态稀疏性",
+      "motivation_cn": "脉冲神经网络需专用加速硬件，通用边缘设备上因无效零脉冲计算导致能效下降。",
+      "method_cn": "提出Spik4lite，重构神经形态稀疏性以在通用边缘设备上高效执行脉冲驱动计算。",
+      "result_cn": "方法使SNN在Jetson等通用边缘设备上高效运行，减少无效计算带来的能耗浪费。",
+      "conclusion_cn": "该工作降低SNN对专用硬件依赖，拓展了其在边缘设备上的应用边界。",
+      "matched_requirement_id": "req-3",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "low power machine learning inference on embedded edge devices"
+    },
+    {
+      "paper_id": "openreview-icml-2026-5vok9nuvsd",
+      "score": 4.0,
+      "evidence_en": "energy-efficient edge inference on Compute-In-Memory accelerators",
+      "evidence_cn": "面向存内计算加速器的低功耗边缘推理",
+      "canonical_evidence": "面向存内计算加速器的低功耗边缘推理",
+      "tldr_en": "CIM accelerators enable energy-efficient edge inference but hardware-induced weight perturbations degrade DNN accuracy. DWP, an immune-system-inspired training method, weights samples by disagreement across noisy realizations, yielding over 15% accuracy gains and robust on-device deployment.",
+      "tldr_cn": "存内计算加速器被视为低功耗边缘推理的重要途径，但器件噪声与漂移带来的权重扰动会显著削弱DNN推理精度。作者提出免疫系统启发的多样性感知权重扰动训练方法，利用多种噪声实现下样本级预测分歧自适应地为样本加权。实验表明，该方法训练的模型鲁棒性明显提升，相比标准训练精度提高超过15%。该工作为在存内计算等边缘加速硬件上可靠部署深度模型提供了训练侧的鲁棒性方案。",
+      "title_zh": "多样性感知权重扰动促进鲁棒自适应",
+      "motivation_cn": "存内计算加速器用于低功耗边缘推理时，器件噪声与漂移造成的权重扰动会降低DNN精度并阻碍可靠部署。",
+      "method_cn": "提出多样性感知权重扰动训练方法，借鉴免疫系统亲和选择机制，依据多样噪声下的样本级预测分歧进行自适应样本加权。",
+      "result_cn": "实验显示该方法训练的模型鲁棒性持续优于标准训练，精度提升超过15%。",
+      "conclusion_cn": "为存内计算等边缘推理硬件的可靠模型部署提供了有效的鲁棒训练范式。",
+      "matched_requirement_id": "req-3",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "low power machine learning inference on embedded edge devices"
+    },
+    {
+      "paper_id": "sosp-2024-scaling-deep-learning-computation-over-the-inter-core-connected-intelligence-processor-with-t10",
+      "score": 4.0,
+      "evidence_en": "DL compiler exploiting on-chip interconnect for model deployment",
+      "evidence_cn": "利用片上互联的深度学习编译器支撑模型部署",
+      "canonical_evidence": "利用片上互联的深度学习编译器支撑模型部署",
+      "tldr_en": "AI chips now offer inter-core links and distributed scratchpads, but DL compilers cannot exploit them. T10 is the first DL compiler that formulates tensor computation and communication over such architectures, unlocking inter-core bandwidth and distributed on-chip memory.",
+      "tldr_cn": "新型AI芯片通过核间高带宽低延迟链路与分布式片上内存扩展算力，但现有深度学习编译器难以利用这些核间通信能力，开发者无法发挥新架构优势。作者提出T10，首个面向核间互联智能处理器的深度学习编译器，对张量算子的计算与通信模式进行统一建模与调度。该工作释放了核间通信带宽与分布式片上内存的潜力，提升了深度学习计算的可扩展性。其编译器层面的加速器适配思路对Coral等边缘NPU的工具链支持具有方法借鉴价值。",
+      "title_zh": "用T10在核间互联智能处理器上扩展深度学习计算",
+      "motivation_cn": "AI芯片采用众多并行核与核间高速链路，但现有深度学习编译器缺乏对核间通信与分布式片上内存的支持。",
+      "method_cn": "提出深度学习编译器T10，对张量算子的计算与通信模式进行统一建模，以利用核间通信带宽和分布式片上内存。",
+      "result_cn": "使开发者能够利用核间互联架构的带宽与片上内存资源，提升深度学习计算的扩展性。",
+      "conclusion_cn": "为新型AI芯片架构提供了编译器层面的有效支撑。",
+      "matched_requirement_id": "req-4",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "compiler and toolchain support for deploying models on Coral accelerators"
+    },
+    {
+      "paper_id": "aaai-2026-39406",
+      "score": 4.0,
+      "evidence_en": "hardware-aware quantization for efficient model deployment on accelerators",
+      "evidence_cn": "面向加速器高效部署的硬件感知量化",
+      "canonical_evidence": "面向加速器高效部署的硬件感知量化",
+      "tldr_en": "Conventional quantization is hardware-agnostic and ignores MAC timing and energy behavior, limiting accelerator efficiency. HALO is a hardware-aware post-training quantization framework modeling critical-path delay, exploiting timing margins to improve deployment efficiency on modern accelerators.",
+      "tldr_cn": "量化是高效部署大模型的关键，但传统方法硬件无关、仅受位宽约束，未考虑乘累加单元的时序行为与能耗特性，限制了加速器上的效率。作者提出HALO，一种显式建模关键路径延迟等电路级硬件特性的训练后量化框架。该框架利用可用时序余量与节能空间，在保持精度的同时提升现代加速器上的部署效率。其硬件感知量化思路与在边缘加速器上部署量化模型的需求相关，但本文面向LLM与云端加速器场景。",
+      "title_zh": "HALO：面向LLM加速的低关键路径延迟权重量化",
+      "motivation_cn": "传统量化方法硬件无关、仅限位宽约束，未考虑MAC单元时序与能耗等电路特性，限制了加速器部署效率。",
+      "method_cn": "提出硬件感知训练后量化框架HALO，显式建模关键路径延迟等电路级硬件特性来指导权重量化。",
+      "result_cn": "在保持模型精度的同时利用时序余量与节能空间，提升现代加速器上的部署效率。",
+      "conclusion_cn": "打通了电路级硬件行为与量化模型部署之间的脱节。",
+      "matched_requirement_id": "req-7",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "How to deploy quantized TensorFlow Lite models on Coral edge accelerators?"
+    },
+    {
+      "paper_id": "openreview-icml-2026-qul7jp4qdq",
+      "score": 4.0,
+      "evidence_en": "lossless on-device MoE serving system exploiting edge hardware properties",
+      "evidence_cn": "利用边缘硬件特性的无损设备端MoE推理服务系统",
+      "canonical_evidence": "利用边缘硬件特性的无损设备端MoE推理服务系统",
+      "tldr_en": "ZipMoE is a semantically lossless on-device MoE serving system that exploits edge hardware properties and MoE parameter redundancy through caching-scheduling co-design, shifting inference from I/O-bound to compute-bound.",
+      "tldr_cn": "大模型中的混合专家架构虽提升表达能力，但其巨大内存占用严重阻碍在资源受限边缘设备上的部署，且在不使用有损量化时难以保持模型行为。作者提出ZipMoE，一种语义无损的设备端MoE服务系统，利用边缘设备硬件特性与专家参数统计冗余进行缓存与调度协同设计，并给出可证明的性能保证。该方法将设备端MoE推理从I/O瓶颈转变为计算瓶颈，为低功耗边缘端高效部署大模型提供了新思路。",
+      "title_zh": "ZipMoE：基于无损压缩与缓存亲和调度的设备端高效MoE服务",
+      "motivation_cn": "MoE大模型内存占用过高，难以在资源受限边缘设备上无损部署。",
+      "method_cn": "提出ZipMoE，结合无损压缩与缓存亲和调度，利用边缘硬件特性与参数冗余协同优化。",
+      "result_cn": "将设备端MoE推理从I/O受限转为计算受限，并获得可证明的性能保证。",
+      "conclusion_cn": "为资源受限边缘设备上的大模型高效推理提供了无损部署路径。",
+      "matched_requirement_id": "req-3",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "low power machine learning inference on embedded edge devices"
+    },
+    {
+      "paper_id": "ijcai-2026-14",
+      "score": 4.0,
+      "evidence_en": "distributed transformer inference across ultra-low-power wireless embedded devices",
+      "evidence_cn": "在超低功耗无线嵌入式设备上分布式执行Transformer推理",
+      "canonical_evidence": "在超低功耗无线嵌入式设备上分布式执行Transformer推理",
+      "tldr_en": "CATS enables distributed transformer inference across multiple ultra-low-power wireless IoT devices, using communication-aware partitioning and a pruned SomeGather primitive to run models larger than any single device can hold.",
+      "tldr_cn": "Transformer模型在物联网中日益重要，但其计算与内存需求远超单个超低功耗设备的能力。作者提出CATS框架，让多台超低功耗无线设备协同执行远超单机容量的模型，核心是跨模型划分、无线通信与训练协同设计的通信感知分布式推理方案，并提出选择性广播激活列的剪枝通信原语SomeGather以降低通信开销。该工作为极低功耗嵌入式场景下的大模型推理提供了可行路径。",
+      "title_zh": "超越边缘：超低功耗无线设备上Transformer模型的分布式推理",
+      "motivation_cn": "Transformer的计算与内存需求远超单个超低功耗物联网设备的能力上限。",
+      "method_cn": "提出CATS，跨模型划分、无线通信与训练协同设计分布式推理，并用剪枝通信原语SomeGather降低通信量。",
+      "result_cn": "使多台超低功耗无线设备可协同运行远超单机容量的Transformer模型。",
+      "conclusion_cn": "为极低功耗嵌入式设备上的大模型推理提供了分布式协同方案。",
+      "matched_requirement_id": "req-3",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "low power machine learning inference on embedded edge devices"
+    },
+    {
+      "paper_id": "eccv-2026-da3005651d6f39b4146ac504",
+      "score": 4.0,
+      "evidence_en": "efficient MLLM inference for edge-device deployment via token pruning",
+      "evidence_cn": "通过令牌剪枝实现面向边缘设备的高效多模态大模型推理",
+      "canonical_evidence": "通过令牌剪枝实现面向边缘设备的高效多模态大模型推理",
+      "tldr_en": "SWIFT is a training-free token pruning framework that uses spatial-window and frequency-aware signals to compress dense visual tokens, reducing MLLM computation for edge-device deployment while preserving high-frequency details.",
+      "tldr_cn": "多模态大模型的高分辨率视觉令牌带来二次复杂度，给边缘设备部署造成巨大压力，而现有基于注意力权重的剪枝会丢弃高频细节导致特征过平滑。本文提出SWIFT，融合空间窗口与频域感知进行令牌压缩，作为即插即用框架保留关键高频信号。该工作有效降低了边缘端推理的计算开销，为高效多模态模型部署提供了新方案。",
+      "title_zh": "SWIFT：面向边缘设备高效多模态大模型的空间窗口融合频域感知令牌剪枝",
+      "motivation_cn": "多模态大模型稠密视觉令牌复杂度高，边缘部署困难且现有剪枝丢失高频细节。",
+      "method_cn": "提出SWIFT即插即用框架，结合空间窗口与频域感知信号进行视觉令牌压缩。",
+      "result_cn": "方法在降低计算量的同时保留关键高频信号，缓解特征过平滑问题。",
+      "conclusion_cn": "该工作为边缘设备上高效部署多模态大模型提供了有效的令牌剪枝方案。",
+      "matched_requirement_id": "req-3",
+      "matched_query_tag": "query:coral-npu",
+      "matched_query_text": "low power machine learning inference on embedded edge devices"
+    }
+  ],
+  "llm_ranked_at": "2026-10-21T11:28:33.330549+00:00",
+  "display_min_score": 4.0,
+  "pruned_at": "2026-10-21T11:28:33.375692+00:00"
+}
