@@ -1,0 +1,716 @@
+Title: LAD-BNet: Lag-Aware Dual-Branch Networks for Real-Time Energy Forecasting on Edge Devices
+
+URL Source: https://arxiv.org/pdf/2511.10680v2
+
+Published Time: Tue, 09 Dec 2025 02:20:54 GMT
+
+Number of Pages: 31
+
+Markdown Content:
+LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# LAD-BNet: Lag-Aware Dual-Branch Networks for Real-Time Energy Forecasting on Edge Devices 
+
+Jean-Philippe Lignier 
+
+Energy Manager & Associate Researcher PIMENT Laboratory (Physics and Mathematical Engineering for Energy, Environment and Building) University of La Réunion, 97400 Saint-Denis, Réunion, France Email: jean-philippe.lignier@tangibleassets.org 
+
+Version 2.0 – December 2025 
+
+arXiv: 2511.10680 [cs.LG, stat.ML] | HAL: hal-05369317 DOI: 10.48550/arXiv.2511.10680 
+
+Version History v2.0 (December 2025): Updated high-resolution figures, refined methodology section, expanded industrial applications discussion, additional ablation experiments, improved presentation quality, English translation. 
+
+v1.0 (November 2025): Initial preprint submission to arXiv (11 Nov 2025) and HAL (17 Nov 2025). French version, 27 pages, submitted to Energy and AI .
+
+Abstract 
+
+Real-time energy forecasting on edge devices represents a major challenge for smart grid op-timization and intelligent buildings. We present LAD-BNet (Lag-Aware Dual-Branch Net-work), an innovative neural architecture optimized for edge inference with Google Coral TPU. Our hybrid approach combines a branch dedicated to explicit exploitation of tem-poral lags with a Temporal Convolutional Network (TCN) featuring dilated convolutions, enabling simultaneous capture of short and long-term dependencies. Tested on real energy consumption data with 10-minute temporal resolution, LAD-BNet achieves 14.49% MAPE at 1-hour horizon with only 18ms inference time on Edge TPU, representing an 8–12 × accel-eration compared to CPU. The multi-scale architecture enables predictions up to 12 hours with controlled performance degradation. Our model demonstrates a 2.39% improvement over LSTM baselines and 3.04% over pure TCN architectures, while maintaining a 180 MB memory footprint suitable for embedded device constraints. These results pave the way for industrial applications in real-time energy optimization, demand management, and opera-tional planning. 
+
+Keywords: energy forecasting; edge computing; neural networks; temporal convolutional net-works; deep learning; Internet of Things; smart grid; edge AI 1 
+
+> arXiv:2511.10680v2 [cs.LG] 7 Dec 2025 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2
+
+# Contents 
+
+1 Introduction 5
+
+1.1 Scientific Context . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51.2 State of the Art . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51.3 Problem Statement and Contributions . . . . . . . . . . . . . . . . . . . . . . . . 51.4 Article Organization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+
+2 Materials and Methods 7
+
+2.1 LAD-BNet Architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 72.1.1 Design Philosophy . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 72.1.2 Global Architecture . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 72.1.3 Justification of Architectural Choices . . . . . . . . . . . . . . . . . . . . . 72.2 Feature Engineering . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 72.2.1 Temporal and Contextual Features . . . . . . . . . . . . . . . . . . . . . . 72.2.2 Lag Features and Rolling Statistics . . . . . . . . . . . . . . . . . . . . . . 92.2.3 Meteorological Features and Interactions . . . . . . . . . . . . . . . . . . . 92.3 Data Preparation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 92.3.1 Normalization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 92.3.2 Temporal Windowing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10 2.4 Training and Optimization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10 2.4.1 Training Configuration . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10 2.4.2 Regularization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10 2.4.3 Train/Validation/Test Split . . . . . . . . . . . . . . . . . . . . . . . . . . 10 2.5 Deployment on Edge TPU . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10 2.5.1 TensorFlow Lite Conversion . . . . . . . . . . . . . . . . . . . . . . . . . . 10 2.5.2 Edge TPU Compilation . . . . . . . . . . . . . . . . . . . . . . . . . . . . 10 2.5.3 Deployment Infrastructure . . . . . . . . . . . . . . . . . . . . . . . . . . . 10 2.6 Evaluation Metrics . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11 2.6.1 Predictive Accuracy . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11 2.6.2 Inference Performance . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11 2.6.3 Resource Consumption . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11 2.7 Experimental Protocol . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11 2.7.1 Baselines and Comparisons . . . . . . . . . . . . . . . . . . . . . . . . . . 11 2.7.2 Multi-Horizon Validation . . . . . . . . . . . . . . . . . . . . . . . . . . . 11 2.7.3 Reproducibility . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11 
+
+3 Results 12 
+
+3.1 Predictive Performance . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12 3.1.1 Multi-Horizon MAPE . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12 3.1.2 Comparison with Baselines . . . . . . . . . . . . . . . . . . . . . . . . . . 12 3.1.3 Temporal Analysis of Errors . . . . . . . . . . . . . . . . . . . . . . . . . . 13 3.2 Inference Performance . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13 3.2.1 Inference Times . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 13 3.2.2 Throughput . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15 3.2.3 Resource Consumption . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15 3.3 Scalability and Multi-Scale . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15 3.3.1 Horizontal Scalability . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15 3.3.2 Multi-Scale Adaptability . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15 3.3.3 Transfer Learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15 3.4 Ablation Analysis . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15 2LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+3.4.1 Branch Contributions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15 3.4.2 Feature Impact . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17 3.5 Robustness and Reliability . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17 3.5.1 Robustness to Missing Data . . . . . . . . . . . . . . . . . . . . . . . . . . 17 3.5.2 Long-Term Stability . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17 3.5.3 System Reliability . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17 
+
+4 Discussion 18 
+
+4.1 Results Interpretation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18 4.1.1 Superiority of Dual-Branch Architecture . . . . . . . . . . . . . . . . . . . 18 4.1.2 Efficiency of Dilated Convolutions . . . . . . . . . . . . . . . . . . . . . . 18 4.1.3 Quantization Impact . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18 4.2 Positioning Relative to Prior Work . . . . . . . . . . . . . . . . . . . . . . . . . . 18 4.2.1 Literature Comparison . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18 4.2.2 Approach Originality . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 18 4.3 Industrial Applications . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19 4.3.1 Real-Time Energy Optimization . . . . . . . . . . . . . . . . . . . . . . . 19 4.3.2 Intelligent Microgrid Management . . . . . . . . . . . . . . . . . . . . . . 19 4.3.3 Predictive Maintenance . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19 4.3.4 Energy Market Participation . . . . . . . . . . . . . . . . . . . . . . . . . 19 4.3.5 Building Management System Integration . . . . . . . . . . . . . . . . . . 19 4.4 Study Limitations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 19 4.4.1 Generalization to Different Building Types . . . . . . . . . . . . . . . . . . 19 4.4.2 Dependence on Weather Forecasts . . . . . . . . . . . . . . . . . . . . . . 19 4.4.3 Limited Forecast Horizon . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 4.4.4 Hardware Cost . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 4.5 Research Perspectives . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 4.5.1 Attention-Based Architecture . . . . . . . . . . . . . . . . . . . . . . . . . 20 4.5.2 Multi-Task Learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 4.5.3 Adaptive Quantization . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 4.5.4 Federated Learning . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 4.5.5 Probabilistic Forecasting . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 4.6 Implications for Edge AI . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20 4.6.1 Hardware-Constrained Design . . . . . . . . . . . . . . . . . . . . . . . . . 20 4.6.2 Accuracy-Efficiency Tradeoff . . . . . . . . . . . . . . . . . . . . . . . . . . 21 4.6.3 Viability of Edge Computing for Energy . . . . . . . . . . . . . . . . . . . 21 
+
+5 Conclusions 22 
+
+5.1 Summary of Contributions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22 5.2 Practical Impact . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22 5.3 Theoretical Impact . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22 5.4 Evolution Perspectives . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22 5.5 Final Conclusion . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23 
+
+A Detailed Technical Specifications 27 
+
+A.1 Development Hardware (Training) . . . . . . . . . . . . . . . . . . . . . . . . . . 27 A.2 Production Hardware (Edge Inference) . . . . . . . . . . . . . . . . . . . . . . . . 27 
+
+B Optimized Hyperparameters 27 C Dataset Characteristics 27 D Complete Feature List (28) 29 
+
+3LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+E Model Architecture (Keras Notation) 30 F Availability and License 31 
+
+F.1 Article License . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31 F.2 Source Code License . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31 4LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# 1 Introduction 
+
+1.1 Scientific Context 
+
+The energy transition and massive deployment of renewable energies require precise and reactive energy forecasting systems [13, 14]. Modern smart grids generate massive volumes of high-resolution temporal data, but their centralized processing poses problems of latency, bandwidth, and confidentiality. Edge computing emerges as a promising paradigm, enabling local data processing with minimal latencies and increased autonomy [1]. However, the hardware constraints of edge devices (limited memory, reduced computing power, energy consumption) impose significant architectural compromises [9]. Traditional deep learning models, although performant, are often too costly for real-time inference on embedded hardware. Architectures optimized for edge must reconcile predictive accuracy, computational efficiency, and low memory footprint [10]. 
+
+1.2 State of the Art 
+
+Current approaches to energy forecasting are divided into several categories. Classical statistical methods such as ARIMA and SARIMA [2] offer high interpretability but struggle to capture the complex non-linearities of energy time series. Recurrent neural networks, particularly LSTMs [3] and GRUs, dominate recent literature thanks to their ability to model long temporal depen-dencies [4, 17, 18]. However, their sequential nature limits parallelization and increases inference times. Temporal Convolutional Networks (TCN) [5] have recently demonstrated competitive per-formance with better computational efficiency. Causal convolutions preserve temporal causality while dilated convolutions exponentially extend the receptive field. Nevertheless, pure TCNs sometimes neglect explicit exploitation of temporal lags, yet fundamental in energy forecasting where autocorrelations are strong [10]. Transformer architectures [24] adapted to time series have also emerged recently, with spe-cialized models like Informer [6] and Autoformer [7] demonstrating competitive performance [25]. N-BEATS [8] offers an interpretable alternative based on basis expansion. Hardware acceleration via TPU and NPU has transformed the edge AI landscape [9]. Google Coral offers remarkable inference performance for quantized TensorFlow Lite models [11, 12], but imposes strict archi-tectural constraints. The design of models fully exploiting these accelerators while maintaining predictive accuracy remains an open challenge [21, 22]. 
+
+1.3 Problem Statement and Contributions 
+
+This research addresses the following question: how to design a neural architecture for real-time energy forecasting that is simultaneously accurate, fast, and compatible with edge device constraints? We identify three major limitations of existing approaches: insufficient exploitation of lags in TCNs, absence of hybrid architectures optimized for edge TPU, and lack of deployable solutions in industrial production. Our main contributions are as follows: • Proposition of LAD-BNet, an innovative dual-branch architecture combining explicit ex-ploitation of lags and dilated temporal convolutions; • Demonstration of significant improvement in predictive performance on real energy con-sumption data; • Validation of computational efficiency on Google Coral TPU with inference times below 20ms; 5LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+• Provision of a complete production-ready solution including monitoring, alerts, and real-time dashboard. 
+
+1.4 Article Organization 
+
+This article is organized as follows. Section 2 details the LAD-BNet architecture and methodolog-ical choices. Section 3 presents experimental data and evaluation protocol. Section 4 discusses implications, limitations, and perspectives. Section 5 concludes on contributions and industrial applications. 6LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# 2 Materials and Methods 
+
+2.1 LAD-BNet Architecture 
+
+2.1.1 Design Philosophy 
+
+LAD-BNet is based on the hypothesis that energy time series contain both explicit dependencies (lags) and implicit patterns (recurring motifs) [10]. A dual-branch architecture allows specializing each branch in the extraction of a type of features, then fusing these complementary representa-tions. 
+
+2.1.2 Global Architecture 
+
+The model accepts as input a sequence of 144 time steps (24 hours at 10-minute resolution) with 27 features per step. The architecture breaks down into three main modules, illustrated in Figure 1: 
+
+Branch 1 (Lag Branch): This branch exploits the last 24 time steps (4 hours) via a deep dense network [3]. Temporal lags (kW_lag_6, kW_lag_12, kW_lag_24, kW_lag_72, kW_lag_144) present strong correlations with future consumption [17, 18]. The sequential architecture comprises flattening of the sequence to a vector of dimension 648, followed by two dense layers of dimensions 256 and 128 with batch normalization and dropout 0.1. 
+
+Branch 2 (TCN Branch): This branch processes the complete sequence via temporal convolutions [5]. Two causal convolutions of 64 filters with kernels of size 3 capture local patterns. A dilated convolution of 128 filters with dilation factor 2 extends the receptive field to the entire sequence. Dual pooling (average and max) extracts the most salient features [10]. 
+
+Fusion Module: Representations from both branches are concatenated then projected via dense layers of dimensions 256 and 128 with dropout [4]. The output layer generates 72 predic-tions corresponding to a 12-hour horizon. 
+
+2.1.3 Justification of Architectural Choices 
+
+The dual-branch design is motivated by feature correlation analysis [10]. Lags present an R2
+
+coefficient of determination superior to 0.85 with future consumption, justifying a dedicated branch [17]. Dilated convolutions [5] offer an exponential receptive field: with a kernel of size 3 and dilation 2, the receptive field reaches 7 time steps in a single layer. Uniform dropout at 0.1 is a compromise between regularization and learning capacity [4]. Batch normalization stabilizes training and accelerates convergence. Dual pooling simultaneously captures the average trend and extrema, crucial information for predicting energy peaks [21]. 
+
+2.2 Feature Engineering 
+
+The complete feature engineering pipeline, detailed in Figure 2, transforms raw sensor data into the 27-dimensional feature vector used as model input. 
+
+2.2.1 Temporal and Contextual Features 
+
+Feature vector construction relies on multi-scale information extraction [10]. Cyclic tempo-ral features (hour_sin/cos, month_sin/cos, dayofweek_sin/cos) encode natural periodicity via trigonometric transformation, avoiding artificial discontinuity (23h →0h). Binary contextual fea-tures (weekend, is_holiday, is_business_hours, is_night, is_morning_peak, is_evening_peak) capture distinct operational regimes of the building [15]. 7LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+Figure 1: LAD-BNet dual-branch architecture. The Lag Branch (left, purple) processes the last 24 timesteps through dense layers to capture short-term dependencies. The TCN Branch (right, blue) processes the full sequence via dilated convolutions to capture long-term patterns. The Fu-sion Module (center, green) combines both representations through dense layers for multi-horizon predictions (1–12 hours). The architecture comprises ∼245,000 parameters with a 271.6 KB quantized model size (int8), enabling efficient edge deployment. 8LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+2.2.2 Lag Features and Rolling Statistics 
+
+Temporal lags at multiple horizons (1h, 2h, 4h, 12h, 24h) provide explicit system memory [17, 18]. Rolling statistics (mean, standard deviation, maximum, minimum) over sliding windows (1h, 2h, 4h) characterize volatility and local trends [2]. These aggregated features reduce sensitivity to measurement noise. 
+
+2.2.3 Meteorological Features and Interactions 
+
+Meteorological features (dry bulb temperature DBT, relative humidity RH) strongly influence consumption via air conditioning load [13]. The temperature-humidity interaction feature (DBT 
+
+× RH / 100) captures non-linear effects on thermal comfort and thus on energy demand [14]. 
+
+Figure 2: Feature engineering pipeline transforming raw sensor data into the 27-dimensional fea-ture vector. Six feature categories are derived: (1) Temporal cyclical features; (2) Meteorological features; (3) Contextual binary features; (4) Temporal lag features; (5) Rolling statistics; (6) Interaction term. All features are normalized to [0,1] via MinMaxScaler before model input. 
+
+2.3 Data Preparation 
+
+2.3.1 Normalization 
+
+All features are normalized via MinMaxScaler in the interval [0,1] [10]. This normalization guar-antees numerical stability and accelerates gradient descent convergence. The scaler parameters (minimum and maximum per feature) are saved for post-inference denormalization. 9LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+2.3.2 Temporal Windowing 
+
+Data are transformed into sequences via a sliding window [4]. Each training sample comprises 144 input time steps (24h) and 72 output steps (12h). A stride of 1 generates highly correlated sequences, which favors generalization but increases the apparent dataset. 
+
+2.4 Training and Optimization 
+
+2.4.1 Training Configuration 
+
+Training uses the Adam optimizer with learning rate 0.0005, chosen after grid search on [0.0001, 0.001] [4]. The loss function is mean squared error (MSE), adapted for temporal regression. The batch size of 16 balances gradient stability and training speed. Training is performed over 400 epochs with early stopping based on validation loss (patience 50 epochs). 
+
+2.4.2 Regularization 
+
+Besides dropout, we apply batch normalization after each dense and convolutional layer [3]. This double regularization prevents overfitting while accelerating convergence. Weights are initialized via glorot_uniform, optimal for ReLU activations. 
+
+2.4.3 Train/Validation/Test Split 
+
+Data are divided chronologically: 70% training, 15% validation, 15% test [10]. The chronological split preserves temporal distribution and avoids data leakage. Validation guides hyperparameter selection, while test evaluates final generalization. 
+
+2.5 Deployment on Edge TPU 
+
+2.5.1 TensorFlow Lite Conversion 
+
+The trained Keras model is converted to TensorFlow Lite with full integer int8 quantization [11]. This quantification reduces model size by 75% and accelerates TPU inference [12]. The quantification process uses a representative dataset to calibrate quantization scales, minimizing precision loss. 
+
+2.5.2 Edge TPU Compilation 
+
+The TFLite model is compiled for Edge TPU via the edgetpu_compiler [9]. All operations are mapped to TPU except some minor post-processing operations that execute on CPU. The Edge TPU compilation rate reaches 95%, guaranteeing maximum acceleration. 
+
+2.5.3 Deployment Infrastructure 
+
+The production system runs on Raspberry Pi 4B (8GB RAM) equipped with Google Coral USB Accelerator [9, 23]. The complete edge computing deployment architecture is illustrated in Figure 8. The PyCoral runtime manages the TPU interface. A systemd service guarantees auto-matic restart in case of error. The Streamlit dashboard offers real-time visualization accessible via web browser. 10 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+2.6 Evaluation Metrics 
+
+2.6.1 Predictive Accuracy 
+
+The main metric is Mean Absolute Percentage Error (MAPE), defined as: MAPE = 100 
+
+n
+
+> n
+
+X
+
+> i=1
+
+yactual ,i − ypredicted ,i 
+
+yactual ,i 
+
+(1) MAPE offers intuitive interpretation in percentage and is robust to scale changes [10]. We also calculate the R2 coefficient of determination to quantify explained variance. 
+
+2.6.2 Inference Performance 
+
+We measure end-to-end inference time, including feature preprocessing, TPU inference, and de-normalization [9]. The P50, P95, and P99 percentiles characterize latency distribution. Through-put in predictions per second quantifies processing capacity. 
+
+2.6.3 Resource Consumption 
+
+We monitor memory utilization (RAM), CPU occupancy rate, and processor temperature [23]. These metrics validate the viability of continuous deployment on embedded device. 
+
+2.7 Experimental Protocol 
+
+2.7.1 Baselines and Comparisons 
+
+We compare LAD-BNet to three baselines: a bidirectional LSTM (2 layers of 128 units) [3, 4], a pure TCN (V6.0 architecture without lag branch) [5], and a statistical SARIMA approach [2]. Baselines are trained on the same data with hyperparameter optimization. 
+
+2.7.2 Multi-Horizon Validation 
+
+Performance is evaluated at 5 prediction horizons: 1h, 2h, 4h, 8h, and 12h [10]. This multi-horizon evaluation reveals performance degradation with horizon, a fundamental characteristic of any predictive model [19]. 
+
+2.7.3 Reproducibility 
+
+All random seeds (numpy, tensorflow) are fixed to guarantee reproducibility. Source code, con-figurations, and (anonymized) data are available for independent replication. 11 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# 3 Results 
+
+3.1 Predictive Performance 
+
+3.1.1 Multi-Horizon MAPE 
+
+Table 1 presents LAD-BNet performance at different prediction horizons. Figure 3 visualizes the evolution of MAPE across these horizons, comparing LAD-BNet against baseline methods. Table 1: LAD-BNet V7.1 model performance across prediction horizons. 
+
+Horizon Timesteps MAPE (%) R2 Objective 
+
+1h 6 14.49 0.869 < 15% 2h 12 14.82 0.861 < 16% 4h 24 15.31 0.848 < 17% 8h 48 15.68 0.836 < 18% 12h 72 16.31 0.826 < 19% LAD-BNet achieves 14.49% MAPE at 1-hour horizon, exceeding the 15% objective [10]. Progressive degradation with horizon ( ∆ +1.82 points from 1h to 12h) demonstrates model robustness. The R2 coefficient remains above 0.82 even at 12h, indicating strong explanatory capacity. 
+
+Figure 3: Multi-horizon forecasting performance comparison. MAPE evolution across prediction horizons (1h, 2h, 4h, 8h, 12h) for LAD-BNet versus baseline methods. The horizontal dashed line at 15% indicates the target objective threshold. LAD-BNet maintains MAPE below 15% up to 4-hour horizon. 
+
+3.1.2 Comparison with Baselines 
+
+Table 2 compares LAD-BNet to competing approaches at 1-hour horizon. These comparative results are visualized in Figure 4. 12 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+Table 2: Comparison with baseline models at 1-hour horizon. 
+
+Model MAPE (%) R2 Improvement vs Baseline 
+
+SARIMA [2] 22.15 0.621 —LSTM Bidirectional [3, 4] 16.88 0.805 Baseline TCN V6.0 (pure) [5] 17.92 0.782 −6.16% 
+
+LAD-BNet V7.1 14.49 0.869 +14.16% 
+
+LAD-BNet improves MAPE by 2.39 points over LSTM baseline and 3.43 points over pure TCN. The dual-branch architecture demonstrates clear superiority over single-branch approaches. 
+
+Figure 4: Baseline comparison at 1-hour prediction horizon. Horizontal bar chart showing MAPE (%) for each model. LAD-BNet is the only model meeting the 15% target threshold. 
+
+3.1.3 Temporal Analysis of Errors 
+
+Analysis of prediction errors over a test week reveals interesting patterns [15, 16]. Errors slightly increase during weekends (MAPE ∼15.8%) compared to weekdays (MAPE ∼14.1%), reflecting more variable consumption patterns. Transition hours (7h–9h, 17h–20h) present slightly higher errors due to rapid load changes. Figure 5 provides a detailed visualization of model predictions versus actual consumption over this representative week. 
+
+3.2 Inference Performance 
+
+3.2.1 Inference Times 
+
+Table 3 details inference performance on different devices [9, 23]. The dramatic inference speedup achieved through Edge TPU acceleration is visualized in Figure 6. Edge TPU acceleration varies from 8.3 × (standard mode) to 12.5 × (max mode). The P99 latency of 28ms in standard mode guarantees the 100ms real-time constraint. Max mode further reduces latency but increases TPU temperature by 10–15°C. 13 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+Figure 5: One-week test period showing actual energy consumption versus LAD-BNet predic-tions. Blue solid line: Actual measured consumption (kW). Orange solid line: LAD-BNet 1-hour ahead predictions. Gray shaded region: 95% confidence interval. The model accurately captures daily consumption patterns. Table 3: Inference time and hardware acceleration. 
+
+Device Mean P50 P95 P99 Speedup 
+
+CPU Raspberry Pi 4B 150 ms 145 ms 180 ms 210 ms 1×
+
+Edge TPU (standard) [9] 18 ms 17 ms 23 ms 28 ms 8.3 ×
+
+Edge TPU (max) [9] 12 ms 11 ms 16 ms 20 ms 12.5 ×
+
+Figure 6: Hardware inference performance comparison. Horizontal bar chart showing mean inference latency (milliseconds) with speedup factors. Both Edge TPU modes comfortably meet real-time constraints. 14 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+3.2.2 Throughput 
+
+The system achieves a throughput of 55 predictions per second (55 Hz) in continuous mode [9]. This corresponds to 198,000 predictions per hour, far exceeding the operational need of one prediction every 10 minutes. This oversizing allows processing multiple streams in parallel or executing model ensembles [19]. 
+
+3.2.3 Resource Consumption 
+
+Table 4 quantifies system footprint [23]. Table 4: System resource utilization. 
+
+Metric Idle Inference Maximum 
+
+RAM 150 MB 180 MB 195 MB CPU < 5% 15–25% 32% CPU Temperature 45°C 52°C 58°C TPU Temperature 38°C 48°C 55°C Memory footprint remains below 200MB, compatible with the 8GB of Raspberry Pi 4B. CPU remains largely available for ancillary tasks (monitoring, dashboard). Temperatures remain within safety limits without requiring active cooling. 
+
+3.3 Scalability and Multi-Scale 
+
+3.3.1 Horizontal Scalability 
+
+Tests on multiple Raspberry Pi devices demonstrate linear scalability [23]. A cluster of 4 Pi equipped with Coral reaches 220 predictions/second with average latency maintained at 18ms. This horizontal scalability enables deployment in multi-building environments. 
+
+3.3.2 Multi-Scale Adaptability 
+
+The model adapts to different temporal resolutions via retraining [10]. Preliminary experiments at 5-minute resolution (instead of 10) maintain 15.2% MAPE at 1h horizon. At 30-minute resolution, MAPE drops to 13.1%, confirming that accuracy increases with temporal aggregation. 
+
+3.3.3 Transfer Learning 
+
+Transfer learning tests show that the model pre-trained on one building converges 3 × faster on a new building (50 epochs vs 150) [21]. Fine-tuning only the output layer reaches 92% of full model retraining performance, with only 5% of computational cost. 
+
+3.4 Ablation Analysis 
+
+3.4.1 Branch Contributions 
+
+Table 5 quantifies each branch’s contribution [5, 10]. Figure 7 provides a visual representation of these ablation results. Ablation reveals that both branches provide complementary contributions. The TCN Branch alone recovers TCN V6.0 performance, confirming that improvement comes from fusion with the Lag Branch. Dilated convolutions and dual pooling contribute marginally but significantly. 15 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+Table 5: Ablation study of architectural components. 
+
+Configuration MAPE 1h (%) ∆ vs Complete Time (ms) 
+
+LAD-BNet complete 14.49 0 18 Lag Branch Only 16.22 +1.73 12 TCN Branch Only [5] 17.92 +3.43 15 Without Dilated Conv 15.87 +1.38 16 Without Dual Pooling 15.12 +0.63 17 
+
+Figure 7: Ablation study showing contribution of each architectural component. Key finding: Both branches contribute synergistically, with explicit lag exploitation providing the largest individual contribution. 16 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+3.4.2 Feature Impact 
+
+SHAP analysis reveals that lags (kW_lag_6, kW_lag_12) contribute 35% to prediction, cyclic temporal features 25%, rolling statistics 20%, contextual features 15%, and meteorological fea-tures 5% [10]. This distribution justifies the dual-branch architecture prioritizing lags [17, 18]. 
+
+3.5 Robustness and Reliability 
+
+3.5.1 Robustness to Missing Data 
+
+Simulations with 5%, 10%, and 20% missing data (linear interpolation) increase MAPE by 0.3%, 0.8%, and 2.1% respectively [10]. The model degrades gracefully up to 10% missing data, beyond which degradation accelerates. 
+
+3.5.2 Long-Term Stability 
+
+Continuous 30-day deployment shows a MAPE drift of +0.5% compared to initial performance, attributable to evolution of consumption patterns [15]. Weekly retraining maintains performance at ±0.2% of initial level. 
+
+3.5.3 System Reliability 
+
+Over 10,000 predictions in real conditions, the success rate reaches 99.92% with 8 failures at-tributable to USB disconnections of the Coral [9]. The systemd service automatically restarts the service in less than 5 seconds after a crash, guaranteeing 99.98% availability. 17 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# 4 Discussion 
+
+4.1 Results Interpretation 
+
+4.1.1 Superiority of Dual-Branch Architecture 
+
+Results demonstrate LAD-BNet’s superiority over single-branch architectures [5, 10]. This per-formance is explained by the exploitation of two types of temporal dependencies. The Lag Branch captures strong short-term autocorrelations, a dominant phenomenon in energy series where current consumption strongly predicts immediate future consumption [17, 18]. The TCN Branch identifies recurring patterns (daily, weekly cycles) via convolutions that learn adaptive temporal filters [5]. Late fusion of representations allows optimal specialization of each branch [20]. Experiments with early fusion (concatenation before projection) degrade performance by 1.2 MAPE points, confirming the importance of hierarchical feature extraction. 
+
+4.1.2 Efficiency of Dilated Convolutions 
+
+Dilated convolutions [5] extend the receptive field without increasing the number of parameters. With a kernel of size 3 and dilation 2, the effective receptive field covers 7 time steps in a single layer. To capture 144 input steps, only 3–4 dilated layers suffice, compared to 8–10 standard convolutional layers. Dilation also preserves temporal resolution by avoiding aggressive pooling [10]. This property is crucial for energy forecasting where high-frequency variations (consumption peaks) contain important predictive information [15, 16]. 
+
+4.1.3 Quantization Impact 
+
+Int8 quantification [11] reduces model size from ∼980 KB (float32) to 271.6 KB (int8) without significant performance degradation. MAPE increases by only 0.15% after quantification, a negligible loss compared to the 8–12 × inference speed gain [9, 12]. This robustness is explained by prior feature normalization in [0,1] and the bounded nature of predictions. 
+
+4.2 Positioning Relative to Prior Work 
+
+4.2.1 Literature Comparison 
+
+The 14.49% MAPE at 1h compares favorably to recent literature on energy forecasting [13, 14]. Zhang et al. [21] report 16.2% MAPE with LSTM on similar data. Li et al. [22] achieve 15.8% with Transformer architectures but with 200ms inference time on GPU. Our approach offers a better accuracy-latency compromise suitable for edge computing [1, 23]. Specific work on edge AI for energy is rare [9]. Kumar et al. [23] deploy a quantized LSTM on Raspberry Pi with 17.5% MAPE and 80ms latency without TPU. Coral acceleration represents a significant advance for real-time applications. 
+
+4.2.2 Approach Originality 
+
+The main contribution resides in the dual-branch architecture optimized for Edge TPU [9]. To our knowledge, no prior work explicitly combines lags and TCN [5] in a unified architecture for energy edge computing. The design guided by hardware constraints (int8 quantization [11, 12], TPU-compatible operations) differentiates our approach from non-deployable academic models [21]. 18 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+4.3 Industrial Applications 
+
+4.3.1 Real-Time Energy Optimization 
+
+LAD-BNet enables implementation of demand response strategies with minimal latency [1], con-tributing to smart grid and intelligent building optimization [21, 23]. Prediction of consumption peaks 1–2h in advance authorizes preventive load shedding or energy storage activation [14]. A pilot deployment in a tertiary building reduced consumption during peak hours by 8.3% via automatic climate control adjustment based on predictions. 
+
+4.3.2 Intelligent Microgrid Management 
+
+In microgrids with renewable production [21, 23], consumption forecasting complements pro-duction forecasting to optimize supply-demand balance [13]. LAD-BNet deployed on local edge controllers avoids centralization and reduces communication delays. An experimental installation on an island microgrid improved storage utilization efficiency by 12% thanks to local predictions. 
+
+4.3.3 Predictive Maintenance 
+
+Anomalies in predictions signal potential malfunctions [15]. Real consumption systematically exceeding predictions may indicate insulation degradation or HVAC system failure. Continuous monitoring facilitates early detection of drifts before major failure. 
+
+4.3.4 Energy Market Participation 
+
+Load aggregators use consumption forecasts to optimize their offers on day-ahead and intraday markets [14]. LAD-BNet provides multi-horizon predictions (1h–12h) necessary for these appli-cations. Sub-30ms latency enables frequent recalculation of predictions for maximum reactivity to changing conditions. 
+
+4.3.5 Building Management System Integration 
+
+Deployment on Raspberry Pi [23] facilitates integration into existing intelligent building infras-tructure. LAD-BNet communicates via REST API with BMS to provide predictions consumed by HVAC, lighting, and security controllers. A BACnet integration prototype demonstrates interoperability with industrial standards. 
+
+4.4 Study Limitations 
+
+4.4.1 Generalization to Different Building Types 
+
+Experiments focus on data from a university tertiary building [15, 16]. Generalization to other typologies (residential, industrial, commercial) requires validation. Consumption patterns vary significantly between sectors, and adapted retraining may be necessary. However, our transfer learning tests suggest the architecture transposes with limited retraining [21]. 
+
+4.4.2 Dependence on Weather Forecasts 
+
+The model uses past weather measurements but not future weather forecasts [13]. Integration of weather forecasts would probably improve accuracy at long horizons ( >4h). This limitation stems from local unavailability of weather forecasts, but API integration is conceivable. 19 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+4.4.3 Limited Forecast Horizon 
+
+LAD-BNet predicts up to 12h, insufficient for certain applications (day-ahead market planning) [14]. Extension to 24–48h significantly degrades performance (MAPE > 20%) [19]. A multi-model approach with frequent readjustment could mitigate this limitation. 
+
+4.4.4 Hardware Cost 
+
+The Coral USB Accelerator (€70–80) and Raspberry Pi 4B 8GB (€80–90) represent an initial investment of approximately €150–170 per node [9, 23]. For massive deployments, this cost may be prohibitive. A cost-benefit analysis integrating energy savings is necessary to justify the investment. 
+
+4.5 Research Perspectives 
+
+4.5.1 Attention-Based Architecture 
+
+Integration of attention mechanisms [24] (self-attention, cross-attention) could improve long-term dependency modeling [22]. Specialized Transformers for time series [6, 7, 25] demonstrate remarkable performance but their computational cost remains high. A hybrid TCN-Attention architecture optimized for edge constitutes a promising path. 
+
+4.5.2 Multi-Task Learning 
+
+Extension to multi-task learning (joint prediction of electrical, thermal consumption, and renew-able production) could exploit correlations between tasks [21]. A shared encoder with specialized prediction heads would reduce total parameters while potentially improving each task. 
+
+4.5.3 Adaptive Quantization 
+
+Current quantification (uniform int8) is sub-optimal [11]. Certain critical layers would benefit from higher precision (int16) while others tolerate int4 [12]. Mixed quantification guided by sensitivity analysis would optimize the accuracy-speed compromise. 
+
+4.5.4 Federated Learning 
+
+For multi-site deployments, federated learning would enable continuous model improvement with-out data centralization [21]. Each edge node would train locally then share aggregated gradients. This approach preserves confidentiality while capitalizing on site diversity. 
+
+4.5.5 Probabilistic Forecasting 
+
+Current predictions are point forecasts. Extension to probabilistic forecasts (confidence inter-vals, quantiles) would provide crucial uncertainty information for decision-making under risky conditions [19, 26]. Bayesian architectures or model ensembles are conceivable. 
+
+4.6 Implications for Edge AI 
+
+4.6.1 Hardware-Constrained Design 
+
+The methodology demonstrates the importance of model-hardware co-design [9, 12]. LAD-BNet’s conception integrates from the origin Edge TPU constraints (supported operations, quantifica-tion). This approach contrasts with cloud training then post-hoc compression, often sub-optimal [11]. 20 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+4.6.2 Accuracy-Efficiency Tradeoff 
+
+Results quantify the fundamental accuracy-latency-memory tradeoff in edge AI [10]. LAD-BNet sacrifices 0.5–1% accuracy (vs cloud models) to gain 10 × in speed and reduce memory by 75%. This tradeoff is acceptable for the majority of real-time industrial applications [1, 23]. 
+
+4.6.3 Viability of Edge Computing for Energy 
+
+The study validates the technical and economic viability of edge computing for energy forecasting [1, 9]. The demonstrated performance (MAPE < 15%, latency < 20ms, cost < €200) opens the way to massive deployment in smart buildings and distributed smart grids [23]. 21 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# 5 Conclusions 
+
+5.1 Summary of Contributions 
+
+This research presents LAD-BNet, an innovative neural architecture for real-time energy fore-casting on edge devices [1, 9]. Our main contributions are as follows. First, we propose a dual-branch architecture combining explicit exploitation of temporal lags and dilated temporal convolutions [5]. This hybrid design simultaneously captures short and long-term dependencies, surpassing single-branch approaches by 2.39 to 3.43 MAPE points [3, 4, 10]. Second, we demonstrate the efficiency of optimized deployment on Google Coral Edge TPU [9]. Hardware acceleration of 8 to 12 times reduces latency to 18ms while maintaining a 180 MB memory footprint, compatible with embedded devices [11, 12, 23]. Third, we validate performance on real energy consumption data [13, 14]. The 14.49% MAPE at 1h horizon and controlled degradation up to 12h (16.31%) position LAD-BNet among state-of-the-art approaches for energy edge computing [15, 16]. Fourth, we provide a complete production-ready solution including data pipeline, contin-uous monitoring, alert system, and visualization dashboard. This system approach facilitates immediate industrial adoption. 
+
+5.2 Practical Impact 
+
+LAD-BNet’s industrial applications are multiple and immediate [1]. Real-time energy opti-mization enables 5–10% savings on energy costs via demand response and load shedding [14]. Intelligent microgrid management improves renewable integration and reduces need for expensive storage [13]. Predictive maintenance based on anomaly detection prevents major failures [15]. Optimized participation in energy markets increases aggregator revenues. Beyond energy, LAD-BNet demonstrates the viability of edge AI for time series [10]. The architecture potentially transposes to other domains such as network traffic forecasting, industrial production flow, or cloud service demand. 
+
+5.3 Theoretical Impact 
+
+Theoretically, this research contributes to understanding hybrid neural architectures for time series [5, 10]. The demonstration that explicit feature exploitation (lags) combined with implicit learning (convolutions) surpasses purely end-to-end approaches questions the dominant paradigm of "black-box" deep learning [4]. The quantitative study of the accuracy-efficiency tradeoff in edge computing enriches litera-ture on model-hardware co-design [9, 12]. Results suggest that architectures specifically designed for edge can equal or surpass cloud models on weighted metrics (accuracy × speed × energy ef-ficiency) [1, 23]. 
+
+5.4 Evolution Perspectives 
+
+Future developments of LAD-BNet are articulated around three axes. Architecture improvement via integration of attention mechanisms [24, 25] and multi-task learning [21] promises additional accuracy gains. Extension to probabilistic forecasts [19, 26] and federated learning will respond to critical application needs. Deployment on new-generation hardware (Coral Max, Intel Movidius Myriad X, Nvidia Jetson Nano) will explore edge AI performance limits [9]. Beyond technical improvements, validation on public datasets (UCI, IHEPC) and systematic comparison with state-of-the-art methods [6, 7, 8] will reinforce scientific robustness. Large-scale deployment in a smart city context will quantify economic and environmental impact at urban scale. 22 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+5.5 Final Conclusion 
+
+LAD-BNet demonstrates that accurate and real-time energy forecasting on edge devices is tech-nically viable and economically attractive [1, 9]. The dual-branch architecture, Edge TPU opti-mization [11, 12], and complete system solution converge to offer an immediately industrializable solution. Quantitative performance (MAPE 14.49%, latency 18ms, footprint 180 MB) positions LAD-BNet as a reference for energy edge AI [10]. The potential impact is considerable. Massive deployment of LAD-BNet in smart buildings could reduce global energy consumption by 5–10%, contributing significantly to carbon neutrality objectives [13, 14]. Decentralization of processing to edge improves energy system resilience to cyberattacks and centralized failures [23]. In conclusion, LAD-BNet represents a significant advance in the emerging field of edge AI for energy [1]. The proposed approach, combining scientific rigor and industrial pragmatism, traces the path toward intelligent, autonomous, and efficient energy systems. Future developments promise to amplify this impact, bringing closer the vision of truly distributed and reactive smart grids. 
+
+# System Architecture 
+
+The complete edge computing deployment architecture is presented in Figure 8, illustrating the end-to-end system from building sensors to applications. 
+
+Figure 8: Complete edge computing deployment architecture for LAD-BNet. The system inte-grates building sensors, edge processing on Raspberry Pi with Coral TPU, and various application interfaces including real-time dashboard, REST API, and BMS integration. 23 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# Acknowledgments 
+
+The author thanks the PIMENT Laboratory (Physics and Mathematical Engineering for Energy, Environment and Building) at the University of La Réunion for institutional support and access to research infrastructure. Special thanks to laboratory directors for encouraging this research direction in sustainable energy management. This research was conducted independently without external funding, demonstrating the feasibility of advanced AI research with limited resources (self-funded hardware: Raspberry Pi 4B, Google Coral USB Accelerator, development workstation). The author thanks the open-source communities behind TensorFlow, Keras, PyCoral, and Streamlit for providing essential tools. 24 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# References 
+
+[1] S. Kumar, R. Singh, and M. Patel. Edge computing for real-time energy management: A comprehensive review. Journal of Ambient Intelligence and Smart Environments , 14:145– 162, 2022. [2] G. E. Box, G. M. Jenkins, G. C. Reinsel, and G. M. Ljung. Time Series Analysis: Forecasting and Control . John Wiley & Sons, Hoboken, NJ, USA, 5th edition, 2015. [3] S. Hochreiter and J. Schmidhuber. Long short-term memory. Neural Computation ,9(8):1735–1780, 1997. [4] H. Hewamalage, C. Bergmeir, and K. Bandara. Recurrent neural networks for time series forecasting: Current status and future directions. International Journal of Forecasting ,37(1):388–427, 2021. [5] S. Bai, J. Z. Kolter, and V. Koltun. An empirical evaluation of generic convolutional and recurrent networks for sequence modeling. arXiv preprint arXiv:1803.01271 , 2018. [6] H. Zhou, S. Zhang, J. Peng, S. Zhang, J. Li, H. Xiong, and W. Zhang. Informer: Beyond efficient transformer for long sequence time-series forecasting. In Proceedings of the AAAI Conference on Artificial Intelligence , volume 35, pages 11106–11115, 2021. [7] H. Wu, J. Xu, J. Wang, and M. Long. Autoformer: Decomposition transformers with auto-correlation for long-term series forecasting. Advances in Neural Information Processing Systems , 34:22419–22430, 2021. [8] B. N. Oreshkin, D. Carpov, N. Chapados, and Y. Bengio. N-BEATS: Neural basis expansion analysis for interpretable time series forecasting. arXiv preprint arXiv:1905.10437 , 2019. [9] Google Coral Team. Edge TPU performance benchmarks. Technical report, Google, Moun-tain View, CA, USA, 2025. [10] B. Lim and S. Zohren. Time-series forecasting with deep learning: A survey. Philosophical Transactions of the Royal Society A , 379(2194):20200209, 2021. [11] B. Jacob, S. Kligys, B. Chen, M. Zhu, M. Tang, A. Howard, H. Adam, and D. Kalenichenko. Quantization and training of neural networks for efficient integer-arithmetic-only inference. In Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition , pages 2704–2713, Salt Lake City, UT, USA, 2018. [12] S. Han, H. Mao, and W. J. Dally. Deep compression: Compressing deep neural networks with pruning, trained quantization and Huffman coding. arXiv preprint arXiv:1510.00149 ,2015. [13] T. Ahmad, H. Chen, Y. Guo, and J. Wang. A comprehensive overview on the data driven and large scale based approaches for forecasting of building energy demand: A review. 
+
+Energy and Buildings , 165:301–320, 2018. [14] M. Q. Raza and A. Khosravi. A review on artificial intelligence based load demand forecast-ing techniques for smart grid and buildings. Renewable and Sustainable Energy Reviews ,50:1352–1372, 2015. [15] E. Mocanu, P. H. Nguyen, M. Gibescu, and W. L. Kling. Deep learning for estimating building energy consumption. Sustainable Energy, Grids and Networks , 6:91–99, 2016. 25 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+[16] D. L. Marino, K. Amarasinghe, and M. Manic. Building energy load forecasting using deep neural networks. In Proceedings of IECON 2016—42nd Annual Conference of the IEEE Industrial Electronics Society , pages 7046–7051, Florence, Italy, 2016. [17] W. Kong, Z. Y. Dong, Y. Jia, D. J. Hill, Y. Xu, and Y. Zhang. Short-term residential load forecasting based on LSTM recurrent neural network. IEEE Transactions on Smart Grid ,10(1):841–851, 2019. [18] S. Bouktif, A. Fiaz, A. Ouni, and M. A. Serhani. Optimal deep learning LSTM model for electric load forecasting using feature selection and genetic algorithm: Comparison with machine learning approaches. Energies , 11(7):1636, 2018. [19] D. Salinas, V. Flunkert, J. Gasthaus, and T. Januschowski. DeepAR: Probabilistic forecast-ing with autoregressive recurrent networks. International Journal of Forecasting , 36(3):1181– 1191, 2020. [20] Y. Qin, D. Song, H. Chen, W. Cheng, G. Jiang, and G. Cottrell. A dual-stage attention-based recurrent neural network for time series prediction. arXiv preprint arXiv:1704.02971 ,2017. [21] Y. Zhang, J. Wang, and X. Chen. Deep learning for energy consumption prediction in smart buildings. IEEE Transactions on Industrial Informatics , 16(6):4145–4155, 2020. [22] W. Li, H. Zhao, and L. Zhang. Transformer-based energy forecasting with multi-scale attention. Applied Energy , 295:117045, 2021. [23] S. Kumar, R. Singh, and M. Patel. Edge computing for real-time energy management: A Raspberry Pi implementation. Journal of Ambient Intelligence and Smart Environments ,14:145–162, 2022. [24] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit, L. Jones, A. N. Gomez, Ł. Kaiser, and I. Polosukhin. Attention is all you need. Advances in Neural Information Processing Systems ,30:5998–6008, 2017. [25] Q. Wen, T. Zhou, C. Zhang, W. Chen, Z. Ma, J. Yan, and L. Sun. Transformers in time series: A survey. arXiv preprint arXiv:2202.07125 , 2022. [26] J. Gasthaus, K. Benidis, Y. Wang, S. S. Rangapuram, D. Salinas, V. Flunkert, and T. Januschowski. Probabilistic forecasting with spline quantile function RNNs. In Pro-ceedings of the 22nd International Conference on Artificial Intelligence and Statistics (AIS-TATS) , pages 1901–1910, Naha, Okinawa, Japan, 2019. 26 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# A Detailed Technical Specifications 
+
+A.1 Development Hardware (Training) 
+
+• CPU: 13th Gen Intel(R) Core(TM) i5-13400F @ 4.0 GHz (10 cores, 16 threads) • RAM: 64 GB DDR4-3200 • GPU: NVIDIA GeForce RTX 4070 (12 GB VRAM) • Storage: SSD NVMe KINGSTON SNV2S1000G (1 TB) + FIKWOT FX660 (2 TB) • OS: Ubuntu 20.04 LTS • CUDA: 11.2, cuDNN: 8.1 • TensorFlow: 2.8.0 
+
+A.2 Production Hardware (Edge Inference) 
+
+• SBC: Raspberry Pi 4 Model B • RAM: 8 GB LPDDR4-3200 • CPU: Broadcom BCM2711 quad-core Cortex-A72 @ 1.5 GHz • TPU: Google Coral USB Accelerator • Storage: SD Card SanDisk Extreme PRO 64 GB (UHS-I, U3, V30) • Power: 5V 3A USB-C official power supply • Cooling: Aluminum heatsinks + 5V fan • OS: Raspberry Pi OS Lite 64-bit (Debian Bullseye) • Python: 3.9.2 • TensorFlow Lite: 2.8.0 • PyCoral: 2.0.0 
+
+# B Optimized Hyperparameters 
+
+Final configuration obtained after grid search on 128 tested configurations. Optimization metric is MAPE on validation set. Quantization parameters: Type int8 full integer, representative dataset of 1000 samples, quantization-aware training not used (post-training quantization). 
+
+# C Dataset Characteristics 
+
+Source: Energy monitoring system of IUT Réunion building. 27 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+Table 6: LAD-BNet V7.1 model hyperparameters. 
+
+Hyperparameter Optimal Value Alternatives Tested 
+
+Learning rate 0.0005 0.0001, 0.001, 0.002 Batch size 16 8, 32, 64 Dropout rate 0.1 0.0, 0.2, 0.3 Conv1D filters (1) 64 32, 128 Conv1D filters (2) 64 32, 128 Conv1D filters (dilated) 128 64, 256 Dense units (lag 1) 256 128, 512 Dense units (lag 2) 128 64, 256 Dense units (fusion 1) 256 128, 512 Dense units (fusion 2) 128 64, 256 Dilation rate 2 1, 4, 8 Kernel size 3 5, 7 Epochs 400 Early stopping (patience 50) Optimizer Adam RMSprop, SGD Table 7: Main dataset characteristics. 
+
+Characteristic Value 
+
+Period January 2023 – September 2024 (21 months) Temporal resolution 10 minutes Total number of records 90,720 Raw variables datetime, DBT (°C), RH (%), kW Missing data rate 0.8% Imputation method Linear interpolation Training split 63,504 samples (70%) Validation split 13,608 samples (15%) Test split 13,608 samples (15%) Table 8: Descriptive statistics of raw variables. 
+
+Variable Min Max Mean Std Dev Median 
+
+DBT (°C) 15.2 32.8 24.3 3.7 24.1 RH (%) 32.0 95.0 68.5 12.3 70.0 kW 8.2 187.3 65.4 28.9 62.1 28 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# D Complete Feature List (28) 
+
+Target (1): kW — Energy consumption 
+
+Meteorological (2): DBT — Dry bulb temperature (°C), RH — Relative humidity (%) 
+
+Temporal cyclical (6): hour_sin, hour_cos, month_sin, month_cos, dayofweek_sin, day-ofweek_cos 
+
+Contextual (6): weekend, is_holiday, is_business_hours, is_night, is_morning_peak, is_evening_peak 
+
+Lags (5): kW_lag_6, kW_lag_12, kW_lag_24, kW_lag_72, kW_lag_144 
+
+Rolling statistics (6): kW_rolling_mean_6, kW_rolling_mean_12, kW_rolling_mean_24, kW_rolling_std_12, kW_rolling_max_24, kW_rolling_min_24 
+
+Interaction (1): temp_humidity_interaction — DBT × RH / 100 
+
+Total: 28 features (27 input + 1 target) 29 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# E Model Architecture (Keras Notation)  
+
+> 1
+
+from tensorflow . keras import Model , Input  
+
+> 2
+
+from tensorflow . keras . layers import ( Dense , Conv1D , Concatenate , Flatten , 
+
+> 3
+
+Lambda , BatchNormalization , Dropout ,  
+
+> 4
+
+GlobalAveragePooling1D , GlobalMaxPooling1D )  
+
+> 56
+
+# Input : ( batch , 144 timesteps , 27 features )  
+
+> 7
+
+inputs = Input ( shape =(144 , 27) , name = ’ input_sequence ’)  
+
+> 89
+
+# === BRANCH 1: LAG BRANCH ===  
+
+> 10
+
+lag_input = Lambda ( lambda x : x [: , -24: , :]) ( inputs ) # Last 24 steps  
+
+> 11
+
+lag_flat = Flatten () ( lag_input )  
+
+> 12
+
+lag_d1 = Dense (256 , activation = ’ relu ’) ( lag_flat )  
+
+> 13
+
+lag_bn1 = BatchNormalization () ( lag_d1 )  
+
+> 14
+
+lag_drop1 = Dropout (0.1) ( lag_bn1 )  
+
+> 15
+
+lag_d2 = Dense (128 , activation = ’ relu ’) ( lag_drop1 )  
+
+> 16
+
+lag_bn2 = BatchNormalization () ( lag_d2 )  
+
+> 17
+
+lag_out = Dropout (0.1) ( lag_bn2 )  
+
+> 18 19
+
+# === BRANCH 2: TCN BRANCH ===  
+
+> 20
+
+tcn_c1 = Conv1D (64 , 3 , padding = ’ causal ’ , activation = ’ relu ’) ( inputs )  
+
+> 21
+
+tcn_bn1 = BatchNormalization () ( tcn_c1 )  
+
+> 22
+
+tcn_drop1 = Dropout (0.1) ( tcn_bn1 )  
+
+> 23
+
+tcn_c2 = Conv1D (64 , 3 , padding = ’ causal ’ , activation = ’ relu ’) ( tcn_drop1 )  
+
+> 24
+
+tcn_bn2 = BatchNormalization () ( tcn_c2 )  
+
+> 25
+
+tcn_drop2 = Dropout (0.1) ( tcn_bn2 )  
+
+> 26
+
+tcn_dilated = Conv1D (128 , 3 , padding = ’ causal ’ , dilation_rate =2 ,  
+
+> 27
+
+activation = ’ relu ’) ( tcn_drop2 )  
+
+> 28
+
+tcn_bn3 = BatchNormalization () ( tcn_dilated )  
+
+> 29
+
+tcn_drop3 = Dropout (0.1) ( tcn_bn3 )  
+
+> 30
+
+tcn_avg = GlobalAveragePooling1D () ( tcn_drop3 )  
+
+> 31
+
+tcn_max = GlobalMaxPooling1D () ( tcn_drop3 )  
+
+> 32
+
+tcn_out = Concatenate () ([ tcn_avg , tcn_max ])  
+
+> 33 34
+
+# === FUSION MODULE ===  
+
+> 35
+
+merged = Concatenate () ([ lag_out , tcn_out ])  
+
+> 36
+
+fus_d1 = Dense (256 , activation = ’ relu ’) ( merged )  
+
+> 37
+
+fus_bn1 = BatchNormalization () ( fus_d1 )  
+
+> 38
+
+fus_drop1 = Dropout (0.1) ( fus_bn1 )  
+
+> 39
+
+fus_d2 = Dense (128 , activation = ’ relu ’) ( fus_drop1 )  
+
+> 40
+
+fus_drop2 = Dropout (0.1) ( fus_d2 )  
+
+> 41
+
+outputs = Dense (72 , name = ’ output_predictions ’) ( fus_drop2 )  
+
+> 42 43
+
+# Final model  
+
+> 44
+
+model = Model ( inputs = inputs , outputs = outputs , name = ’ LAD_BNet ’)  
+
+> 45
+
+model . compile ( optimizer = ’ adam ’ , loss = ’ mse ’ , metrics =[ ’ mae ’ , ’ mape ’ ])  
+
+> 46 47
+
+# Total parameters : ~245 ,000  
+
+> 48
+
+# Size float32 : ~980 KB  
+
+> 49
+
+# Size int8 quantized : 271.6 KB 
+
+Listing 1: LAD-BNet Architecture in Python/Keras (simplified) 30 LAD-BNet: Energy Forecasting on Edge Devices arXiv:2511.10680v2 
+
+# F Availability and License 
+
+F.1 Article License 
+
+This article is published under Creative Commons Attribution 4.0 International (CC-BY 4.0). 
+
+https://creativecommons.org/licenses/by/4.0/ 
+
+This license allows you to: • Share — copy and redistribute the material in any medium or format • Adapt — remix, transform, and build upon the material for any purpose Under the following terms: • Attribution — You must give appropriate credit and indicate if changes were made 
+
+F.2 Source Code License 
+
+Source code: MIT License 
+
+Availability: 
+
+• Source code: Available upon request (GitHub repository in preparation) • Pre-trained models: Available upon request for academic research • Datasets: Anonymized data available upon request (GDPR compliant) • Complete technical documentation: Included with source code 
+
+Contact: jean-philippe.lignier@tangibleassets.org 
+
+— End of Document — 
+
+Word count: ∼15,000 | Sections: 5 + Appendices A–F | Tables: 12 | Figures: 8 | References: 26 © 2025 J.-Ph. Lignier. Licensed under CC-BY 4.0. 31

@@ -1,0 +1,169 @@
+{
+  "date": "20251021-20261020",
+  "date_label": "2025-10-21 ～ 2026-10-20",
+  "generated_at": "2026-10-21T13:25:26.934300+00:00",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2610.20136v1",
+      "route": "20251021-20261020/2610.20136v1",
+      "title": "Seeing at the Edge: Energy Characterization of Vision-Language Model Inference on Edge Platforms",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "coral-npu"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "为Coral NPU等边缘加速器上的VLM推理能效与部署选型提供实测参考。",
+      "first_seen_at": "2026-10-21T13:25:26.934300+00:00",
+      "updated_at": "2026-10-21T13:25:26.934300+00:00"
+    },
+    {
+      "paper_id": "2610.07191v1",
+      "route": "20251021-20261020/2610.07191v1",
+      "title": "Agentic Design Space Exploration for Joint Hardware Configuration Selection and Mapping of AI Inference Workloads on Heterogeneous Edge SoCs",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "coral-npu"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向异构边缘SoC的AI推理联合映射与配置，属NPU相关设计空间探索专题。",
+      "first_seen_at": "2026-10-21T13:25:26.921398+00:00",
+      "updated_at": "2026-10-21T13:25:26.921398+00:00"
+    },
+    {
+      "paper_id": "2608.00078v1",
+      "route": "20251021-20261020/2608.00078v1",
+      "title": "Device-First Feedback: Toward Mobile-Native LLM-Driven Neural Architecture Search",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "coral-npu"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向移动NPU部署的LLM驱动NAS闭环，强调INT8导出与真机延迟门控，与专题的端侧部署评测相关。",
+      "first_seen_at": "2026-10-21T13:25:26.908714+00:00",
+      "updated_at": "2026-10-21T13:25:26.908714+00:00"
+    },
+    {
+      "paper_id": "2606.02894v2",
+      "route": "20251021-20261020/2606.02894v2",
+      "title": "Tiny Collaborative Inference for Occlusion-Robust Object Detection",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "coral-npu"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向Coral Dev Board Micro等超低端边缘设备的协同推理与遮挡鲁棒检测，涉及Coral NPU相关硬件部署。",
+      "first_seen_at": "2026-10-21T13:25:26.896133+00:00",
+      "updated_at": "2026-10-21T13:25:26.896133+00:00"
+    },
+    {
+      "paper_id": "2603.28405v1",
+      "route": "20251021-20261020/2603.28405v1",
+      "title": "EdgeDiT: Hardware-Aware Diffusion Transformers for Efficient On-Device Image Generation",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "coral-npu"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向移动NPU的DiT硬件感知剪枝与端侧图像生成优化，与边缘NPU部署专题相关。",
+      "first_seen_at": "2026-10-21T13:25:26.882591+00:00",
+      "updated_at": "2026-10-21T13:25:26.882591+00:00"
+    },
+    {
+      "paper_id": "2603.23640v2",
+      "route": "20251021-20261020/2603.23640v2",
+      "title": "LLM Inference at the Edge: Mobile, NPU, and GPU Performance Efficiency Trade-offs Under Sustained Load",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "coral-npu"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "为NPU专题提供端侧持续推理的跨平台实测，揭示散热与内存带宽等部署瓶颈。",
+      "first_seen_at": "2026-10-21T13:25:26.868166+00:00",
+      "updated_at": "2026-10-21T13:25:26.868166+00:00"
+    },
+    {
+      "paper_id": "2602.17808v2",
+      "route": "20251021-20261020/2602.17808v2",
+      "title": "Collaborative Processing for Multi-Tenant Inference on Memory-Constrained Edge TPUs",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "coral-npu"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向内存受限Edge TPU的多租户协同推理优化，与边缘AI加速器资源调度专题相关。",
+      "first_seen_at": "2026-10-21T13:25:26.856062+00:00",
+      "updated_at": "2026-10-21T13:25:26.856062+00:00"
+    },
+    {
+      "paper_id": "2512.06177v1",
+      "route": "20251021-20261020/2512.06177v1",
+      "title": "From PyTorch to Calyx: An Open-Source Compiler Toolchain for ML Accelerators",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "coral-npu"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "为Coral NPU等ML加速器提供从PyTorch到可综合硬件的开源编译路径参考。",
+      "first_seen_at": "2026-10-21T13:25:26.844185+00:00",
+      "updated_at": "2026-10-21T13:25:26.844185+00:00"
+    },
+    {
+      "paper_id": "2512.02924v3",
+      "route": "20251021-20261020/2512.02924v3",
+      "title": "AutoNeural: Co-Designing Vision-Language Models for NPU Inference",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "coral-npu"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向NPU推理的视觉语言模型协同设计，属NPU软硬件协同与边缘多模态推理专题。",
+      "first_seen_at": "2026-10-21T13:25:26.832824+00:00",
+      "updated_at": "2026-10-21T13:25:26.832824+00:00"
+    },
+    {
+      "paper_id": "2511.10680v2",
+      "route": "20251021-20261020/2511.10680v2",
+      "title": "LAD-BNet: Lag-Aware Dual-Branch Networks for Real-Time Energy Forecasting on Edge Devices",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "coral-npu"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "面向Coral NPU边缘部署的实时能耗预测双分支网络，属边缘AI时序建模专题。",
+      "first_seen_at": "2026-10-21T13:25:26.820725+00:00",
+      "updated_at": "2026-10-21T13:25:26.820725+00:00"
+    }
+  ]
+}
