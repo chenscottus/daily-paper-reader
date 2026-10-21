@@ -1,0 +1,25 @@
+{
+  "date": "20261021",
+  "date_label": "",
+  "generated_at": "2026-10-21 22:42:59 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2610.24161v2",
+      "route": "202610/21/2610.24161v2-torchtpu---a-hybrid-eagercompiled-architecture-for-native-pytorch-execution-on-tpu",
+      "title": "TorchTPU - A Hybrid Eager/Compiled Architecture for Native PyTorch Execution on TPU",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "mlir-iree"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "为TPU生成硬件加速的原生编译器后端",
+      "first_seen_at": "2026-10-21 22:42:59 UTC",
+      "updated_at": "2026-10-21 22:42:59 UTC"
+    }
+  ]
+}

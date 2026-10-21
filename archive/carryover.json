@@ -1,20 +1,25 @@
 {
-  "generated_at": "2026-10-21T06:07:27.786505+00:00",
-  "updated_date": "20260922-20261021",
+  "generated_at": "2026-10-21T22:42:49.072065+00:00",
+  "updated_date": "20261021",
   "carryover_days": 9,
   "tag_states": {
     "mlir-iree": {
-      "updated_date": "20261020",
+      "updated_date": "20261021",
       "carryover_days": 9,
       "items": []
     },
     "liteRT": {
-      "updated_date": "20260922-20261021",
+      "updated_date": "20261021",
       "carryover_days": 9,
       "items": []
     },
     "litert-ops": {
-      "updated_date": "20260922-20261021",
+      "updated_date": "20261021",
+      "carryover_days": 9,
+      "items": []
+    },
+    "coral-npu": {
+      "updated_date": "20261021",
       "carryover_days": 9,
       "items": []
     }

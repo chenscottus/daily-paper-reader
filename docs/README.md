@@ -48,17 +48,17 @@
 <section class="dpr-home-dashboard-card dpr-home-report-card">
   <div class="dpr-home-dashboard-header">
     <div>
-      <span class="dpr-home-dashboard-kicker">2026-09-22 ~ 2026-10-21</span>
+      <span class="dpr-home-dashboard-kicker">2026-10-21</span>
       <h3 class="dpr-home-dashboard-title">今日汇总</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">共 7 篇</strong>
+    <strong class="dpr-home-dashboard-count">共 1 篇</strong>
   </div>
   <dl class="dpr-home-dashboard-stats">
     <div class="dpr-home-dashboard-stat"><dt>累计更新</dt><dd>1 次</dd></div>
-    <div class="dpr-home-dashboard-stat"><dt>精读</dt><dd>1</dd></div>
-    <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>6</dd></div>
+    <div class="dpr-home-dashboard-stat"><dt>精读</dt><dd>0</dd></div>
+    <div class="dpr-home-dashboard-stat"><dt>速读</dt><dd>1</dd></div>
   </dl>
-  <p class="dpr-home-dashboard-body">最近更新：2026-10-21 06:09:46 UTC<br>状态：成功</p>
+  <p class="dpr-home-dashboard-body">最近更新：2026-10-21 22:42:59 UTC<br>状态：成功</p>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-brief-card">
   <div class="dpr-home-dashboard-header">
@@ -69,7 +69,9 @@
     <strong class="dpr-home-dashboard-count">AI</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<p>本期精选7篇边缘AI论文，唯一精读是8.0分的《I-Parakeet: Integer-Only Conformer ASR on Mobile NPU》，聚焦纯整数量化Conformer在移动NPU上的ASR落地。最值得关注端侧语音的低比特整数推理，以及面向嵌入式语音增强与定制DNN加速器的协同设计。普通读者可先读精读篇，把握移动NPU整数化ASR的关键约束，再按需扫读速读篇。</p>
+<p>今日速读 1 篇，聚焦 TorchTPU 如何在 TPU 上原生执行 PyTorch。</p>
+<p>最值得看的是它“混合 eager/编译”的架构思路，适合关注 PyTorch 跨硬件落地的人。</p>
+<p>这篇 6.0 分属中等，普通读者可先看摘要和架构图，再判断是否与自己的训练或部署场景相关。</p>
   </div>
 </section>
 <section class="dpr-home-dashboard-card dpr-home-deep-card">
@@ -78,12 +80,12 @@
       <span class="dpr-home-dashboard-kicker">今日累计</span>
       <h3 class="dpr-home-dashboard-title">精读推荐</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">1 篇</strong>
+    <strong class="dpr-home-dashboard-count">0 篇</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="I-Parakeet: Integer-Only Conformer ASR on Mobile NPU">I-Parakeet: Integer-Only Conformer ASR on Mobile NPU</span></li></ul>
+<p class="dpr-home-dashboard-empty">今日暂无推荐。</p>
   </div>
-  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">litert-ops <strong>1</strong></span></div>
+
 </section>
 <section class="dpr-home-dashboard-card dpr-home-skim-card">
   <div class="dpr-home-dashboard-header">
@@ -91,12 +93,12 @@
       <span class="dpr-home-dashboard-kicker">今日累计</span>
       <h3 class="dpr-home-dashboard-title">速读推荐</h3>
     </div>
-    <strong class="dpr-home-dashboard-count">6 篇</strong>
+    <strong class="dpr-home-dashboard-count">1 篇</strong>
   </div>
   <div class="dpr-home-dashboard-body">
-<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="Beyond Model Size: Redesigning LiSenNet for embedded speech enhancement">Beyond Model Size: Redesigning LiSenNet for embedded speech enhancement</span></li><li><span class="dpr-home-dashboard-paper-title" title="Compiling Multi-Threshold Operators for Quantized Non-Monotonic and Fine-Granular Activations in Custom-Tailored DNN Accelerators">Compiling Multi-Threshold Operators for Quantized Non-Monotonic and Fine-Granular Activations in Custom-Tailored DNN Accelerators</span></li><li><span class="dpr-home-dashboard-paper-title" title="EdgeKernelBench: Unified LLM-Driven Kernel Generation for Edge Backends">EdgeKernelBench: Unified LLM-Driven Kernel Generation for Edge Backends</span></li></ul>
+<ul class="dpr-home-dashboard-paper-list"><li><span class="dpr-home-dashboard-paper-title" title="TorchTPU - A Hybrid Eager/Compiled Architecture for Native PyTorch Execution on TPU">TorchTPU - A Hybrid Eager/Compiled Architecture for Native PyTorch Execution on TPU</span></li></ul>
   </div>
-  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">litert-ops <strong>6</strong></span></div>
+  <div class="dpr-home-dashboard-tags"><span class="dpr-home-dashboard-tag">mlir-iree <strong>1</strong></span></div>
 </section>
 </div>
 

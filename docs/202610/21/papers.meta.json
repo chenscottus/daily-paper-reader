@@ -1,0 +1,24 @@
+{
+  "label": "2026-10-21",
+  "date": "2026-10-21",
+  "generated_at": "2026-10-21T22:43:01",
+  "count": 1,
+  "papers": [
+    {
+      "paper_id": "202610/21/2610.24161v2-torchtpu---a-hybrid-eagercompiled-architecture-for-native-pytorch-execution-on-tpu",
+      "section": "quick",
+      "title_en": "TorchTPU - A Hybrid Eager/Compiled Architecture for Native PyTorch Execution on TPU",
+      "authors": "Claudio Basile, Michael Voznesensky, Gunhyun Park, Ben Wilson, Parker Holloway, Zhanyong Wan, Vlad Belous, Manish Khanna, Paul Ganssle, Kevin Gleason, Andrew Dame, Brendan Folie, Bhavya Bahl, Haifeng Jin, Pedro Goncalves Mokarzel, Arian Arfaian, Luke Boyer, Chi Zhang, Yiling Yuan, Adam Mainz, Aditya Patel, Huangze Tang, Jay Gan, Lizzie Liang, Will Froom, Tushar Agarwal, Karlo Basioli, Theotime Combes, Emilio Cota, Minos Papadopoulos, Tudor Pipernea, Yarong Mu, Qi Zhou, Yaoshiang Ho, Aleksey Vlasenko, Alexander Brauckmann, Ziyin Huang, Jack Oh, Jerry Hsu, Tanvi Bajpai, Jialei Chen, Wenjun Gu, Chintan Shah, Chris Chan, Sayce Falk, Chris Jones, Rob Torres, Kat Ko, Lee Howes, Freya Azad, Andi Gavrilescu, Joe Pamer, Bill Jia",
+      "date": "2026-10-16",
+      "pdf": "https://arxiv.org/pdf/2610.24161v2",
+      "score": "6.0",
+      "evidence": "为TPU生成硬件加速的原生编译器后端",
+      "tldr": "PyTorch 模型迁移到 Google TPU 一直缺少原生、开箱即用的官方后端，导致部署与调优成本高。TorchTPU 由 Google 与 Meta 开源协作推出，作为面向 TPU 的原生 PyTorch 后端，融合即时执行优化、torch.compile 集成与硬件原生加速。该架构支持模型无缝运行与迁移，并提供具备行业竞争力的推理与训练性能。它为 TPU 生态补上了原则化、易用的 PyTorch 执行路径。",
+      "tags": "query:mlir-iree",
+      "abstract_en": "TorchTPU is an open-source collaboration between Google and Meta that introduces a native and principled PyTorch backend for Google TPUs. It enables seamless out-of-the-box model execution and TPU migration while delivering industry-competitive inference and training performance through eager execution optimizations, torch.compile integration, and native hardware acceleration.",
+      "source": "arxiv",
+      "selection_source": "fresh_fetch"
+    }
+  ],
+  "errors": []
+}
