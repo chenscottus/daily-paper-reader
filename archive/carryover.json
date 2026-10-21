@@ -1,10 +1,20 @@
 {
-  "generated_at": "2026-10-20T22:35:02.639047+00:00",
-  "updated_date": "20261020",
+  "generated_at": "2026-10-21T06:07:27.786505+00:00",
+  "updated_date": "20260922-20261021",
   "carryover_days": 9,
   "tag_states": {
     "mlir-iree": {
       "updated_date": "20261020",
+      "carryover_days": 9,
+      "items": []
+    },
+    "liteRT": {
+      "updated_date": "20260922-20261021",
+      "carryover_days": 9,
+      "items": []
+    },
+    "litert-ops": {
+      "updated_date": "20260922-20261021",
       "carryover_days": 9,
       "items": []
     }

@@ -1,0 +1,121 @@
+{
+  "date": "20260922-20261021",
+  "date_label": "2026-09-22 ~ 2026-10-21",
+  "generated_at": "2026-10-21 06:09:46 UTC",
+  "recommend_exists": true,
+  "run_count": 1,
+  "papers": [
+    {
+      "paper_id": "2609.30846v1",
+      "route": "20260922-20261021/2609.30846v1-i-parakeet-integer-only-conformer-asr-on-mobile-npu",
+      "title": "I-Parakeet: Integer-Only Conformer ASR on Mobile NPU",
+      "section": "deep",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "litert-ops"
+        }
+      ],
+      "score": 8.0,
+      "evidence": "纯整数量化算子实现，完全运行于移动NPU且无浮点回退",
+      "first_seen_at": "2026-10-21 06:09:46 UTC",
+      "updated_at": "2026-10-21 06:09:46 UTC"
+    },
+    {
+      "paper_id": "2609.29866v1",
+      "route": "20260922-20261021/2609.29866v1-beyond-model-size-redesigning-lisennet-for-embedded-speech-enhancement",
+      "title": "Beyond Model Size: Redesigning LiSenNet for embedded speech enhancement",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "litert-ops"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "重设计算子以适配微控制器NPU受限的整数量化算子集",
+      "first_seen_at": "2026-10-21 06:09:46 UTC",
+      "updated_at": "2026-10-21 06:09:46 UTC"
+    },
+    {
+      "paper_id": "2610.21825v1",
+      "route": "20260922-20261021/2610.21825v1-compiling-multi-threshold-operators-for-quantized-non-monotonic-and-fine-granular-activations-in-custom-tailored-dnn-accelerators",
+      "title": "Compiling Multi-Threshold Operators for Quantized Non-Monotonic and Fine-Granular Activations in Custom-Tailored DNN Accelerators",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "litert-ops"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "将量化激活算子编译为多阈值硬件内核",
+      "first_seen_at": "2026-10-21 06:09:46 UTC",
+      "updated_at": "2026-10-21 06:09:46 UTC"
+    },
+    {
+      "paper_id": "2610.24648v1",
+      "route": "20260922-20261021/2610.24648v1-edgekernelbench-unified-llm-driven-kernel-generation-for-edge-backends",
+      "title": "EdgeKernelBench: Unified LLM-Driven Kernel Generation for Edge Backends",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "litert-ops"
+        }
+      ],
+      "score": 7.0,
+      "evidence": "面向异构边缘后端的统一中间表示与算子内核生成基准",
+      "first_seen_at": "2026-10-21 06:09:46 UTC",
+      "updated_at": "2026-10-21 06:09:46 UTC"
+    },
+    {
+      "paper_id": "2609.29067v1",
+      "route": "20260922-20261021/2609.29067v1-tilebench-a-controlled-benchmark-for-performance-evaluation-and-bottleneck-diagnosis-of-tile-based-programming-models",
+      "title": "TileBench: A Controlled Benchmark for Performance Evaluation and Bottleneck Diagnosis of Tile-Based Programming Models",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "litert-ops"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "在统一算子语义下对45个算子进行内核性能评估与瓶颈诊断",
+      "first_seen_at": "2026-10-21 06:09:46 UTC",
+      "updated_at": "2026-10-21 06:09:46 UTC"
+    },
+    {
+      "paper_id": "2610.02241v1",
+      "route": "20260922-20261021/2610.02241v1-hardware-native-joint-sparse-quantization-for-trillion-scale-mixture-of-experts",
+      "title": "Hardware-Native Joint Sparse-Quantization for Trillion-Scale Mixture-of-Experts",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "litert-ops"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "将专家权重压缩为硬件原生低精度稀疏表示并在稀疏张量核上执行",
+      "first_seen_at": "2026-10-21 06:09:46 UTC",
+      "updated_at": "2026-10-21 06:09:46 UTC"
+    },
+    {
+      "paper_id": "2610.07742v1",
+      "route": "20260922-20261021/2610.07742v1-cleave-scaling-tensor-program-optimization-via-decoupled-algebraic-search-and-operator-scheduling",
+      "title": "Cleave: Scaling Tensor Program Optimization via Decoupled Algebraic Search and Operator Scheduling",
+      "section": "quick",
+      "tags": [
+        {
+          "kind": "query",
+          "label": "litert-ops"
+        }
+      ],
+      "score": 6.0,
+      "evidence": "通过算子调度与图变换生成融合优化内核的机器学习编译器",
+      "first_seen_at": "2026-10-21 06:09:46 UTC",
+      "updated_at": "2026-10-21 06:09:46 UTC"
+    }
+  ]
+}

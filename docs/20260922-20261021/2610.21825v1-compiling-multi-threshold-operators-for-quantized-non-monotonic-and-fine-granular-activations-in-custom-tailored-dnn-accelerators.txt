@@ -1,0 +1,1245 @@
+Compiling Multi-Threshold Operators for Quantized
+Non-Monotonic and Fine-Granular Activations in
+Custom-Tailored DNN Accelerators
+Christoph Berganski
+Computer Engineering Group
+Paderborn University
+Paderborn, Germany
+christoph.berganski@upb.de
+Felix Jentzsch
+Computer Engineering Group
+Paderborn University
+Paderborn, Germany
+felix.jentzsch@upb.de
+Marco Platzner
+Computer Engineering Group
+Paderborn University
+Paderborn, Germany
+platzner@upb.de
+Abstract—Aggressive quantization of neural networks can
+expose activation functions as bottlenecks for efficient hard-
+ware acceleration. Implementing quantized activations as multi-
+threshold operations has been shown to be a promising opti-
+mization, allowing for efficient hardware implementation of few-
+bit activations. However, current implementations are limited to
+monotonically increasing functions, quantization schemes with
+one-dimensional (per-channel) granularity and a small set of
+predefined activation-quantizer combinations. We formalize the
+multi-threshold representation to extend it to non-monotonic
+functions and fine-granular parameters, i.e., multi-dimensional
+thresholds. For automated conversion of quantized function
+compositions into threshold representation, we propose a sys-
+tematic approach via algebraic rules integrated into the ONNX-
+based compiler infrastructure. We experimentally validate our
+solution on a selection of monotonic and non-monotonic functions
+by extending the binary search based multi-threshold operator
+that is integrated into the FINN framework for end-to-end
+synthesis of custom-tailored FPGA accelerators. The cost of
+hardware support for non-monotonicity and fine-granularity is
+characterized in comparison to an alternative approach utilizing
+existing operators via graph-level decomposition. We compare
+our method to prior work as well as the approach taken by the
+hls4ml framework. As an outlook, we demonstrate the prospects
+of using the multi-threshold representation during the training
+of a neural network as a form of quantization aware training.
+I. INTRODUCTION
+Quantization has emerged as the key model compression
+technique for optimizing deep neural network inference [1]–
+[3]. Custom FPGA-based accelerators particularly benefit from
+aggressive low-bit quantization, typically using 8-bit or lower
+precisions [3]–[9]. Streaming dataflow architectures exploit-
+ing pipelined model parallelism are well suited for such
+deployments, enabling efficient implementations of flexible
+quantization schemes. FINN [5], [6], [10] provides an end-to-
+end compilation flow for models trained and quantized with
+PyTorch [11] and Brevitas [12], with optimizations expressed
+through ONNX graph transformations [13], [14].
+Quantization methods can be categorized by when quan-
+tization is applied – post-training quantization (PTQ) or
+quantization-aware training (QAT) – and what is quantized,
+i.e., weights, activations, or both [1]–[3]. Early work focused
+on quantizing weights and multiply-accumulate (MAC) opera-
+tions in fully connected, convolutional, and attention layers. As
+these reach increasingly low bit widths, optimizing activations
+and layer tails, i.e., chains of element-wise operations follow-
+ing a layer, such as normalization, activation, and quantization,
+becomes critical [15]–[17]. Simultaneously, preserving accu-
+racy requires expressive scale factors, such as floating-point
+scales, and fine-granular quantization schemes [15], [18]–[22].
+At very low bit widths, implementing quantized func-
+tions through successive thresholding, also known as multi-
+threshold functions, has emerged as an effective optimiza-
+tion [5], [6], [15], [23]. In FINN, multi-threshold functions ex-
+actly represent quantized layer tail operations, including non-
+linearities and floating-point scales, without costly floating-
+point inference. Here, exact means that no approximation
+beyond the inherent quantization error is introduced, unlike
+fixed-point approximations of floating-point values. Enabled
+by streamlining [15], [23], scales, biases, and non-linearities
+are absorbed into threshold values through algebraic transfor-
+mations, reducing layer tail computations to threshold com-
+parisons. In streaming dataflow architectures, these functions
+are specialized for each layer tail.
+The multi-threshold implementation in FINN is limited to
+monotonically increasing functions and, in practice, supports
+only predefined activation–quantizer combinations, i.e, com-
+binations of quantized identity and Relu. However, modern
+architectures employ diverse activation functions [24], [25],
+including non-monotonic variants such as Silu [26]. Moreover,
+FINN restricts quantization granularity to the final axis of
+the activation tensor. While SIRA [15] relaxes some of these
+constraints, it relies on expensive compile-time simulation of
+the layer tail. Consequently, we identify the lack of a system-
+atic and lightweight compilation methodology for translating
+quantized layer tails into multi-threshold representation and
+corresponding hardware as a key barrier to a broader adoption.
+To extend the flexibility and applicability of the multi-
+threshold representation, we make the following contributions:
+1) We formalize the multi-threshold representation, includ-
+ing its assumptions, constraints, and principles for effi-
+arXiv:2610.21825v1  [cs.AR]  15 Oct 2026
+
+
+cient hardware acceleration.
+2) We extend the representation and hardware architecture
+to non-monotonic and fine-granular functions.
+3) We introduce an ONNX-based compiler integration con-
+verting quantized functions into multi-threshold repre-
+sentation and fusing operators through algebraic rules.
+4) We present an initial study of directly learning multi-
+threshold representations as a form of QAT, aligning
+training-time representation with the target hardware.
+The remainder of this paper is structured as follows: Sec-
+tion II introduces background and formalism of the multi-
+threshold representation, Sections III and IV extend its appli-
+cability by addressing monotonicity and granularity limitations
+through corresponding hardware implementations. Section V
+presents our compiler integration for converting functions into
+multi-threshold representation. Section VI discusses related
+work and contrasts our approach. Section VII explores the
+prospects of learning multi-threshold representations during
+training. Section VIII concludes the paper.
+II. BACKGROUND AND FORMALISM
+We define the multi-threshold function fΘ,δ(x) with N
+thresholds Θi and associated step direction weights δi as
+fΘ,δ(x) = bΘ + sΘ
+N−1
+X
+i=0
+δi · (x ≥Θi),
+(1)
+where sΘ and bΘ are output scale and bias parameters. The
+thresholds Θi can always be sorted in increasing order:
+∀i ∈[1, N −2] : Θi−1 ≤Θi ≤Θi+1
+(2)
+The representation can be seen as piecewise constant ap-
+proximation of a function. If δi are integers, this relates
+to a uniform quantizer Q where sΘ and bΘ correspond to
+quantization scale and bias, respectively:
+Q(x) = sΘ · clip
+x −bΘ
+sΘ
+
+; 0, 2β −1
+
++ bΘ
+(3)
+For static quantization, scale and bias are calibrated to the
+input range and remain fixed thereafter, and the quantization
+bitwidth β is usually controlled as a hyperparameter.
+FINN’s multi-threshold implementation [5], [6] has two
+restrictions. First, as δi can take only positive unit steps, the
+resulting functions are necessarily monotonically increasing:
+∀i : δi = +1
+(4)
+The relation between quantization bitwidth β and the number
+of thresholds N follows as:
+β = log2 (N + 1) .
+(5)
+With this constraint, evaluating the sum in Eq. (1) can
+be reduced to locating the input x within the sorted list of
+thresholds, implicitly setting Θ−1 = −∞and ΘN = +∞to
+account for inputs outside the threshold range. This can be
+solved efficiently by binary search [15].
+fΘ,δ(x) = bΘ + sΘ(i + 1)
+s.t. Θi ≤x < Θi+1
+(6)
+The second restriction of FINN’s multi-threshold implemen-
+tation concerns the granularity of thresholds: Only per-tensor
+or per-channel thresholds are permitted, meaning the same set
+of thresholds is shared by the entire tensor or along slices per
+axis. The shape of the parameter tensor can be expressed as
+Shape {Θ} ⊆1 × 1 × · · · × 1 × C × N →C × N,
+(7)
+restricting all leading dimensions to singletons of size 1, which
+can be omitted according to tensor broadcasting rules.
+III. NON-MONOTONICITY
+In this section we explore the representation of non-
+monotonic functions by relaxing the constraint on the step
+weights δi to allow for arbitrary integer-valued weights:
+∀i : δi ∈Z
+(8)
+Assuming sorted thresholds, the monotonically increasing
+output levels of Eq. (6) are replaced by levels Li, given as the
+precomputed cumulative sum over the step weights up until
+including the largest threshold smaller than the input:
+fΘ,δ(x) = bΘ + sΘLi
+s.t. Θi ≤x < Θi+1
+Li =
+i
+X
+j=0
+δi, with L−1 = 0
+(9)
+Where L−1 accounts for inputs outside the threshold range.
+The quantization bitwidth now relates to the levels Li instead
+of the number of thresholds as
+β∗= log2 (max Li −min Li + 1) .
+(10)
+With the monotonicity constraint, Eq. (4), this reduces exactly
+to Eq. (5), where max Li = N and min Li = 0, confirming
+our generalization to be consistent.
+Figure 1 sketches our hardware implementation as a remap-
+ping of the output, using the output of the threshold search
+as the address into the precomputed level memory. We have
+implemented this in Vitis HLS and integrated it into FINN.
+As an alternative to the hardware implementation, we ex-
+plore a graph-level decomposition for positive and negative
+unit steps, pulling apart increasing δi = +1 and decreasing
+δi = −1 parts of the sum in Eq. (1). This implements non-
+monotonic functions as the difference of two multi-threshold
+functions, each of which is monotonically increasing and
+operates on a corresponding subset Θ+/Θ−of the thresholds:
+fΘ,δ(x) = fΘ+,δ=1(x) −fΘ−,δ=1(x)
+(11)
+This reduces the complexity of the thresholding hardware at
+the cost of additional operators, which besides a second multi-
+threshold and a subtraction, incurs dataflow overheads.
+Figure 2 shows results comparing the hardware implemen-
+tation to the graph-level decomposition in terms of lookup
+table (LUT) resource utilization. Our setup is as follows:
+Thresholds are drawn from a uniform random distribution
+between −4 and +4 and non-monotonic step direction weights
+are generated from a random walk on ±1. Thresholds, as
+
+
+0
+0
+1
+0
+1
+2
+3
+3
+0
+2
+4
+6
+5
+1
+0
+1
+2
+3
+4
+5
+7
+6
+Fig. 1: Hardware implementation of binary search based thresholding adapted from [15]. A remapping stage is added to allow
+for non-monotonic output levels Li according to Eq. (9). To locate the input within the list of seven sorted thresholds, three
+comparators are required, corresponding to the three levels of the search tree shown on the left.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+β = log2(N + 1)
+0k
+1k
+2k
+3k
+4k
+5k
+6k
+7k
+Thresholds LUT
+Monotonic
+–
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+β = log2(N + 1)
+Non-Monotonic
+Hardware Implementation
+1
+2
+3
+4
+5
+6
+7
+8
+9 10
+β = log2(N + 1)
+Non-Monotonic
+Graph-Level Decomposition
+6k
+9k
+12k
+15k
+Total LUT
+Fig. 2: Comparison of the hardware implementation to the graph-level decomposition in terms of lookup table resource
+utilization for increasing number of thresholds N when implementing monotonic or non-monotonic functions.
+well as the random output scale and bias are single-precision
+floating-point numbers. In a complete accelerator design, scale
+and bias would be absorbed into subsequent operations via
+the streamlining optimization. For our isolated test functions,
+however, these are implemented and together account for about
+5k LUTs. The shape of the test input is 64 × 4 × 4 × 4,
+where the leading 64 is the batch dimension. A per-tensor
+set of thresholds and weights is generated. Test functions are
+exported to ONNX and compiled via FINN+ [10] with PE = 4
+parallel processing elements along the final axis, representing
+a more realistic setting for the FINN framework. The design is
+synthesized using Vivado 2024.2 targeting the Alveo U55C at
+100 MHz. We do not allow DSP or BRAM resources to ensure
+comparability of results in terms of LUT resources. The design
+is verified in RTL simulation. We report resource utilization
+averaged over seven repetitions using varying random seeds.
+Non-monotonic functions are more costly to implement than
+monotonic functions, though the difference is rather small for
+the direct hardware implementation and on the order of at most
+a few hundred LUTs. The graph-level decomposition clearly
+shows the cost of inserting additional operators, where the total
+LUT utilization is up to 1.5× compared to the hardware im-
+plementation. The largest contributions to this increase are the
+multi-thresholds with 1.6×, and dataflow overheads with 3.4×
+compared to the hardware implementation. Multiplication and
+addition operations together contribute between 4.8k and 5.5k
+LUTs, with a worst-case increase of about 1.05× compared
+to the hardware implementation, which is almost negligible.
+IV. FINE GRANULARITY
+In this section we explore the representation of arbitrarily
+fine-granular threshold parameters. Fine-granularity is realized
+via broadcasting of the thresholds to the input shape where
+the shape of the threshold tensor is a subset of the input shape
+extended by a trailing dimension of N thresholds:
+Shape {Θ} ⊆Shape {X} × N
+Shape {Θ} = D0 × D1 × · · · × Dn × C × N
+(12)
+Address logic maps an index I ∈Shape {X} to the cor-
+responding index I′ ∈Shape {Θ} to retrieve the set of
+thresholds from the parameter memory:
+I′
+i = Ii
+mod Di
+(13)
+
+
+Fig. 3: Address logic and layout of the threshold parameter
+memory. The address logic and the thresholding units are
+replicated as PE parallel processing elements resulting in a
+two-level loop nest (i, j) implemented in Vitis HLS.
+Memory interfaces and address calculations are realized in
+terms of flat indices i and i′, which relate to the multidimen-
+sional index via lexicographic ordering. The inverse, turning a
+flat index back into a multidimensional index, is referred to as
+unraveling. Even though we keep referring to the final axis as
+the channel axis as this has a special role in FINN, the same
+also applies to this axis where C = Dn+1. Figure 3 sketches
+the address logic and memory layout of our hardware design.
+As an alternative to the hardware implementation, we ex-
+plore a graph-level decomposition exploiting the property that
+an arbitrary value can be added to both sides of an equation
+without changing the outcome. Following broadcasting seman-
+tics, we choose this value such that the resulting thresholds on
+the right have the desired per-channel granularity:
+x ≥Θ ≡x + b ≥Θ′, where b = Θ′ −Θ, and
+Shape {Θ′} →C × N
+Shape {b} →D0 × D1 × · · · × Dn × C
+(14)
+This decomposes thresholds as a fine-granular addition fol-
+lowed by an at most per-channel (last axis) multi-threshold
+function. However, an exact solution is not always possible as
+this generally results in reduced parameter volume
+∥Shape {b}∥+ ∥Shape {Θ′}∥≤∥Shape {Θ}∥,
+(15)
+and we solve the following optimization problem to find the
+decomposition, which might introduce an approximation error:
+Θ′, b = argmin
+Θ′,b
+∥(Θ −(Θ′ −b)∥2
+2
+(16)
+Figure 4 compares the hardware implementation to the
+graph-level decomposition in terms of LUT resource utiliza-
+tion. The setup is the same as described in Section III, except
+for the following: Only monotonically increasing functions
+are considered, i.e., all step directions are 1, and instead
+the granularity is varied by generating random thresholds for
+varying combinations of axes, which we group by the number
+of axes covered. Average LUT utilization over seven random
+seeds per configuration is reported.
+Fine-granular parameter tensors are more costly to imple-
+ment. For per-tensor and per-channel (last axis) granularity
+there is no difference between the direct hardware implemen-
+tation and the graph-level decomposition. For fine-granular
+thresholds at high bitwidths, these results clearly favor the
+graph-level decomposition with a worst-case increase of about
+1.9× from per-tensor to 3-channel granularity. In contrast,
+the direct hardware implementation, with an increase of about
+58×, approaches the increase naively expected due to the 64×
+growth of the parameter tensor. At this point, the direct hard-
+ware implementation becomes impractical, though deviations
+from this at lower bitwidths (e.g., at β = 4, there is only
+about a 2.2× difference) hint at automatic logic optimizations
+of the synthesis tool, which might be possible to exploit at
+higher bitwidths via more explicit memory partitioning. At
+very low bitwidths (i.e., β < 4) and moderate granularities
+(i.e., 1-2 channels), the direct hardware implementation might
+be preferable, as decomposition overheads become relevant.
+V. COMPILING FUNCTIONS TO THRESHOLDS
+While FINN converts functions into multi-threshold repre-
+sentation via rules for fixed and predefined activation-quantizer
+patterns and SIRA simulates entire layer tails to extract the
+steps, we propose absorption rules based on a generalized
+notion of the inverse f −1 of a function:
+f(x) ≥Θi ⇐⇒x ≥f −1(Θi)
+(17)
+As an example, the generalized inverse of the common Relu
+activation function is given as:
+Relu−1(x) =
+(
+x,
+if x ≥0
+−∞,
+otherwise
+(18)
+These inverses need to be predefined for each function of
+interest, but they are not tied to a particular quantizer nor
+do they assume a fixed pattern of functions leading up to a
+quantizer. No costly simulation of the layer tail is required,
+keeping conversion runtime and memory footprint low, while
+reducing the susceptibility to numerical imprecision due to
+insufficient resolution when sampling the input range. Range
+information is used for enumerating the initial thresholds for
+the rounding function and clipping range of the quantizer,
+Q (f(x)) = bΘ + sΘ
+2β−1
+X
+i=0
+
+f(x) −bΘ
+sΘ
+≥(i + 0.5 + ∆i)
+|
+{z
+}
+ˆ=Θi
+
+,
+where ∆i is a round to even correction, which is Ulp(i) for
+odd positive and even negative i and zero otherwise. Ulp(x)
+is the unit in the last place, i.e., the spacing between x and
+the next representable (floating-point) number.
+Application of Eq. (17) to a non-monotonic function with
+multiple (increasing and decreasing) branches needs to con-
+sider all branches as valid solutions, i.e., the set of thresholds
+
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+β = log2(N + 1)
+T
+C
+1
+2
+3
+Granularity
+5.7
+6.0
+6.2
+6.5
+7.0
+7.3
+8.0
+8.2
+10.4 10.3
+5.7
+6.0
+6.3
+6.6
+7.1
+7.3
+8.4
+9.6
+9.6
+17.9
+5.8
+6.1
+6.6
+7.1
+8.0
+9.7
+13.2 22.0 33.6 69.9
+5.8
+6.2
+7.0
+7.6
+10.5 15.4 24.1 43.8 82.0 170.5
+5.9
+6.7
+9.1
+14.4 26.8 42.2 78.1 155.2 295.3 600.9
+Hardware Implementation
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+β = log2(N + 1)
+5.7
+6.0
+6.2
+6.5
+7.0
+7.3
+8.0
+8.2
+10.4 10.3
+5.7
+6.0
+6.3
+6.6
+7.1
+7.3
+8.4
+9.6
+9.6
+17.9
+7.5
+7.8
+8.2
+8.4
+8.8
+9.3
+10.0 10.1 12.3 12.1
+7.5
+7.8
+8.3
+8.5
+8.8
+9.3
+10.2 10.4 11.7 17.3
+7.6
+7.9
+8.3
+8.6
+9.0
+9.4
+10.4 10.5 11.4 19.9
+Graph-Level Decomposition
+10k
+100k
+Total LUT
+Fig. 4: Comparison of the hardware implementation to the graph-level decomposition in terms of lookup table resource
+utilization for increasing number of thresholds N and number of channels covered by parameters. T and C refer to per-tensor
+and per-channel (last axis) granularity, for which there is no difference between the two approaches.
+branches into corresponding segments. To give intuition, con-
+sider the following example (also depicted in Figure 6):
+x2 ≥a ⇐⇒x ≥+√a ∨x ≤−√a
+Decreasing branches flip the direction of comparison or,
+equivalently, invert the step direction, again making use of
+an Ulp-based correction term:
+x ≥a ∨x ≤b ≡x ≥a ∨¬(x ≥b + Ulp(b))
+(19)
+With b′ = b+Ulp(b), this is rewritten in Xor-form and applied
+repeatedly to absorb consecutive functions, resulting in a tree
+of branching threshold segments, which is collapsed to sorted
+thresholds and step direction weights as shown in Figure 5:
+x ≥a ∨¬(x ≥b′) ≡¬(x ≥b′) ⊕(x ≥max{a, b′})
+(20)
+Fig. 5: Tree of branching threshold segments: Interpreting this
+as a parity function, this is equivalent to applying alternating
+weights ±1 before summing over the sorted segment contri-
+butions. Sorting is always allowed due to commutativity.
+We exemplarily derive the generalized inverse of the Silu
+activation function [26], which shows a non-monotonic bump
+to the left of zero. The Silu function is defined as follows,
+where σ(x) is the logistic sigmoid function:
+Silu(x) = x · σ(x)
+(21)
+The inverse is expressed in terms of the real-valued principal
+and secondary branch of the Lambert W function [27]
+Silu−1
+k (y) = y + Wk(ye−y), where k ∈{0, −1} ,
+(22)
+which is valid for all y above the global minimum ymin of the
+Silu function, which is
+xmin = −1 −W(e−1) ≈−1.28
+ymin = Silu(xmin) ≈−0.28.
+(23)
+Figure 6 sketches Silu with the branches of its inverse, and,
+similarly, x2 with both branches ±√x of the square root.
+xmin
+ymin
+xmin
+ymin
+Silu
+Silu−1
+k , k= 0
+Silu−1
+k , k=-1
+x2
++√x
+−√x
+Fig. 6: Inverse of non-monotonic functions. Branch points
+are at the extrema, separating increasing from decreasing
+segments. Colored dashed lines represent the result of applying
+the corresponding branch to the output of the function.
+We integrate this into the compiler infrastructure as an
+ONNX function approximating the Lambert W function ac-
+cording to [28] with initial values according to [29]. Similarly,
+absorption rules, further generalized inverses, the Ulp, as well
+as the graph-level decompositions proposed in the previous
+sections are integrated into the compiler infrastructure1 as
+ONNX functions and graph transformations.
+Figure 8 shows the resource utilization for various mono-
+tonic and non-monotonic functions approximated with increas-
+ing quantization bitwidth β∗. We demonstrate operator fusion
+1https://github.com/iksnagreb/onnx-passes
+
+
+2.4
+-0.126
+Silu(0.5x −1.2)2
+Quantized, 3-Bit
+2.4
+-0.126
+Silu(0.5x −1.2)2
+Quantized, 6-Bit
+Fig. 7: Non-monotonic test function composition at quanti-
+zation bitwidths β∗= 3 and β∗= 6. The function has two
+increasing and one decreasing segment with branch points at
+approximately (−0.126, 0.078) and exactly (2.4, 0.0).
+via absorption by implementing the following non-monotonic
+function composition as a single multi-threshold function:
+Q (f(x)) = Q
+ Silu(0.5x −1.2)2
+(24)
+This function at two different quantization bitwidths is shown
+in Figure 7. The experimental setup is similar to Section III,
+except for the following: As there is no randomness in these
+functions, a single result is reported without averaging. Thresh-
+olds result from calibrating and converting a uniform quantizer
+on the functions evaluated over the −4 to +4 range (log is
+evaluated over +0.01 to +8.01). The number of thresholds
+now is a dependent variable and instead the quantization
+bitwidth β∗, i.e., number output levels, is controlled.
+Non-monotonic functions are on average more costly to
+implement. This can be primarily attributed to requiring more
+thresholds at the same quantization bitwidth, i.e., usually
+β > β∗. Besides the raw number of thresholds, the concrete
+values have an influence on the resource utilization as well:
+functions with more uniform threshold distribution, such as the
+identity or Relu, require fewer LUTs at the same quantization
+bitwidth. Ordering functions by their average LUT utilization
+per output level matches an intuitive notion of non-uniformity.
+VI. RELATED WORK
+In this section, we first qualitatively compare our work to
+prior approaches for compiling multi-threshold operators and
+then provide a quantitative comparison to hls4ml.
+A. Qualitative Comparison
+Table I presents the qualitative comparison. Originally [5],
+[6], FINN provides a small set of fixed activation-quantizer
+patterns which are converted to a direct implementation of the
+summation realized in HLS. SIRA [15] proposes an automated
+compilation which works out of the box for any operator sup-
+ported by ONNX Runtime and thus does not require operator-
+specific extensions. Alongside, a more efficient binary search
+based implementation of the multi-threshold operator is in-
+troduced, which is available as an RTL backend in FINN.
+To avoid the high compilation effort of subgraph evaluation
+and search, we propose a semi-automatic compilation, where
+primitives are implemented manually but are combined auto-
+matically by following function composition along the layer
+tail to support more complex activation-quantizer patterns. We
+extend frontend and backend to support non-monotonic and
+arbitrarily fine-granular functions. Furthermore, it is possible
+to use our frontend to target the SIRA backend via graph-level
+decomposition.
+Original
+SIRA
+Ours
+[5], [6]
+[15]
+Compilation
+Approach
+Manual
+Fixed Patterns
+Automatic
+Search-Based
+Semi-Automatic
+Fusing Primitives
+Effort
+Low
+High1
+Low
+Support
+Monotonicity
+Monotonic
+Monotonic
+Monotonic
+Non-Monotonic
+Granularity
+Per-Channel
+Per-Channel
+Arbitrary
+Backend
+Algorithm
+Summation
+Binary Search
+Binary Search
+Implementation
+HLS
+RTL
+HLS/RTL2
+Extensibility
+Add Converter
+per Pattern
+–3
+Add Inverse
+per Primitive
+1.
+Search space resolution trades off effort vs. compilation error
+2.
+SIRA backend with decomposition of non-monotonic/fine-granular functions
+3.
+Subgraph evaluation works out of the box for standard operators
+TABLE I: Layer tail compilation approaches in FINN
+B. Quantitative Comparison
+The hls4ml framework [8], [30], [31] employs a lookup
+table approach to implement a variety of activation functions.
+The input range is uniformly split into sections and function
+output values are tabulated to be retrieved at runtime. hls4ml
+does not offer operator fusion, such as the streamlining opti-
+mization [15], [23] in FINN. Rather, hls4ml implements each
+operator in a layer tail as a standalone hardware operator,
+which we refer to as composite approach.
+To compare our approach to hls4ml as well as FINN ex-
+tended by the SIRA [15] RTL backend, we use a setup similar
+to Section V, configuring hls4ml to generate a pipelined design
+with II = 1 and a reuse factor matching our PE = 4
+parallelism. The results are presented in Figure 9. For simpler
+activation functions which are supported out of the box,
+hls4ml can implement the function with comparatively fewer
+resources, but at the cost of higher quantization errors, espe-
+cially for few-bit quantization. We attribute this to the uniform
+sampling of the input range, whereas the non-uniformity of
+the multi-thresholds allows to better allocate the intervals
+to steeper regions of the function, which can also be seen
+in Figure 7. For more complex function compositions, the
+resource costs of the multi-threshold approach grow only
+moderately due to operator fusion. By streamlining a model
+graph, which delays the de-quantization scale and bias to the
+very end of the graph (dark portion of the bars in Figure 9), this
+has the potential to implement the entire quantized activation
+data-path in just a few hundred LUTs (at, for example, 4-
+bit quantization). In contrast, the composite approach taken
+by hls4ml becomes largely unattractive due to the stark
+increase in resource utilization. Comparing the two FINN
+implementations, the SIRA RTL backend is generally more
+
+
+0
+5
+10
+β = log2(N + 1)
+x
+Relu(x)
+exp(x)
+σ(x)
+1 2 3 4 5 6 7 8 9 10
+Quantization Bitwidth β∗
+0
+5
+10
+β = log2(N + 1)
+log(x)
+1 2 3 4 5 6 7 8 9 10
+Quantization Bitwidth β∗
+Silu(x)
+1 2 3 4 5 6 7 8 9 10
+Quantization Bitwidth β∗
+Silu(0.5x −1.2)2
+1 2 3 4 5 6 7 8 9 10
+Quantization Bitwidth β∗
+x2
+1
+2
+3
+4
+5
+Thresholds kLUT
+1
+2
+3
+4
+Quantization Error
+Fig. 8: Comparison of functions implemented as multi-threshold functions in terms of lookup table resource utilization over
+increasing quantization bitwidth β∗. The thresholding bitwidth β results from calibrating the quantizer to the function at the
+bitwidth β∗. For monotonic functions β = β∗, as indicated by the black horizontal bars. Non-monotonic functions might revisit
+the same output level, resulting in β > β∗. Functions are ordered from top left to bottom right by average LUTs per output
+level. The quantization error (mean absolute error) decreases with the quantization bitwidth as indicated below each bar.
+efficient in terms of thresholds per LUT. However, as SIRA
+does not directly support implementation of non-monotonic
+functions, decomposition overheads start to dominate for more
+complex non-monotonic function compositions, making our
+HLS backend more attractive.
+VII. LEARNING THRESHOLDS
+As an outlook, we explore the prospects of learning quan-
+tized activation functions directly in multi-threshold represen-
+tation. This offers an option for training aggressively quantized
+neural networks from scratch, which avoids having to find
+the ideal activation function at the desired bitwidth, and,
+by making the quantization thresholds flexible, brings back
+some of the representational capacity usually lost due to low-
+bitwidth quantization. Thus, we can interpret learning multi-
+threshold representations as a form of quantization-aware
+training. Learning of activation functions has been proposed
+before, usually by expressing activation functions as learnable
+polynomials [32], [33], rational functions [34] or splines [35],
+whereas we propose a linear combination of step functions.
+We relax the non-differentiable comparison as a smooth
+sigmoid function σ centered at each threshold. The sharpness
+of the step can be controlled by a factor α, which for α ≫1
+closely approximates the comparison. For ∥wi∥≈1 the step
+weights δi ∈{−1, +1} can be made differentiable via the
+straight through estimator trick: δi = sign(wi) ≈wi. Thus,
+to compute gradients during the backward pass, we treat the
+multi-threshold function as follows:
+fΘ,δ(x) ≈bΘ + sΘ
+N−1
+X
+i=0
+wi · σ (α · (x −Θi))
+(25)
+This yields the following partial derivatives with respect to
+the function input x and the function parameters Θj and wj,
+where σi = σ (α (x −Θi)):
+∂fΘ,δ
+∂x
+≈sΘ
+N−1
+X
+i=0
+αwiσi (1 −σi)
+(26)
+∂fΘ,δ
+∂Θj
+≈−αwjσj (1 −σj)
+(27)
+∂fΘ,δ
+∂wj
+≈σj
+(28)
+We implement this alongside the sharp forward pass in
+PyTorch and demonstrate the effectiveness by QAT experi-
+ments over a range of quantization steps for a simple MNIST
+classification task with LeNet [36]. We train these models
+for 40 epochs minimizing the cross entropy loss using the
+Adam optimizer [37] with learning rate 0.001 and no weight
+decay. A non-quantized baseline is trained reaching about 99 %
+classification accuracy. We allow up to 2 percentage points
+accuracy drop with quantization. The results in comparison
+to hand-selected activation functions are shown in Figure 11,
+showing comparable results. In both settings, the model can
+be quantized down to 4 steps corresponding to approximately
+2.32 bit, before the accuracy starts to break down completely.
+The accuracy increase observed at 1-bit quantization needs
+to be investigated in future work, but seems unrelated to the
+learned thresholds as it is observed with the uniform quantizer
+as well. While the results for the uniform quantizer heavily
+depend on the choice of activation function, the results suggest
+the learnable multi-threshold functions to be more robust in
+this low-bitwidth quantization regime. Figure 10 exemplarily
+
+
+2 4 8
+2 4 8
+2 4 8
+2 4 8
+0k
+2k
+4k
+6k
+8k
+10k
+12k
+LUT
+σ(x)
+RTL
+HLS
+Float
+Fixed
+FINN
+hls4ml
+β∗:
+3
+15 255
+2 4 8
+2 4 8
+2 4 8
+2 4 8
+Silu(x)
+RTL
+HLS
+Float
+Fixed
+FINN
+hls4ml
+β∗:
+3
+30
+510
+2 4 8
+2 4 8
+2 4 8
+2 4 8
+Silu(0.5x −1.2)2
+RTL
+HLS
+Float
+Fixed
+FINN
+hls4ml
+β∗:
+5
+23
+384
+0.0009
+0.5000
+0.0023
+1.0159
+0.0003
+0.6640
+Quantization Error
+Fig. 9: Comparison of functions implemented as multi-threshold operators in FINN and a composite lookup-table based approach
+in hls4ml in terms of LUT count over quantization bitwidth β∗. For FINN, HLS refers to our binary-search backend (Section III)
+and RTL refers to the backend introduced by SIRA, which requires graph-level decomposition for the non-monotonic functions.
+Shaded in dark grey is the portion of LUTs used by the multi-threshold operators, which is a more realistic estimate of the
+resource impact within a streamlined accelerator, where de-quantization occurs only once at the end of the model graph, not
+after each operation. For hls4ml we set the number of lookup table entries to the same number of thresholds required by our
+approach – this number is annotated on top of the first group of bars per function. The selected lookup table data type is either
+floating-point or β∗bit fixed-point. The two functions on the right are not directly supported as a lookup table in hls4ml and
+are realized as a composition of a σ(x) lookup table and standalone additions and multiplications.
+-1.0
+0.0
+1.0
+-0.5
+-0.2
+0.0
+0.2
+0.5
+0.8
+1.0
+-1.5
+0.0
+1.5
+-0.5
+-0.3
+-0.2
+0.0
+0.2
+0.3
+0.5
+-1.0
+0.0
+1.0
+-0.8
+-0.4
+0.0
+0.4
+0.8
+1.2
+-1.0
+0.0
+1.0
+-1.6
+-0.8
+0.0
+0.8
+1.6
+2.4
+3.2
+Fig. 10: Non-monotonic per-tensor multi-threshold functions learned by the four activation layers of LeNet for N = 15 steps.
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+Quantization Steps
+86.0%
+88.0%
+90.0%
+92.0%
+94.0%
+96.0%
+98.0%
+100.0%
+Top-1 Accuracy
+Uniform Quantizer
+LeCun’s Tanh
+ReLU
+Sigmoid
+Tanh
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+Quantization Steps
+Baseline -2.0%
+97.0%
+Learned Thresholds
+Granularity
+Tensor
+Channel
+Restriction
+Monotonic
+None
+Fig. 11: Comparison of learned multi-threshold functions
+to hand-selected quantized activation functions for MNIST
+classification with LeNet. Standard deviation in shaded.
+shows functions learned for an instance of the non-monotonic
+per-tensor setting. The learned functions seem plausible in the
+sense, that they are centered at about zero and cover a range
+which is typical for neural network activation functions.
+VIII. CONCLUSION
+We have extended the multi-threshold representation of
+quantized functions to non-monotonic functions with fine-
+granular parameters by extending the binary search based
+multi-threshold operator integrated into the FINN framework
+and an alternative graph-level decomposition approach. The
+proposed solutions have been evaluated in terms of resource
+utilization on an FPGA to characterize the cost of non-
+monotonicity and fine-granularity. A systematic and light-
+weight compilation approach of quantized layer tails to multi-
+threshold representation has been proposed to facilitate end-to-
+end synthesis of custom-tailored FPGA accelerators. We have
+successfully demonstrated this on a selection of monotonic
+and non-monotonic functions. Furthermore, we have proposed
+directly learning multi-threshold representations as a form of
+QAT, which we have successfully demonstrated on a simple
+MNIST classifier. Future work will extend function support
+by implementing the necessary inverse functions and further
+investigate quality and performance implications of the newly
+gained options by using them with more demanding neural
+network inference workloads.
+
+
+ACKNOWLEDGMENTS
+This work has been funded by the Ministry of Culture
+and Science of the State of North Rhine-Westphalia under
+the grant no NW21-059D (SAIL) and by the German
+Federal Ministry for the Environment, Nature Conservation,
+Nuclear Safety and Consumer Protection under the grant no
+67KI32004A (eki).
+We gratefully acknowledge the computing time provided to
+us on the high-performance computers Noctua 2 and Otus at
+the NHR Center PC2.
+REFERENCES
+[1] A. Gholami, S. Kim, Z. Dong, Z. Yao, M. W. Mahoney, and K. Keutzer,
+“A survey of quantization methods for efficient neural network infer-
+ence,” in Low-power computer vision.
+Chapman and Hall/CRC, 2022,
+pp. 291–326.
+[2] B. Rokh, A. Azarpeyvand, and A. Khanteymoori, “A comprehensive
+survey on model quantization for deep neural networks in image clas-
+sification,” ACM Transactions on Intelligent Systems and Technology,
+vol. 14, no. 6, pp. 1–50, 2023.
+[3] G. Armeniakos, G. Zervakis, D. Soudris, and J. Henkel, “Hardware
+approximate techniques for deep neural network accelerators: A survey,”
+ACM Comput. Surv., vol. 55, no. 4, Nov. 2022. [Online]. Available:
+https://doi.org/10.1145/3527156
+[4] I. Colbert, A. Pappalardo, and J. Petri-Koenig, “A2q: Accumulator-aware
+quantization with guaranteed overflow avoidance,” in 2023 IEEE/CVF
+International Conference on Computer Vision (ICCV), 2023, pp. 16 943–
+16 952.
+[5] Y. Umuroglu, N. J. Fraser, G. Gambardella, M. Blott, P. Leong, M. Jahre,
+and K. Vissers, “Finn: A framework for fast, scalable binarized neural
+network inference,” in Proceedings of the 2017 ACM/SIGDA Interna-
+tional Symposium on Field-Programmable Gate Arrays, ser. FPGA ’17.
+ACM, 2017, pp. 65–74.
+[6] M. Blott, T. B. Preußer, N. J. Fraser, G. Gambardella, K. O’brien,
+Y. Umuroglu, M. Leeser, and K. Vissers, “Finn-r: An end-to-end deep-
+learning framework for fast exploration of quantized neural networks,”
+ACM Transactions on Reconfigurable Technology and Systems (TRETS),
+vol. 11, no. 3, pp. 1–23, 2018.
+[7] S. I. Venieris and C.-S. Bouganis, “fpgaconvnet: A framework for map-
+ping convolutional neural networks on fpgas,” in 2016 IEEE 24th Annual
+International Symposium on Field-Programmable Custom Computing
+Machines (FCCM), 2016, pp. 40–47.
+[8] J. Duarte, S. Han, P. Harris, S. Jindariani, E. Kreinar, B. Kreis, J. Ngadi-
+uba, M. Pierini, R. Rivera, N. Tran et al., “Fast inference of deep neural
+networks in fpgas for particle physics,” Journal of instrumentation,
+vol. 13, no. 07, p. P07027, 2018.
+[9] R. Bosio, F. Minnella, T. Urso, M. R. Casu, L. Lavagno, M. T. Lazarescu,
+and P. Pasini, “NN2FPGA: Optimizing cnn inference on fpgas with
+binary integer programming,” IEEE Transactions on Computer-Aided
+Design of Integrated Circuits and Systems, pp. 1–1, 2024.
+[10] F. Jentzsch, C. Berganski, L. Jungemann, and B. Wintermann, “FINN+,”
+2026. [Online]. Available: https://github.com/eki-project/finn-plus
+[11] J. Ansel, E. Yang, H. He, N. Gimelshein, A. Jain, M. Voznesensky,
+B. Bao, P. Bell, D. Berard, E. Burovski, G. Chauhan, A. Chourdia,
+W. Constable, A. Desmaison, Z. DeVito, E. Ellison, W. Feng, J. Gong,
+M. Gschwind, B. Hirsh, S. Huang, K. Kalambarkar, L. Kirsch, M. Lazos,
+M. Lezcano, Y. Liang, J. Liang, Y. Lu, C. Luk, B. Maher, Y. Pan,
+C. Puhrsch, M. Reso, M. Saroufim, M. Y. Siraichi, H. Suk, M. Suo,
+P. Tillet, E. Wang, X. Wang, W. Wen, S. Zhang, X. Zhao, K. Zhou,
+R. Zou, A. Mathews, G. Chanan, P. Wu, and S. Chintala, “PyTorch
+2: Faster Machine Learning Through Dynamic Python Bytecode
+Transformation and Graph Compilation,” in 29th ACM International
+Conference on Architectural Support for Programming Languages and
+Operating Systems, Volume 2 (ASPLOS ’24).
+ACM, Apr. 2024.
+[Online]. Available: https://docs.pytorch.org/assets/pytorch2-2.pdf
+[12] G. Franco, A. Pappalardo, and N. J. Fraser, “Xilinx/brevitas,” 2025.
+[Online]. Available: https://doi.org/10.5281/zenodo.3333552
+[13] A. Pappalardo, Y. Umuroglu, M. Blott, J. Mitrevski, B. Hawks,
+N. Tran, V. Loncar, S. Summers, H. Borras, J. Muhizi, M. Trahms,
+S.-C. H. Hsu, S. Hauck, and J. Duarte, “QONNX: Representing
+Arbitrary-Precision Quantized Neural Networks,” in 4th Workshop on
+Accelerated Machine Learning (AccML) at HiPEAC 2022 Conference,
+6 2022. [Online]. Available: https://accml.dcs.gla.ac.uk/papers/2022/
+4thAccML paper 1(12).pdf
+[14] Y.
+Umuroglu,
+H.
+Borras,
+V.
+Loncar,
+S.
+Summers,
+and
+J.
+Duarte,
+“QONNX,”
+Jun.
+2022.
+[Online].
+Available:
+https:
+//github.com/fastmachinelearning/qonnx
+[15] Y. Umuroglu, C. Berganski, F. Jentzsch, M. Danilowicz, T. Kryjak,
+C. Bezaitis, M. Sj¨alander, I. Colbert, T. Preusser, J. Petri-Koenig,
+and M. Blott, “Sira: Scaled-integer range analysis for optimizing
+fpga dataflow neural network accelerators,” ACM Transactions on
+Reconfigurable Technology and Systems, vol. 19, no. 2, May 2026.
+[Online]. Available: https://doi.org/10.1145/3807510
+[16] M. Neseem, C. McCullough, R. Hsin, C. Leichner, S. Li, I. S. Chong,
+A. Howard, L. Lew, S. Reda, V.-M. Rautio et al., “PikeLPN: Mitigating
+overlooked inefficiencies of low-precision neural networks,” in Proceed-
+ings of the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition, 2024, pp. 15 996–16 005.
+[17] R. Karami, S.-C. Kao, and H. Kwon, “Understanding the performance
+horizon of the latest ml workloads with nongemm workloads,” in 2025
+IEEE International Symposium on Performance Analysis of Systems and
+Software (ISPASS).
+IEEE, 2025, pp. 1–14.
+[18] R. Krishnamoorthi, “Quantizing deep convolutional networks for effi-
+cient inference: A whitepaper,” arXiv preprint arXiv:1806.08342, 2018.
+[19] M. Nagel, M. v. Baalen, T. Blankevoort, and M. Welling, “Data-
+free quantization through weight equalization and bias correction,” in
+Proceedings of the IEEE/CVF international conference on computer
+vision, 2019, pp. 1325–1334.
+[20] S. Dai, R. Venkatesan, M. Ren, B. Zimmer, W. Dally, and B. Khailany,
+“VS-Quant: Per-vector scaled quantization for accurate low-precision
+neural network inference,” Proceedings of Machine Learning and Sys-
+tems, vol. 3, pp. 873–884, 2021.
+[21] H. Yao, P. Li, J. Cao, X. Liu, C. Xie, and B. Wang, “RAPQ: Rescuing
+accuracy for power-of-two low-bit post-training quantization,” arXiv
+preprint arXiv:2204.12322, 2022.
+[22] E. Frantar, S. Ashkboos, T. Hoefler, and D.-A. Alistarh, “OPTQ: Accu-
+rate post-training quantization for generative pre-trained transformers,”
+in 11th International Conference on Learning Representations, 2023.
+[23] Y. Umuroglu and M. Jahre, “Streamlined deployment for quantized
+neural networks,” arXiv preprint arXiv:1709.04060, 2017.
+[24] S. R. Dubey,
+S. K. Singh, and B.
+B. Chaudhuri,
+“Activation
+functions in deep learning: A comprehensive survey and benchmark,”
+Neurocomputing, vol. 503, pp. 92–108, 2022. [Online]. Available:
+https://www.sciencedirect.com/science/article/pii/S0925231222008426
+[25] V. Kunc and J. Kl´ema, “Three decades of activations: A comprehensive
+survey of 400 activation functions for neural networks,” arXiv preprint
+arXiv:2402.09092, 2024.
+[26] D. Hendrycks, “Gaussian error linear units (gelus),” arXiv preprint
+arXiv:1606.08415, 2016.
+[27] R. M. Corless, G. H. Gonnet, D. E. Hare, D. J. Jeffrey, and D. E. Knuth,
+“On the lambert w function,” Advances in Computational mathematics,
+vol. 5, no. 1, pp. 329–359, 1996.
+[28] R. Iacono and J. P. Boyd, “New approximations to the principal real-
+valued branch of the lambert w-function,” Advances in Computational
+Mathematics, vol. 43, no. 6, pp. 1403–1436, 2017.
+[29] L. L´oczi, “Guaranteed- and high-precision evaluation of the lambert
+w function,” Applied Mathematics and Computation, vol. 433, p.
+127406,
+2022.
+[Online].
+Available:
+https://www.sciencedirect.com/
+science/article/pii/S0096300322004805
+[30] FastML Team, “fastmachinelearning/hls4ml,” 2026. [Online]. Available:
+https://github.com/fastmachinelearning/hls4ml
+[31] J.-F. Schulte, B. Ramhorst, C. Sun, J. Mitrevski, N. Ghielmetti, E. Lupi,
+D. Danopoulos, V. Lonˇcar, J. Duarte, D. Burnette, L. Laatu, S. Tzelepis,
+K. Axiotis, Q. Berthet, H. Wang, P. White, S. Demirsoy, M. Colombo,
+T. K. Aarrestad, S. Summers, M. Pierini, G. Di Guglielmo, J. Ngadiuba,
+J. Campos, B. Hawks, A. Gandrakota, F. Fahim, N. Tran, G. A.
+Constantinides, Z. Que, W. Luk, A. Tapper, D. Hoang, N. Paladino,
+P. C. Harris, B.-C. Lai, M. Valentin, R. Forelli, S. Ogrenci, L. Gerlach,
+R. Brooks Flynn, M. Liu, D. Diaz, E. E. Koda, M. Quinnan, R. M.
+Solares, S. Parajuli, M. S. Neubauer, C. Herwig, H. F. Tsoi, D. Rankin,
+S.-C. Hsu, and S. Hauck, “hls4ml: A flexible, open source platform for
+
+
+deep learning acceleration on reconfigurable hardware,” ACM Trans.
+Reconfigurable Technol. Syst., vol. 19, no. 2, May 2026. [Online].
+Available: https://doi.org/10.1145/3801979
+[32] M. Goyal, R. Goyal, and B. Lall, “Learning activation functions:
+A new paradigm for understanding neural networks,” arXiv preprint
+arXiv:1906.09529, 2019.
+[33] ——, “Improved polynomial neural networks with normalised activa-
+tions,” in 2020 International Joint Conference on Neural Networks
+(IJCNN).
+IEEE, 2020, pp. 1–8.
+[34] H. Fang, J.-U. Lee, N. S. Moosavi, and I. Gurevych, “Transformers
+with learnable activation functions,” in Findings of the Association for
+Computational Linguistics: EACL 2023, 2023, pp. 2382–2398.
+[35] Z. Liu, Y. Wang, S. Vaidya, F. Ruehle, J. Halverson, M. Soljaˇci´c,
+T. Y. Hou, and M. Tegmark, “Kan: Kolmogorov-arnold networks,” arXiv
+preprint arXiv:2404.19756, 2024.
+[36] Y. Lecun, L. Bottou, Y. Bengio, and P. Haffner, “Gradient-based learning
+applied to document recognition,” Proceedings of the IEEE, vol. 86,
+no. 11, pp. 2278–2324, 1998.
+[37] D. P. Kingma and J. Ba, “Adam: A method for stochastic optimization,”
+in International Conference on Learning Representations (ICLR), 2015.

@@ -1,0 +1,292 @@
+{
+  "mode": "standard",
+  "generated_at": "2026-10-21T06:07:27.784936+00:00",
+  "stats": {
+    "mode": "standard",
+    "tag_count": 2,
+    "deep_divecandidates": 1,
+    "deep_cap": 7,
+    "deep_selected": 1,
+    "quick_candidates": 6,
+    "quick_skim_target": 12,
+    "quick_selected": 6
+  },
+  "deep_dive": [
+    {
+      "id": "2609.30846v1",
+      "source": "arxiv",
+      "title": "I-Parakeet: Integer-Only Conformer ASR on Mobile NPU",
+      "abstract": "In this paper, we propose I-Parakeet, an integer-only implementation of NVIDIA's Parakeet-CTC (0.6B parameters) that runs on a smartphone NPU without any floating-point operator or CPU fallback. Modern Conformer ASR models are hard to deploy on edge devices because of their size, and quantized models still fall back to floating point for numerically sensitive operations. This prevents them from fully exploiting integer accelerators such as mobile NPUs. To achieve this, our contributions are threefold. First, we derive an integer formulation of the relative-positional self-attention at the core of the Conformer. We fuse its two score branches with different quantization scales and the relative shift into integer-only operations. Second, we introduce a minimax-optimized Swish approximation that minimizes the maximum error of the Swish output. Third, a layer-wise range analysis of activations yields two targeted remedies: an INT16 grid for the BatchNorm output and percentile calibration for the heavy-tailed pre-encoder activations. I-Parakeet achieves 4.97% WER on LibriSpeech test-other, running on a Qualcomm NPU at a real-time factor of 0.048, 7.5x faster than a CPU baseline.",
+      "authors": [
+        "Taichi Nishimura"
+      ],
+      "primary_category": "cs.CL",
+      "categories": [
+        "cs.CL",
+        "cs.SD",
+        "eess.AS"
+      ],
+      "published": "2026-09-25T05:47:40+00:00",
+      "link": "https://arxiv.org/pdf/2609.30846v1",
+      "tags": [
+        "keyword:litert-ops",
+        "query:litert-ops"
+      ],
+      "llm_score": 8.0,
+      "llm_evidence_en": "integer-only quantized operator implementation running fully on mobile NPU without float fallback",
+      "llm_evidence_cn": "纯整数量化算子实现，完全运行于移动NPU且无浮点回退",
+      "llm_evidence": "纯整数量化算子实现，完全运行于移动NPU且无浮点回退",
+      "canonical_evidence": "纯整数量化算子实现，完全运行于移动NPU且无浮点回退",
+      "llm_tldr_en": "I-Parakeet converts NVIDIA Parakeet-CTC into a fully integer-only Conformer ASR that runs entirely on a smartphone NPU, fusing relative-positional attention branches and quantized shifts so no floating-point operator or CPU fallback is needed.",
+      "llm_tldr_cn": "现代Conformer语音识别模型难以部署到边缘设备，且量化模型在数值敏感算子处仍回退到浮点，无法充分利用移动NPU的整数加速器。作者提出I-Parakeet，为相对位置自注意力推导整数形式，将量化尺度不同的两条打分分支与相对位移融合为纯整数运算，并引入极小极大优化的量化方案。结果显示该0.6B模型可完全在手机NPU上以整数运算运行，无需任何浮点算子或CPU回退。这一工作为大规模语音模型在移动端的高效整数部署提供了可行路径。",
+      "llm_tldr": "现代Conformer语音识别模型难以部署到边缘设备，且量化模型在数值敏感算子处仍回退到浮点，无法充分利用移动NPU的整数加速器。作者提出I-Parakeet，为相对位置自注意力推导整数形式，将量化尺度不同的两条打分分支与相对位移融合为纯整数运算，并引入极小极大优化的量化方案。结果显示该0.6B模型可完全在手机NPU上以整数运算运行，无需任何浮点算子或CPU回退。这一工作为大规模语音模型在移动端的高效整数部署提供了可行路径。",
+      "llm_tags": [
+        "query:litert-ops"
+      ],
+      "matched_query_tag": "query:litert-ops",
+      "matched_query_text": "quantized operator kernels for efficient hardware execution",
+      "matched_requirement_id": "req-16",
+      "selection_source": "fresh_fetch"
+    }
+  ],
+  "quick_skim": [
+    {
+      "id": "2609.29866v1",
+      "source": "arxiv",
+      "title": "Beyond Model Size: Redesigning LiSenNet for embedded speech enhancement",
+      "abstract": "Deploying real-time speech enhancement on resource-constrained devices requires meeting strict latency, memory, and energy constraints. Microcontroller NPUs can accelerate neural inference under these constraints, but only through a restricted set of operators in static, integer-quantized graphs. Recent speech-enhancement networks have reduced parameter counts and MACs to levels nominally suitable for microcontrollers, but their operators and execution patterns often remain incompatible with restricted NPUs. We address this gap by redesigning LiSenNet, a 37k parameter sub-band dual-path model, for the STM32N6570-DK Neural-ART accelerator. We replace its recurrent bottleneck with convolutional frequency and temporal mixers, reformulate unsupported operations as static int8-compatible primitives, and use bounded decoder activations to preserve quality after quantization. On VoiceBank-DEMAND, the final NPU-compatible model matches or exceeds the recurrent LiSenNet baseline, reaching PESQ 3.08 versus 3.01 in FP32 and 3.01 versus 2.93 in int8. Deployed on a microcontroller, it processes each 16 ms input hop in 4.83 ms, corresponding to a real-time factor of 0.30. Stateless receptive-field recomputation is an order of magnitude slower at the same frame rate despite higher accelerator utilization. These results show that parameter count and operator compatibility, quantization range, and persistent streaming state must be co-designed to achieve efficient real-time speech enhancement on restricted NPUs.",
+      "authors": [
+        "Clément Laroche",
+        "Rasmus Kongsgaard Olsson"
+      ],
+      "primary_category": "eess.AS",
+      "categories": [
+        "eess.AS",
+        "cs.LG",
+        "cs.SD"
+      ],
+      "published": "2026-09-24T14:24:43+00:00",
+      "link": "https://arxiv.org/pdf/2609.29866v1",
+      "tags": [
+        "keyword:liteRT",
+        "keyword:litert-ops"
+      ],
+      "llm_score": 7.0,
+      "llm_evidence_en": "Redesigning operators to fit restricted integer-quantized operator set of microcontroller NPUs",
+      "llm_evidence_cn": "重设计算子以适配微控制器NPU受限的整数量化算子集",
+      "llm_evidence": "重设计算子以适配微控制器NPU受限的整数量化算子集",
+      "canonical_evidence": "重设计算子以适配微控制器NPU受限的整数量化算子集",
+      "llm_tldr_en": "This paper redesigns LiSenNet, a 37k-parameter speech enhancement model, to fit the restricted operator set and static integer-quantized graphs of a microcontroller NPU, replacing recurrent bottlenecks with convolutional mixers and reformulating unsupported operators.",
+      "llm_tldr_cn": "在资源受限设备上做实时语音增强需满足严格延迟、内存与能耗约束，而微控制器NPU仅支持受限的静态整数量化算子集，许多网络结构不兼容。本文重新设计37k参数的LiSenNet，用卷积频域与时域混合器替代循环瓶颈，并重写NPU不支持的算子。工作面向STM32N6570-DK的Neural-ART加速器，说明了量化算子约束如何影响模型与算子设计，对算子兼容性与硬件加速具有直接参考价值。",
+      "llm_tldr": "在资源受限设备上做实时语音增强需满足严格延迟、内存与能耗约束，而微控制器NPU仅支持受限的静态整数量化算子集，许多网络结构不兼容。本文重新设计37k参数的LiSenNet，用卷积频域与时域混合器替代循环瓶颈，并重写NPU不支持的算子。工作面向STM32N6570-DK的Neural-ART加速器，说明了量化算子约束如何影响模型与算子设计，对算子兼容性与硬件加速具有直接参考价值。",
+      "llm_tags": [
+        "query:litert-ops"
+      ],
+      "matched_query_tag": "query:litert-ops",
+      "matched_query_text": "quantized operator support and constraints in LiteRT",
+      "matched_requirement_id": "req-12",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "7"
+    },
+    {
+      "id": "2609.29067v1",
+      "source": "arxiv",
+      "title": "TileBench: A Controlled Benchmark for Performance Evaluation and Bottleneck Diagnosis of Tile-Based Programming Models",
+      "abstract": "Tile-based programming models, such as Triton and cuTile, aim to simplify high-performance kernel development, but their practical performance, tuning behavior, and usability remain difficult to compare systematically. We present TileBench, a controlled benchmark for evaluating Triton and cuTile on NVIDIA B200 GPUs under matched operator semantics and comparable implementation structures. TileBench contains 45 operators covering diverse AI-kernel patterns and memory/computation behaviors. Each task provides a PyTorch reference, verified Triton and cuTile implementations, standardized data-types (dtype) and input-size sweeps, default and autotuned configurations, roofline-based metrics, and profiling-guided diagnosis. Our evaluation shows that performance gaps are workload-dependent: cuTile excels on a small cluster of Tensor-Core/TMA-friendly kernels, while Triton is stronger on many irregular, streaming, and bandwidth-bound operators. We further evaluate LLM-generated cuTile and Triton kernels and find that Triton is consistently more token-efficient than cuTile under the same iterative refinement protocol. TileBench is publicly available at https://github.com/Deep-Learning-Profiling-Tools/Tilebench.",
+      "authors": [
+        "Bowen Cui",
+        "Zhongchun Zhou",
+        "Hao Wu",
+        "Tejas Ramesh",
+        "Junyu Yin",
+        "Jialiang Gu",
+        "Keren Zhou"
+      ],
+      "primary_category": "cs.PF",
+      "categories": [
+        "cs.PF",
+        "cs.PL"
+      ],
+      "published": "2026-09-24T05:54:49+00:00",
+      "link": "https://arxiv.org/pdf/2609.29067v1",
+      "tags": [
+        "keyword:liteRT",
+        "keyword:litert-ops",
+        "query:litert-ops"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "controlled benchmark of 45 operators with matched operator semantics for kernel performance diagnosis",
+      "llm_evidence_cn": "在统一算子语义下对45个算子进行内核性能评估与瓶颈诊断",
+      "llm_evidence": "在统一算子语义下对45个算子进行内核性能评估与瓶颈诊断",
+      "canonical_evidence": "在统一算子语义下对45个算子进行内核性能评估与瓶颈诊断",
+      "llm_tldr_en": "TileBench benchmarks Triton and cuTile on B200 with 45 operators under matched semantics, providing references, dtype sweeps, roofline metrics, and profiling guides for kernel diagnosis.",
+      "llm_tldr_cn": "Triton、cuTile等瓦片式编程模型旨在简化高性能内核开发，但其实际性能、调优行为与易用性缺乏系统可比的评估手段。作者提出TileBench受控基准，在统一算子语义与相近实现结构下评测45个覆盖多种AI内核模式的算子，为每个任务提供PyTorch参考实现、已验证的两种实现、数据类型与规模扫描、默认与自动调优配置以及roofline指标和剖析指南。该基准可在NVIDIA B200上定位性能瓶颈并比较调优差异，为算子内核开发与优化提供标准化评测基础。",
+      "llm_tldr": "Triton、cuTile等瓦片式编程模型旨在简化高性能内核开发，但其实际性能、调优行为与易用性缺乏系统可比的评估手段。作者提出TileBench受控基准，在统一算子语义与相近实现结构下评测45个覆盖多种AI内核模式的算子，为每个任务提供PyTorch参考实现、已验证的两种实现、数据类型与规模扫描、默认与自动调优配置以及roofline指标和剖析指南。该基准可在NVIDIA B200上定位性能瓶颈并比较调优差异，为算子内核开发与优化提供标准化评测基础。",
+      "llm_tags": [
+        "query:litert-ops"
+      ],
+      "matched_query_tag": "query:litert-ops",
+      "matched_query_text": "operator kernel optimization for accelerated inference",
+      "matched_requirement_id": "req-15",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    },
+    {
+      "id": "2610.21825v1",
+      "source": "arxiv",
+      "title": "Compiling Multi-Threshold Operators for Quantized Non-Monotonic and Fine-Granular Activations in Custom-Tailored DNN Accelerators",
+      "abstract": "Aggressive quantization of neural networks can expose activation functions as bottlenecks for efficient hardware acceleration. Implementing quantized activations as multi-threshold operations has been shown to be a promising optimization, allowing for efficient hardware implementation of few-bit activations. However, current implementations are limited to monotonically increasing functions, quantization schemes with one-dimensional (per-channel) granularity and a small set of predefined activation-quantizer combinations. We formalize the multi-threshold representation to extend it to non-monotonic functions and fine-granular parameters, i.e., multi-dimensional thresholds. For automated conversion of quantized function compositions into threshold representation, we propose a systematic approach via algebraic rules integrated into the ONNX-based compiler infrastructure. We experimentally validate our solution on a selection of monotonic and non-monotonic functions by extending the binary search based multi-threshold operator that is integrated into the FINN framework for end-to-end synthesis of custom-tailored FPGA accelerators. The cost of hardware support for non-monotonicity and fine-granularity is characterized in comparison to an alternative approach utilizing existing operators via graph-level decomposition. We compare our method to prior work as well as the approach taken by the hls4ml framework. As an outlook, we demonstrate the prospects of using the multi-threshold representation during the training of a neural network as a form of quantization aware training.",
+      "authors": [
+        "Christoph Berganski",
+        "Felix Jentzsch",
+        "Marco Platzner"
+      ],
+      "primary_category": "cs.AR",
+      "categories": [
+        "cs.AR",
+        "cs.LG"
+      ],
+      "published": "2026-10-15T13:09:03+00:00",
+      "link": "https://arxiv.org/pdf/2610.21825v1",
+      "tags": [
+        "keyword:liteRT",
+        "keyword:litert-ops",
+        "query:litert-ops"
+      ],
+      "llm_score": 7.0,
+      "llm_evidence_en": "compiling quantized activation operators into multi-threshold hardware kernels",
+      "llm_evidence_cn": "将量化激活算子编译为多阈值硬件内核",
+      "llm_evidence": "将量化激活算子编译为多阈值硬件内核",
+      "canonical_evidence": "将量化激活算子编译为多阈值硬件内核",
+      "llm_tldr_en": "The paper formalizes multi-threshold representations to compile quantized activation operators for non-monotonic functions and fine-granular parameters on custom DNN accelerators.",
+      "llm_tldr_cn": "激进量化会使激活函数成为硬件加速的瓶颈，多阈值实现虽能高效支持少比特激活，却受限于单调函数、逐通道粒度与少量预设组合。本文将多阈值表示形式化，扩展到非单调激活与多维阈值等细粒度参数，并给出面向定制DNN加速器的自动转换流程。该工作使量化激活算子能以统一的阈值内核高效映射到硬件，提升了少比特网络在专用加速器上的可实现性与效率。",
+      "llm_tldr": "激进量化会使激活函数成为硬件加速的瓶颈，多阈值实现虽能高效支持少比特激活，却受限于单调函数、逐通道粒度与少量预设组合。本文将多阈值表示形式化，扩展到非单调激活与多维阈值等细粒度参数，并给出面向定制DNN加速器的自动转换流程。该工作使量化激活算子能以统一的阈值内核高效映射到硬件，提升了少比特网络在专用加速器上的可实现性与效率。",
+      "llm_tags": [
+        "query:litert-ops"
+      ],
+      "matched_query_tag": "query:litert-ops",
+      "matched_query_text": "quantized operator kernels for efficient hardware execution",
+      "matched_requirement_id": "req-16",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "7"
+    },
+    {
+      "id": "2610.02241v1",
+      "source": "arxiv",
+      "title": "Hardware-Native Joint Sparse-Quantization for Trillion-Scale Mixture-of-Experts",
+      "abstract": "Mixture-of-Experts (MoE) architectures allow frontier language models to scale to trillions of parameters, but their deployment is constrained by massive memory footprints and memory-bandwidth limitations. Although modern accelerators provide Sparse Tensor Cores (SpTCs) that reduce weight storage and increase throughput through low-precision semi-structured sparsity, exploiting them for MoEs remains challenging because of substantial model-quality degradation and the lack of grouped sparse GEMM primitives. We present an end-to-end hardware-software co-design framework that compresses expert weights into hardware-native, low-precision sparse representations and accelerates their execution on SpTCs. Algorithmically, our framework relaxes discrete semi-structured support selection through continuous reparameterization, enabling differentiable joint optimization with quantized weights under a router-weighted reconstruction objective and scalable expert-parallel compression. Systemically, we develop a custom grouped sparse GEMM kernel tailored to low-precision sparse MoE inference on SpTCs. Across MoE models ranging from 30 billion to one trillion parameters, our framework improves state-of-the-art joint sparse-quantization accuracy by up to 4.35 percentage points while preserving 96.09% of the original model's performance. On NVIDIA B200 GPUs, our kernel outperforms the vendor baseline by up to $1.65\\times$, increasing serving throughput by $1.18\\times$ and reducing end-to-end latency by up to $4.03\\times$. These results establish hardware-software co-design as a practical path toward scalable and efficient MoE deployment.",
+      "authors": [
+        "Kwanhee Lee",
+        "Namhoon Lee",
+        "Dan Alistarh"
+      ],
+      "primary_category": "cs.AR",
+      "categories": [
+        "cs.AR",
+        "cs.AI",
+        "cs.LG"
+      ],
+      "published": "2026-09-29T07:58:06+00:00",
+      "link": "https://arxiv.org/pdf/2610.02241v1",
+      "tags": [
+        "keyword:liteRT",
+        "keyword:litert-ops"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "compresses expert weights into hardware-native low-precision sparse forms executed on sparse tensor cores",
+      "llm_evidence_cn": "将专家权重压缩为硬件原生低精度稀疏表示并在稀疏张量核上执行",
+      "llm_evidence": "将专家权重压缩为硬件原生低精度稀疏表示并在稀疏张量核上执行",
+      "canonical_evidence": "将专家权重压缩为硬件原生低精度稀疏表示并在稀疏张量核上执行",
+      "llm_tldr_en": "A hardware-software co-design that compresses MoE expert weights into low-precision semi-structured sparse formats and executes them on sparse tensor cores, cutting storage and bandwidth pressure.",
+      "llm_tldr_cn": "万亿参数规模的混合专家模型受制于庞大的权重存储与显存带宽瓶颈，而现有稀疏张量核难以直接用于MoE。作者提出端到端软硬件协同设计框架，将专家权重压缩为硬件原生的低精度半结构化稀疏表示，并配合分组稀疏GEMM在稀疏张量核上加速执行。该框架同时从算法层面放宽离散化约束以缓解模型质量退化。结果显示权重存储与带宽压力显著下降、吞吐提升，为超大规模MoE的高效部署提供了从量化稀疏表示到硬件执行的完整路径。",
+      "llm_tldr": "万亿参数规模的混合专家模型受制于庞大的权重存储与显存带宽瓶颈，而现有稀疏张量核难以直接用于MoE。作者提出端到端软硬件协同设计框架，将专家权重压缩为硬件原生的低精度半结构化稀疏表示，并配合分组稀疏GEMM在稀疏张量核上加速执行。该框架同时从算法层面放宽离散化约束以缓解模型质量退化。结果显示权重存储与带宽压力显著下降、吞吐提升，为超大规模MoE的高效部署提供了从量化稀疏表示到硬件执行的完整路径。",
+      "llm_tags": [
+        "query:litert-ops"
+      ],
+      "matched_query_tag": "query:litert-ops",
+      "matched_query_text": "quantized operator kernels for efficient hardware execution",
+      "matched_requirement_id": "req-16",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    },
+    {
+      "id": "2610.24648v1",
+      "source": "arxiv",
+      "title": "EdgeKernelBench: Unified LLM-Driven Kernel Generation for Edge Backends",
+      "abstract": "Recent works show that LLMs can generate kernels with strong performance on server GPUs. Edge deployment presents distinct challenges because the hardware is heterogeneous, the software stacks are fragmented, and the resource budgets are tight. LLM kernel generation across diverse edge backends has yet to be studied systematically. We introduce EdgeKernelBench, which combines a unified IR deployment framework with a hierarchical benchmark for edge workloads. The unified IR captures reusable computation, scheduling, and memory decisions and connects to each target backend through a compiler interface. The benchmark spans progressively larger program scopes, from individual operators to compact model graphs, across representative edge application domains. We instantiate the design with TVM as a reference compiler and validate it across heterogeneous edge backends. With a single generation attempt, the best model achieves 64.5% Correct@1 but only 25.5% Fast@1.0. This gap shows that functional correctness does not consistently translate into performance gains. We therefore introduce the Layered Edge Kernel Agent (LEKA), which organizes optimization through a layered IR. On the agent evaluation subset, LEKA achieves 43.5% Fast@1.0, compared with 13.0% for direct generation and 26.1% for Claude Code. LEKA and Claude Code use the same base model and optimization budget. Together, EdgeKernelBench and LEKA support unified evaluation and layered optimization of kernels generated by LLMs across edge backends.",
+      "authors": [
+        "Yuhua Zheng",
+        "Xueyi Chen",
+        "Xinze Zou",
+        "Xin Li",
+        "Haoji Hu",
+        "Huan Wang"
+      ],
+      "primary_category": "cs.LG",
+      "categories": [
+        "cs.LG"
+      ],
+      "published": "2026-10-17T11:51:50+00:00",
+      "link": "https://arxiv.org/pdf/2610.24648v1",
+      "tags": [
+        "keyword:liteRT",
+        "keyword:litert-ops"
+      ],
+      "llm_score": 7.0,
+      "llm_evidence_en": "Unified IR and benchmark for generating kernels across heterogeneous edge backends",
+      "llm_evidence_cn": "面向异构边缘后端的统一中间表示与算子内核生成基准",
+      "llm_evidence": "面向异构边缘后端的统一中间表示与算子内核生成基准",
+      "canonical_evidence": "面向异构边缘后端的统一中间表示与算子内核生成基准",
+      "llm_tldr_en": "EdgeKernelBench combines a unified IR deployment framework with a hierarchical benchmark spanning single operators to compact model graphs, systematically evaluating LLM-generated kernels across heterogeneous edge backends.",
+      "llm_tldr_cn": "LLM已能在服务器GPU上生成高效内核，但边缘后端硬件异构、软件栈碎片化、资源受限，尚无系统研究。本文提出EdgeKernelBench，将统一中间表示部署框架与分层基准结合，通过编译接口连接多种边缘后端。基准覆盖从单个算子到紧凑模型图的不同规模任务，为边缘端算子内核生成与硬件后端适配提供了评测基础。",
+      "llm_tldr": "LLM已能在服务器GPU上生成高效内核，但边缘后端硬件异构、软件栈碎片化、资源受限，尚无系统研究。本文提出EdgeKernelBench，将统一中间表示部署框架与分层基准结合，通过编译接口连接多种边缘后端。基准覆盖从单个算子到紧凑模型图的不同规模任务，为边缘端算子内核生成与硬件后端适配提供了评测基础。",
+      "llm_tags": [
+        "query:litert-ops"
+      ],
+      "matched_query_tag": "query:litert-ops",
+      "matched_query_text": "How to accelerate LiteRT operators with hardware delegates on mobile and embedded devices",
+      "matched_requirement_id": "req-18",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "7"
+    },
+    {
+      "id": "2610.07742v1",
+      "source": "arxiv",
+      "title": "Cleave: Scaling Tensor Program Optimization via Decoupled Algebraic Search and Operator Scheduling",
+      "abstract": "Optimized kernels such as FlashAttention and FlashDecoding are crucial for accelerating today's large models. Most of them are handwritten by experts because existing ML compilers cannot match their efficiency. Producing such kernels requires fusing computations with multiple reductions, which requires both algebraic transformation of the computation graph and operator scheduling of the transformed graph. Unfortunately, searching the two jointly yields a space too large to navigate. We propose Cleave, an ML compiler built on symbolic decoupling: Cleave discovers transformations by performing superoptimization on a graph with symbolic shapes, and then schedules each resulting graph on concrete shapes. Representing shapes as symbols makes equivalence checking cheap and lets a new Split operator, with a symbolic split count, parallelize along a reduction dimension. Cleave's scheduler fuses graphs with multiple reductions through iterative tiling and horizontal fusion. Evaluation on common LLM subgraphs shows that Cleave generates kernels up to 2.8x faster than the best baseline (1.6x on average) and reduces compilation time by 5.9x on average compared to Mirage. For dynamic workloads captured from production serving traces, Cleave compiles each operator once and achieves geometric mean speedups of 1.4x and 1.7x over FlashInfer's handwritten FA2 and FA3 backends. Cleave's code is available at: https://github.com/nyu-systems/cleave",
+      "authors": [
+        "David Pissarra",
+        "Jinkun Lin",
+        "Haitian Jiang",
+        "Aurojit Panda",
+        "Jinyang Li"
+      ],
+      "primary_category": "cs.PL",
+      "categories": [
+        "cs.PL",
+        "cs.AI"
+      ],
+      "published": "2026-10-06T04:37:22+00:00",
+      "link": "https://arxiv.org/pdf/2610.07742v1",
+      "tags": [
+        "keyword:litert-ops"
+      ],
+      "llm_score": 6.0,
+      "llm_evidence_en": "ML compiler that fuses computations and schedules operators for optimized kernels",
+      "llm_evidence_cn": "通过算子调度与图变换生成融合优化内核的机器学习编译器",
+      "llm_evidence": "通过算子调度与图变换生成融合优化内核的机器学习编译器",
+      "canonical_evidence": "通过算子调度与图变换生成融合优化内核的机器学习编译器",
+      "llm_tldr_en": "Cleave is an ML compiler that decouples algebraic graph transformation from operator scheduling, searching symbolic-shape superoptimization first and concrete-shape scheduling second, enabling automatic generation of fused high-performance kernels like FlashAttention.",
+      "llm_tldr_cn": "现有机器学习编译器难以自动生成与手写相当的高效内核，原因在于图代数变换与算子调度联合搜索空间过大。本文提出Cleave编译器，先用符号形状图做超优化发现变换，再在具体形状上调度算子，实现解耦搜索。实验表明该方法能自动产出融合多头归约的高性能内核，为算子级加速提供可迁移的编译优化路径。",
+      "llm_tldr": "现有机器学习编译器难以自动生成与手写相当的高效内核，原因在于图代数变换与算子调度联合搜索空间过大。本文提出Cleave编译器，先用符号形状图做超优化发现变换，再在具体形状上调度算子，实现解耦搜索。实验表明该方法能自动产出融合多头归约的高性能内核，为算子级加速提供可迁移的编译优化路径。",
+      "llm_tags": [
+        "query:litert-ops"
+      ],
+      "matched_query_tag": "query:litert-ops",
+      "matched_query_text": "operator kernel optimization for accelerated inference",
+      "matched_requirement_id": "req-15",
+      "selection_source": "fresh_fetch",
+      "quick_tier": "6"
+    }
+  ]
+}
