@@ -1,0 +1,2117 @@
+Title: 2025-2872-paper.pdf
+
+URL Source: https://www.ndss-symposium.org/wp-content/uploads/2025-2872-paper.pdf
+
+Published Time: Wed, 19 Feb 2025 17:48:14 GMT
+
+Number of Pages: 18
+
+Markdown Content:
+# A New PPML Paradigm for Quantized Models 
+
+Tianpei Lu 1, Bingsheng Zhang 12 R, Xiaoyuan Zhang 1 and Kui Ren 11The State Key Laboratory of Blockchain and Data Security, Zhejiang University, Email: {lutianpei, bingsheng, zhangxiaoyuan, kuiren }@zju.edu.cn. 
+
+> 2
+
+Hangzhou High-Tech Zone (Binjiang) Institute of Blockchain and Data Security 
+
+Abstract —Model quantization has become a common practice in machine learning (ML) to improve efficiency and reduce com-putational/communicational overhead. However, adopting quan-tization in privacy-preserving machine learning (PPML) remains challenging due to the complex internal structure of quantized operators, which leads to inefficient protocols under the existing PPML frameworks. In this work, we propose a new PPML paradigm that is tailor-made for and can benefit from quantized models. Our main observation is that lookup tables can ignore the complex internal constructs of any functions which can be used to simplify the quantized operator evaluation. We view the model inference process as a sequence of quantized operators, and each operator is implemented by a lookup table. We then develop an efficient private lookup table evaluation protocol, and its online communication cost is only log n, where n is the size of the lookup table. On a single CPU core, our protocol can evaluate 226 tables with 8-bit input and 8-bit output per second. The resulting PPML framework for quantized models offers extremely fast online performance. The experimental results demonstrate that our quantization strategy achieves substantial speedups over SOTA PPML solutions, improving the online performance by 40 ∼ 60 × w.r.t. convolutional neural network (CNN) models, such as AlexNet, VGG16, and ResNet18, and by 
+
+10 ∼ 25 × w.r.t. large language models (LLMs), such as GPT-2, GPT-Neo, and Llama2. 
+
+I. I NTRODUCTION 
+
+Machine Learning (ML) technology has reshaped the way we analyze data, leading to breakthroughs in various sectors such as healthcare, finance, transportation, and science. At the same time, due to the nature of ML, extensive datasets with sensitive information is collected and processed, raising significant privacy concerns. This has led to an ur-gent call for the development of Privacy-Preserving Machine Learning (PPML) techniques. Secure Multi-Party Computation (MPC) has emerged as a pivotal cryptographic primitive within the realm of PPML. In a nutshell, MPC allows multiple parties to jointly evaluate a function while keeping their inputs private. In practice, the communication cost is often the performance bottleneck of an MPC-based PPML. For instance, ResNet-50 [27], with 50 convolution layers and 98MB parameters, requires over 3.8 billion fix-point (or floating-point) MPC operations to complete one model inference task, which pro-duces nearly 2GB of communication, even adopting the most efficient MPC protocols. Therefore, exploring the possibility of reducing the communication cost is the key to speeding up a PPML platform. 
+
+Quantization. The quantization technique [71], [16], [15], [32] maps high-precision floating-point values to a smaller set of discrete finite values, and it has been widely adopted to speed up model inference in practice. For large models, quantization is an essential compression technique that could potentially reduce the model size by two to four times without compromising its accuracy. This reduction in data size means that a quantized model requires less memory bandwidth to fetch and store the data, which can be a critical performance bottleneck. Less memory usage also means that more of the model can fit into faster caches, reducing the need to access slower main memory. Therefore, the quantization technique is particularly effective for accelerating model inference using GPUs/NPUs with limited I/O bandwidth. 
+
+Difficulty of adopting quantization to PPML. Several at-tempts have been made to adopt the quantization technique to the context of PPML. However, none of the existing solutions are quite successful, and naive adoption cannot save the communication cost in general. The main reason is as follows. Although the (intermediate) data between different model operators is quantized in a more succinct representation format, within each operator, the quantized data should be first recovered to its original high-precision format before the operation, and re-quantize back afterwards. Such a precision recovery step typically requires secure multiplication with the private scaler (with high-precision) as well as a module switch operation from a smaller module, e.g., 28, to a bigger module, e.g., 264 . Note that the workload of the module switch is usually equivalent to the expensive most significant bit extraction in the MPC setting. For instance, Dalskov et. al [17] propose an MPC-based platform that supports quantized model inference, but the resulting PPML scheme needs even more communication than the unquantized version. As a toy example, suppose we want to perform the convo-lution operation z ← Conv (x, w), where x, w and z consist of `-bit fix-point variables. For `′-bit quantization, we choose proper `-bit fix-point scale factor s0, s 1, s 2 and `′-bit offsets 
+
+b0, b 1, b 2 such that x = s0(x′ − b0), w = s1(w′ − b1),and z = s2(z′ − b2). The quantized convolution operation 
+
+Conv ∗ takes inputs as x′ and y′, and it shall output z′ :=  
+
+> Network and Distributed System Security (NDSS) Symposium 2025 24-28 February 2025, San Diego, CA, USA ISBN 979-8-9894372-8-3 https://dx.doi.org/10.14722/ndss.2025.242872 www.ndss-symposium.org 1
+> s2
+
+· Conv (s0(x′ − b0), s 1(w′ − b1)) + b2. It is easy to see that the operation Conv ∗ requires extra steps on top of the original 
+
+Conv . If si are kept in private, Conv ∗ usually costs more than the unquantized convolution. As another line of work, to speed up quantized model infer-ence, Riazi et. al [57], Agrawal et. al [4] and Keller et. al [38] propose to treat the quantization scalers as public variables, and the value of those scalers is limited to the perfect power of 2 to avoid secure multiplication. However, we emphasize that this type of approach might cause severe privacy leakage, also the restriction of the choices of quantization scalers has a negative impact on overall model accuracy. This prompts our main research question: 
+
+Does there exist an efficient PPML framework that is tailor-made for and can benefit from quan-tized models? 
+
+In this work, we answer this question affirmatively by proposing a new PPML paradigm. 
+
+A new paradigm. As mentioned above, model quantization is particularly effective for operators with limited I/O bandwidth; that is, the input/output of the operators is encoded in some compressed format. We observe that operators with such characteristics can be efficiently evaluated by lookup tables. For operators with n-bit input and m-bit output, the table size is bounded by 2n · m bits. For common quantized models, 
+
+n = 4 -bit or 8-bit. Our work focuses on the two-party (2PC) privacy-preserving model inference setting, where one party, called the server, holds the model in plaintext, and another party, called the client, holds the data. Our paradigm lets the model server prepare the lookup tables for each operator in the offline phase, and then the client privately evaluates those lookup tables in order to obtain the model inference result. In the literature, several works [33], [26] use lookup tables for the evaluation of non-linear functions, e.g. the activation functions; whereas, in this work, we show that even linear functions can be accelerated by lookup tables in the quanti-zation setting. Take the multiplication operation y = x · w
+
+as an example. Let x = s0(x′ − b0), w = s1(w′ − b1), and 
+
+y = s2(y′ − b2). In our setting, the model holder knows w′,
+
+{si}i∈{ 0,1,2}, and {bi}i∈{ 0,1,2}; therefore, we can re-write the operation as y′ = f (x′) := 1 
+
+> s2
+
+· s1(w′ − b1) · s0(x′ − b0) − b2,where all variables besides x′ are hard-coded into the function 
+
+f . Since x′ is only 8 bits for 8-bit quantization, the lookup table consists of 256 elements; as we will show later, the online communication cost of this private lookup table evaluation is only 8 bits, which is much less than the cost of the conventional secure (quantized) multiplication. While applying our technique to PPML, our framework sup-ports lookup-based operator fusion, i.e., the multiple lookup tables can be fused into a single lookup table, and thus the overall cost only equals to single lookup table evaluation. 
+
+Private lookup table evaluation. There are several works [31], [18], [19], [8] on lookup table evaluation and their usage in the context of PPML. For instance, FLUTE [8] utilizes a boolean circuit to represent the lookup table, and their online communication only depends on the output length of the function; more specifically, if the function output is `
+
+bits, the online communication of FLUTE is 2` bits, regardless the input length (or table size). However, those works assume the lookup table is public to everyone, which is not suitable for our case. As mentioned before the model holder will embed the model weights/parameters into the lookup table; therefore, in our work, we study the private lookup table evaluation problem, where the lookup table is considered as a private input. Another potential approach for constructing private lookup table evaluation is through private function evaluation (PFE) protocols [35], [63], [68], [25]. However, SOTA incurs significant communication and computational overhead. Our technique is based on the secret shifting protocol proposed by Lu et.al [46], where their original protocol is only designed for binary vectors. We extend the protocol to support vectors over a large ring (or field), and apply this shift technique to realize our private lookup evaluation scheme. Compared to the SOTA PFE protocols [35], [63], [68], [25], our protocol is more lightweight and efficient. Its online communication is as low as log n bits, where n is the table size. On a single CPU core, our protocol can evaluate 10 7 numbers of lookup tables with 8-bit input and 8-bit output per second (See Appendix. D for related work). 
+
+Performance. We apply our framework to various machine-learning models. For the convolutional neural network (CNN) models, such as AlexNet, VGG16, and ResNet18, our bench-mark shows that our 8-bit quantized PPML framework (single-core CPU only) is 40 ∼ 60 × faster than the typical 2PC SOTA – Cryptoflow2 [56], and 5 ∼ 15 × faster than the typical 3PC SOTA – Falcon [65] and Bicoptor [69], even though they use GPU acceleration. For the large language models, such as GPT-2, GPT-Neo, and Llama2, our 8-bit quantized framework (single-core CPU only) achieves 10 ∼ 25 × performance improvement compared to the SOTA works – CrypTen [40] and Sigma [26]. II. P RELIMINARIES 
+
+Notation. The frequently used notations are shown in Table I. We denote n-dimension vector as a := ( a0, . . . , a n−1),and ai be the ith element of a. For notation simplicity, we override the multiplication between a vector and a scalar as 
+
+a·b := ( a0 ·b, . . . , a n−1 ·b); similarly, we override the addition between a vector and a scalar as a+b := ( a0+b, . . . , a n−1+b).We denote [n] as the index set {0, . . . , n − 1}. We use letters with the prime to represent the corresponding quantized variables ( x′ represents the quantized value of x). We denote the matrix as the uppercase letter M := ( mi,j )i∈[n1],j ∈[n2]
+
+with n1 × n2 dimension, and denote the element in the ith 
+
+row and jth column of M as m(i,j ). It can also be represented as M := ( mj )j∈[n2] where mj is jth column vector, and 
+
+M := ( mi)Ti∈[n2] where mi is ith row vector. We define 
+
+shift (m, i ) as the operation of right circular shifting the vector 
+
+m by i positions. We use T `x,` y := ( t0, . . . , t 2`x −1) to denote a lookup table with `x bits input and `y bits output. When the 2semantics are clear, we omit the superscript of T . For the eval-uation of T at position x, we represent it as T (x). We view the lookup table as a vector and denote its rth item as tr ∈ Z2`y .For an operator op , we denote its quantized operator as op ∗.Let (k, n )-OT denote the k-out-of-n oblivious transfer (OT). We consider 2-out-of-2 secret shares and define the secret share J·K` over ring Z2` as JxK` := ( JxK` 
+
+> 1
+
+∈ Z2` , JxK` 
+
+> 2
+
+∈ Z2` )
+
+where x = JxK` 
+
+> 1
+
++ JxK` 
+
+> 2
+
+(mod 2 `). For simplicity, we use JxK
+
+when the semantics are clear. We denote the shared vector as 
+
+JxK := ( Jx0K, . . . , Jxn−1K).TABLE I: Notations                                               
+
+> Notations Descriptions
+> aThe vector a:= ( a0, . . . , a n−1).
+> M:= ( mi,j )i∈[n1],j ∈[n2]The n1×n2dimension matrix M.
+> op ∗The quantized operator for op .
+> [n]The index set {0, . . . , n −1}.
+> JxK`:= ( JxK`
+> 0,JxJ`
+> 1)The 2PC secret shares of xover Z2`where
+> x=JxK`
+> 0+JxK`
+> 1(mod 2 `).
+> shift (m, i )Circular shift the vector mby ipositions.
+> T`x,` yThe lookup table with `x-bit input and
+> `y-bit output.
+> T(x)Evaluate lookup table Tat position x.
+> (k, n )-OT k-out-of-n OT.
+
+System Architecture and Threat Model. As shown in Fig. 1. Our PPML framework can be deployed in outsourcing and client/server (C/S) settings. We assume all the participants are semi-honest where the adversary may attempt to extract private information from her views but she must follow the protocol. In particular, our framework contains four participants, de-noted by P := {C , S, P0, P1}. Among them, C is the data client, S is the model server, P0 and P1 are the computing nodes in the outsourcing setting. In our settings, we assume that the machine learning model is prepared in-prior. In other words, the model inference server can quantize the model parameters in advance and use the quantized models as input in the preprocessing phase. In contrast, the user input will only be determined in the online phase. Without loss of generality, we define the machine learning model as a sequence of operators: M := 
+
+{op (0) , . . . , op (N −1) } where op corresponds to the operator of each layer, and the input vector (for the tensor which is the high-dimension matrix, we convert it to vector) as 
+
+x. In our setting, the operator op is embedded with all the model weights. For instance, the convolution can be written as op (i)(x) := Conv (w, x), where w are the corresponding model weights. We denote the evaluation of x in M as 
+
+y = M(x). 
+
+> •
+
+In the outsourcing setting, the machine learning model server S inputs the private model M, and the data client 
+
+C inputs the private data x. They employ two comput-ing nodes {P 0, P1} to perform secure model inference 
+
+M(x). The computing node Pj for j ∈ { 0, 1} holds the secret share JxKj and will not collude with other parties. 
+
+Fig. 1: Our system architecture.  
+
+> •
+
+In the C/S setting, instead of employing the computing nodes, the data client C and the model server S directly perform secure model evaluation M(x), where C hold the secret share JxK0 and S hold the secret share JxK1.
+
+Oblivious transfer. The oblivious transfer is a fundamental cryptographic primitive in which one party (the sender) inputs a list of private messages and another party (the receiver) inputs private indexes. The receiver obtains the messages cor-responding to the indexes without any additional information. We denote (k, n )-OT ` as the OT with k-dimension input indexes and n-dimension message list where each message is `-bit length. We utilize Π(1 ,2) -OT ` to denote the protocol of 
+
+(1 , 2) -OT ` [24], [22]. In Π(1 ,2) -OT ` , the sender inputs message 
+
+m0 ∈ Z2` and m1 ∈ Z2` into Π(1 ,2) -OT ` ; the receiver inputs index i ∈ { 0, 1} and receive mi from Π(1 ,2) -OT ` . Random OT (ROT) [7] is a special case of OT where the selective index is randomly generated by protocol. In an (n − 1, n )-ROT `, the sends holds a list of messages, and the receiver holds an index 
+
+j and all the messages except for the jth message. We utilize 
+
+Π(n−1,n )-ROT ` [11] to denote the protocol of (n−1, n )-ROT `.It sends (m0, . . . , m n) to the sender and sends an index j ∈ [n]
+
+with n − 1 messages mi for i ∈ [n]\{ j} to the receiver. 
+
+lookup table. The lookup table T for operation op ∗ :
+
+{0, 1}`x → { 0, 1}`y traverse all possible inputs of op ∗. It accepts `x bits input and output `y bits message. The rth item of lookup table T stores the result of op ∗ with input r.
+
+Secure two-party computation. Our PPML framework fo-cuses on secure two-party computation (2PC). We define the addition on the secret share as JzK = JxK + JyK and it holds that z = x + y with secret shared form. Pi locally executes JzKi = JxKi + JyKi to obtain the shared result. We use JzK = c · JxK to denote the scale of a public value, where 
+
+z = c·x. Pi locally executes JzKi = c·JxKi to obtain the shared result. Each computing party can add a private input into the secret share. Specifically, we use JzK = JxK + c to denote one of parties add private value c to the secret share JxK, namely, 
+
+Pi locally sets JzKi = JxKi+c where P1−i sets JzKi = JxKi. We define the secret share protocol and the reconstruct protocol as follows. 3Input : x := ( x0, . . . , x n−1) ∈ (Z2` )n input by C and 
+
+y ∈ Z2` input by S.
+
+Output : C receives JzK0 := ( Jz0K0, . . . , Jzn−1K0) ∈
+
+(Z2` )n, S receives JzK1 := ( Jz0K1, . . . , Jzn−1K1) ∈
+
+(Z2` )n, where xi · y = zi for i ∈ [n].
+
+Protocol: 
+
+- S bit-extract y as (yj )j∈[`] where 
+
+y = ∑`−1 
+
+> j=0
+
+2j · yj .- For j ∈ [`], C and S invoke Π(1 ,2) -OT `·n :
+
+– C picks rj := ( ri,j )i∈[n] ∈ (Z2` )n, inputs 
+
+m0 = −r0,j || . . . || − rn−1,j and 
+
+m1 = x0 · 2j − r0,j || . . . || xn−1 · 2j − rn−1,j .
+
+– S inputs the chooes bit yj and receives output 
+
+r′ 
+
+> j
+
+.- C parses r′ 
+
+> j
+
+as r′ 
+
+> j
+
+= r′ 
+
+> 0,j
+
+|| . . . || r′ 
+
+> n−1,j
+
+and computes 
+
+JziK0 = ∑`j=1 r′ 
+
+> i,j
+
+, S sets JziK1 = ∑`j=0 ri,j .Protocol Π`,n 
+
+> vole
+
+(x, y )
+
+Fig. 2: The VOLE protocol based on OT  
+
+> •
+
+JxK` ← Π` 
+
+> C/S
+
+(P, x ): We define the secret share for C/S setting as Π` 
+
+> C/S
+
+(P, x ), where P ∈ {C , S} holds x and secret shares x to C and S. Before execution, C and S
+
+generate a correlated seed η. If P = C, C and S pick 
+
+JxK` 
+
+> 1
+
+← Z2` with the same seed η. C locally sets JxK` 
+
+> 0
+
+=
+
+x − JxK`
+
+> 1
+
+. Similarly, If P = S, C and S pick JxK` 
+
+> 0
+
+← Z2`
+
+together. S locally sets JxK` 
+
+> 1
+
+= x − JxK`
+
+> 0
+
+. 
+
+> •
+
+JxK` ← Π`
+
+> out
+
+(P, x ): We define the secret share for outsourcing setting as Π`
+
+> out
+
+(P, x ), where P ∈ {C , S} 
+
+holds x and secret shares x to P0 and P1. Before execution, P and P0 generate a correlated seed η. P and 
+
+P0 pick JxK` 
+
+> 0
+
+← Z2` with same seed η. P calculates 
+
+JxK` 
+
+> 1
+
+= x − JxK` 
+
+> 0
+
+and sends it to P1. 
+
+> •
+
+x ← Π`
+
+> rec →P
+
+(JxK`). We define the reconstruction of JxK`
+
+as Π`
+
+> rec →P
+
+(JxK`). P is the set of parties to receive x. The holders of JxK0 and JxK1 send them to the parties in P.The parties in P reconstruct x = JxK0 + JxK1.
+
+Vector Oblivious Linear Evaluation. Oblivious Linear Eval-uation (OLE)[6], [39] is a foundational component in various secure 2PC [59], [55]. In the OLE protocol[6], one party inputs value x and the other inputs value y. They jointly evaluate 
+
+z = x · y, and each party obtains the shared result JzK.Considering the vector case, the primitive so-called Vector Oblivious Linear Evaluation (VOLE) [59], accepts a vector 
+
+x := ( x0, . . . , x n) input by one party and a value y by another party, and output a shared vector of z := ( x0 · y, . . . , x n · y).The OLE can be viewed as a special case of VOLE. We follow the OT-based multiplication protocol [37] to realize VOLE. Fig. 2 depicts the procedure of VOLE protocol Πvole .
+
+Fixed-point encoding. For the floating-point data used in PPML, we first encode it to the fixed-point structure. Specif-ically, for a fixed point value x with k-bit decimal and the effective number of bits `, if x ≥ 0, we encode it as bx · 2kc;1 1 1 1 1 10 001 00 01 00 01111111110
+
+x
+
+[x]0
+
+[x]0
+
+k0
+
+`′
+
+> =
+
++
+
+Fig. 3: The case of cut protocol. if x < 0, we encode it as 2` + bx · 2kc. For a fixed-point value 
+
+x with decimal, we utilize encode to denote the procedure of fixed-point encoding, and decode to denote the procedure of decoding to the fixed-point value. 
+
+Significant bits extraction. For a shared value JxK`, it can be locally extracted of partial significant bits to a lower-precision value [69] with a probabilistic 1-bit carry error. For instance, a fixed-point value with ` − `′ decimal bits can drop the decimal bits to obtain an integer. More specifically, we use the function cut (x, k, ` ′) to denote the procedure which drops the first k bits and the last ` − `′ − k bits of x. Formally, let x := ∑`−1 
+
+> i=0
+
+xi · 2i, where xi is the ith bit of x from small endian, we have cut (x, k, ` ′) := ∑k+`′ 
+
+> i=k
+
+xi · 2i−k. Based on cut function, we can construct significant bits extraction protocol JxK`′
+
+← Π`′
+
+> cut
+
+(JxK`, k ) as follows (See Fig 4). P0 sets 
+
+JxK`′ 
+
+> 0
+
+= cut (JxK`
+
+> 0
+
+, k, ` ′) and P1 sets JxK`′ 
+
+> 1
+
+= cut (JxK`
+
+> 1
+
+, k, ` ′).Fig. 3 illustrates the case of Πcut , the drop of the lower k bits will introduce at most one bit of error (due to two number addition at most case one bit carry), while the drop of higher 
+
+` − k − `′ bits will not cause any error. 
+
+Input : JxK0 ∈ Z2` input by C and JxK1 ∈ Z2` input by S.
+
+Output : C receives Jx′K` 
+
+> 0
+
+∈ Z2`′ , S receives Jx′K` 
+
+> 1
+
+∈
+
+Z2`′ , where x′ = cut (x, k, ` ′).
+
+Protocol:  
+
+> •
+
+C locally calculates Jx′K`′ 
+
+> 0
+
+= cut (JxK`
+
+> 0
+
+, k, ` ′). 
+
+> •
+
+S locally calculates Jx′K`′ 
+
+> 1
+
+= cut (JxK`
+
+> 1
+
+, k, ` ′).Protocol Π`′
+
+> cut
+
+(JxK`, k )
+
+Fig. 4: The low precision extraction protocol III. O UR NEW FRAMEWORK 
+
+In this work, we design a new PPML framework. Our framework achieves performance improvement through two key points. On the one hand, we design our framework tailored for model quantization scenarios. On the other hand, we enable the model server to perform extra operations based on the specific model to enhance the performance of 4privacy-preserving model evaluation. We address the potential problems of quantized model evaluation in adopting the MPC technique. Consequently, we introduce our PPML paradigm which can evaluate the quantized PPML efficiently. 
+
+A. Quantization scheme. 
+
+Quantization is the process of mapping continuous infinite values to a smaller set of discrete finite values. In the context of simulation and embedded computing, it is about approximating real-world values with a digital representation that introduces limits on the precision and range of a value. We formalize the quantization scheme. A quantization scheme is a tuple Q := ( G, E, F, D). Considering the function 
+
+f to be quantized, the calibration dataset d, and n-dimension input vector x with `-bit precision, the quantization scheme 
+
+Qd,`,` ′
+
+for `′-bit quantization contains four steps:  
+
+> •
+
+(F, E, D) ← G(f, d ): the quantization generation G
+
+accept the function f , a calibration dataset d and generate a quantized function f ′, an encode function E, and a decode function D. 
+
+> •
+
+x′ ← E (x): The encode function E encode the input 
+
+x ∈ Zn 
+
+> 2`
+
+to quantized vector x′ ∈ Zn 
+
+> 2`′
+
+. 
+
+> •
+
+y′ ← f ′(x′): The quantized function f ′ is performed on the quantized vector x′ and return a quantized output y′. 
+
+> •
+
+y ← D (y′): The decode function D recover the quantized vector y′ to the vector y which is lay on the original precision. The quantization scheme is designed for IO communication and storage reduction. To measure the magnitude of the reduction, we define the following properties: 
+
+Definition 1 (ρ-succinctness) . We say the quantization scheme 
+
+Qd,`,` ′
+
+is ρ-succinct, if the precision bits ` of the original data 
+
+x and the precision bits `′ of its quantized data x′ hold that: 
+
+`′
+
+` = ρ. 
+
+Definition 2 (ε-accuracy-loss) . We say the quantiza-tion scheme Qd,`,` ′
+
+for the calibration dataset d := 
+
+{x0, . . . , xN −1} is ε-accuracy-loss, if the encode function E,the quantified function F and the decode function D hold that: 
+
+|{D (f ′(E(xi))) 6 = f (xi); i ∈ [N ]}| 
+
+N < ε ;
+
+where | · | denotes the number of elements in a collection. 
+
+Quantization in machine learning. Previous work [71], [16], [15], [32] has demonstrated the effectiveness of quantization techniques in machine-learning scenarios. We give a toy ex-ample to illustrate how the quantization scheme works on the machine learning model. Cf. Appendix. E for the quantization examples. We utilize a simple convolutional neural network model f := ( FC , ReLU , Conv ), with input tensor x, the weight 
+
+w1 for the convolution Conv and w2 for the full connection 
+
+FC , where f (x) = FC (w2, ReLU (Conv (w1, x))) . We define its quantized model as f ′ := (FC ∗, ReLU ∗, Conv ∗). We show more details about the quantization scheme Qd,`,` ′ 
+
+> ML
+
+:= (G, E, F, D) for the neural network model f .
+
+Encode function E: Before input f ′, all the data will be en-coded into the quantized data. In the typical ML quantization, the encode function E is defined as x′ = E(x) = b 1 
+
+> s
+
+· xc − b.Considering the element xi in the vector x which is a high-precision fixed-point value, it will be scaled by 1 
+
+> s
+
+to a low-precision integer. b is an offset which is the so-called zero-point to shift the central value to zero. Note that each input vector x utilizes the single scale factor s and offset b for all elements it contains. 
+
+Quantized function f ′: To convert the original model f to a quantized model f ′, we convert each operator of f to a quan-tized operator. For the convolution operator y = Conv (w1, x),the corresponding quantized operator Conv ∗ inputs with the quantized vector x′ and w′ 
+
+> 1
+
+and output y′. Assume that s0
+
+and b0 are the scale factor of x, s1 and b1 are the scale factor of w1, s2 and b2 are the scale factor of y. We have 
+
+s2(y′ + b2) = Conv (s1(w′ 
+
+> 1
+
++ b1), s 0(x′ + b0)) . From this, the quantized operator for Conv can be deduced, namely, 
+
+y′ = Conv ∗(w′
+
+> 1
+
+, x′) = s1s0 
+
+> s2
+
+· Conv (w′ 
+
+> 1
+
++ b1, x′ + b0) − b2.For the next layer, to evaluate y = ReLU (x), the quantized vector holds that s2(y′ + b2) = ReLU (s1(x′ + b1)) . The quantized operator ReLU ∗ can be calculated by ReLU ∗(x′) =  
+
+> 1
+> s2
+
+ReLU (s1(x′+b1)) −b2. Similarly, we can infer the quantized operator for full connection FC ∗. Consequently, instead of evaluating f := ( Conv , ReLU , FC ) with vector x, we evaluate 
+
+f ′ := ( Conv ∗, ReLU ∗, FC ∗) with the quantized vector x′ layer by layer. 
+
+Decode function D: All the quantized data will be de-quantized (decode to the original precision) before output. It is the inverse operator of the encode function, which is y = D(y′) = 
+
+s(y′ + b). Each integer element y′ 
+
+> i
+
+in the vector y′ will scale a high-precision fixed-point value s to obtain a high-precision fixed-point value. 
+
+Quantization generation G: To measure the quantization ar-guments {(s0, b 0), . . . , (sm, b m)}, the model server needs to evaluate the model in the calibration data-set d. This evaluation is used to generate a priori data ranges for the intermediate results of each operator in the model. These data ranges are then used to determine the scale factor s and the offset b. We formalize G as follows.  
+
+> •
+
+Evaluate f with the calibration data-set d := (x0, x1, . . . , xn−1). For each operator op , record the maximum and minimum element of output, denoted by 
+
+tmax and tmin . 
+
+> •
+
+For op with tmax and tmin , calculate s = tmax −tmin  
+
+> 2`′
+
+and 
+
+b = tmax +tmin  
+
+> 2·s
+
+. Calculate s and b for each output wire of the operators. 
+
+The challenge of adopting quantization in PPML. Although the quantized model f ′ can significantly reduce the size of input data and the temporary variables, it still can not speed up privacy-preserving machine learning. The main reason is that each quantized operator, e.g., Conv ∗, contains a multiplication 5of s1s0 
+
+> s2
+
+which lies on the original precision (In practice, equals dequantization and re-quantization). The overall cost of evaluation quantization over typical MPC is even higher than that of the evaluation of the original model. A line of work [57], [4], [38], makes the scale factor public to avoid this problem, which causes massive data leakage on the model. 
+
+B. Our PPML paradigm 
+
+Revisit the structure of the quantized operator, the input x′
+
+and output y′ keep a small range (the low precision integer), while s keeps a big range. The quantization scheme is designed to reduce the data communication size of the IO, i.e., between the GPU and memory. With this in mind, we ask whether there exists an MPC operation whose cost depends solely on the input and output sizes, without considering the intermediate computational steps. Interestingly, we observe that if we view the quantized operator as a lookup table, the scale factor 
+
+s will be hidden within it. For simplicity, we assume the quantized operator op ∗ acts independently on each element. Next, we will discuss the operations based on single elements. For vectorized operators, we will address them separately within the context of specific operators. In particular, let the quantized operator op ∗ accept input x′ ∈ Z2`′ and its hidden parameters s is known to the model server, the model server can locally generate the lookup table as a vector 
+
+T := ( op ∗(0) , . . . , op ∗(2 `′
+
+− 1)) by invoking 2`′
+
+times of op ∗.
+
+Quantization scheme in PPML. We propose the PPML-based quantization scheme ˆQd,`,` ′ 
+
+> ML
+
+. The input vector is secret sharing as JxK`, and the quantized function encodes JxK` to a much succinct secret sharing JxK`′
+
+. Considering that PPML involves fixed-point encoding and multiplication will introduce double scaling ( ˆx = x · 2k, ˆy = y · 2k, ˆz = ˆ x · ˆy = x · y · 22k is double scaled), more bits are needed to represent the fixed-point secret sharing in PPML compared to plaintext. For example, 32-bit fixed-point numbers typically use 64-bit encoding to accommodate a single multiplication. Intuitively, for a typical 64-bit PPML, our quantization scheme ˆQd,`,` ′ 
+
+> ML
+
+achieves 0.125 -succinctness under 8-bit quantization. Additionally, unlike conventional PPML fixed-point computations that potentially introduce fractional calculation errors, our PPML-based quan-tization scheme achieves evaluation results identical to plain-text, because the computations are performed on integers, with internal fractional calculations encoded into the lookup table. We test the accuracy loss of the 8-bit quantized convolutional neural networks using the deep learning inference SDK – TensorRT. As shown in Table II, our quantization scheme 
+
+ˆQd,`,` ′ 
+
+> ML
+
+holds 0.2% -accuracy-loss in 8-bit CNN model. TABLE II: The accuracy of the 8-bit quantized model com-pared to the original model.               
+
+> Squeeze Net ResNet AlexNet CIFAR AlexNet Tiny VGG CIFAR VGG Tiny Original Accuracy 58.19 80.24 91.52 58.63 92.72 68.08 8-bit Accuracy 58.10 80.39 91.53 58.46 92.73 68.18
+
+Quantized model (lookup table) generation. The model server S will first quantize the machine learning model with the calibration data set, obtaining scale factors (si, b i) for each layer. Then the S generates the lookup table for each quantized operator. We observe that besides the scale factor s, S can also embed the model weight into the lookup table, which makes the dual-input operator, e.g., convolution, matrix multiplica-tion, to single-input. Taking Mult ∗(w′, x ′) := 1 
+
+> s2
+
+Mult (s1(w′ +
+
+b1), s 0(x′ + b0)) − b2 as an example, the model server knows about s1, w′, b1, s0, b0, s2 and b2, such that w′ can be part of operator. The operator is converted to a single-input function 
+
+Mult ∗(x′). To generate the lookup table, the model server traverses all possible values of input and evaluates the operator with such values. For x′ ∈ { 0, . . . , 2`′
+
+− 1}, the corresponding lookup table is T `′,` ′
+
+:= ( Mult ∗(w′, 0) , . . . , Mult ∗(w′, 2`′
+
+−
+
+1)) . So far, the model server obtains the lookup table for each model operator of f . We denote the overall lookup table set for model f which contains m operators as the Q-model 
+
+M := ( T (0) , . . . , T (m−1) ), and its ith lookup table represent the ith quantized operator. 
+
+Q-model evaluation. Instead of evaluating the operator with the white box function, the model evaluation turns to the black box with the lookup table. In each layer of the ML model, the model server inputs the private lookup table 
+
+T `′,` ′
+
+:= (op ∗(0) , . . . , op ∗(2 `′
+
+)) , and all parties input the shared value Jx′K`′
+
+to query T , resulting in a new shared index Jy′K`′
+
+= Jop ∗(x′)K`′
+
+= JT (x′)K`′
+
+. We directly adopt the lookup evaluation technique on the single-input-single-output (SISO) operator, e.g., activate operator, batch normalization operator, etc. These operators are performed on each element, leading to a single input of the lookup table. For the multiple-input-single-output (MISO) operator, e.g., convolution, and matrix multiplication, we provide the construction in the next section. By querying the lookup table of M layer by layer, all parties finally obtain the shared output. 
+
+Lookup tables fusion. We observe that multiple lookup tables can be fused into a single lookup table, resulting in a single fused table rather than multiple table evaluation. The lookup fusion technique is suitable for any SISO op-erator, or an SISO operator connecting to an MISO op-erator. Formally, considering a sequence of lookup table 
+
+x2 = T (1) (x1), x 3 = T (2) (x2), . . . , x n+1 = T (n)(xn), it holds that xn+1 = T (n)(. . . , T (2) (T (1) (x1)) , . . . ). All the lookup tables can be combined by a single lookup table 
+
+xn+1 = T ∗(x) := T (n)(. . . , T (2) (T (1) (x)) , . . . ). If T (n) is an MISO lookup table, the fusion concludes an overall MISO lookup table. That is, T ∗(x, y ) := T (n)(T (1) (x), T (2) (y)) .Notice that the fusion of SISO and MISO does not introduce larger lookup tables, while the fusion of MISO and MISO will exponentially increase the size of the lookup table. 
+
+Dequantization fusion. The other optimization is that we can further reduce the de-quantify phase by fusing the dequan-tization phase with the previous layer’s lookup table. If we view the dequantization scheme as a lookup table, its input range is Z2`′ and output range is Z2` , such that the lookup 6table size is 2`′
+
+· ` (Considering `′ is small, it is acceptable). Similarly, we use the lookup fusion technique to combine the de-quantify function with the last operator, resulting in a new lookup table with Z2`′ input and Z2` output. Note that this technique is not suitable for the quantization operator, as the input of the quantizing function is `-bit, which would lead to an unacceptably large lookup table of size 2` · `′.IV. P RIVATE LOOKUP TABLE EVALUATION .
+
+A. The Existing lookup Table Overview 
+
+Our PPML framework is based on secure lookup evaluation. Looking forward to a suitable component, we review the ex-isting lookup table evaluation scheme. In general, we classify the lookup table evaluation into two types: i. the scheme where online communication cost only depends on the output size of lookup; ii. the scheme where online communication costs are only dependent on the input size of the lookup. 
+
+Lookup table with Output-length-dependent Cost. 
+
+Br¨ uggemann [8] et. al propose a lookup table construction named FLUTE where the online phase communication costs are only dependent on the lookup table output size. The FLUTE approach utilizes a boolean circuit to represent the lookup table and adopts the ABY2.0 [53] protocol to evaluate the boolean circuit securely. Since the online phase of ABY2.0 only depends on the output size `′, the lookup table evaluation only requires concrete 2`′ bits communication. FLUTE pro-vides a fast online phase when the output of the lookup table is small. However, FLUTE is not suitable for our framework, as its lookup table structure needs to be public. For our PPML framework, the lookup table encoding the scale factor s, the offset b and the weight w needs to be processed in secret. 
+
+Lookup table with Input-length-dependent Cost. Another type of lookup evaluation schemes [31], [18], [19] holds the property that the online phase communication costs are only dependent on the lookup table input size, by introducing an offset r on the lookup table. In particular, for a lookup table T `x,` y whose input size is 2`x , the preprocessing phase involving two parties jointly generating the shifted shared lookup table JT ′K whose item is JtiK`y = JT (i + r)K`y for 
+
+i ∈ { 0, . . . , 2`x − 1} ( Circular shifting T by r position to obtain T ′) and the secret shared offset JrK`x . In the online phase, given the secret shared input JxK, two parties recon-struct δ = x − r and set result JyK`y = Jtδ K`y (it is easy to see 
+
+tδ = T (δ +r) = T (x)). The communication cost of the online phase only contains 2`x bits communication of reconstruction which corresponds to the input size. Coincidentally, similar to the output depending on the scheme, these works [31], [18], [19] are also incompatible with our PPML framework, where their settings assume the lookup table is public in the preprocessing phase to generate JtiK`y .
+
+Lookup table with private function evaluation. The private lookup table evaluation is essential for implementing the quantization scheme. We observe that the private lookup table is a special case of private function evaluation (PFE), and it can be viewed as the distributed oblivious RAM(DORAM), while the dataset is shared, and computing parties pick the selected item using a shared index. Several works [35], [63], [20] realize DORAM based on function secret sharing (FSS), which can also be used to construct the private lookup table evaluation. Specifically, two parties, P0 and P1, hold correlated FSS keys that generate a shared one-hot list. To select an item corresponding to the position of the one-hot from the lookup table, all parties calculate the inner product of the one-hot list and the lookup table. Doerner et al. [20] employ an encrypted lookup table where the ciphertext is publicly known to both parties, allowing the inner product computation to remain local in the 2-party computation (2-PC) setting. However, their approach yields the shared query result in ciphertext form, necessitating an additional decryption phase in the MPC setting to obtain the final result. Other attempts [35], [34], [63] avoid using an encrypted lookup table by using replicated secret shared lookup table, but their protocol requires at least three or more computing parties. Moreover, the FSS keys need to evaluate the O(2 `x ) times PRG in the online phase for the lookup table size 2`x , leading to significant online running time. An alternative approach for realizing the private lookup table evaluation scheme is through the use of garbled circuits. In this scenario, both the lookup table and the index are treated as private inputs. A series of works [29], [28] have explored the private lookup evaluation scheme based on garbled circuits. To the best of our knowledge, David et al. [29] achieve SOTA theoretical performance, requiring (`x − 1) λ + `x`y λ + 2 `x `y
+
+bits of communication cost, where `x is the input size, `y
+
+is the output size, and λ is the security parameter (with 256 typically used in garbled circuits) which is still unacceptable for our framework. 
+
+B. Our Private lookup Table Evaluation Scheme. 
+
+In this section, we aim to find more efficient and low-communication lookup table evaluation protocols. In our set-ting, one of the parties inputs the private lookup table T `x,` y ,and all parties input a secret shared value JxK`x . As the lookup table evaluation, all parties receive the shared result JT (x)K`y .Our scheme is based on the aforementioned approach where online communication cost only depends on the input size of the lookup. We observe that this approach is partially compatible with the private lookup table since the shifted lookup table JT ′K in the online phase is secretly shared and leaks no information about the original lookup table. The remaining challenge is how to generate JT ′K`y and JrK`x with a private lookup table T . Formally, we define the private lookup table evaluation as two phases: (i) private shifted lookup table pair generation, in the preprocessing phase, all parties jointly generate the shifted shared lookup table pair where one of the parties inputs the private lookup table. (ii) lookup table evaluation, in the online phase, we follow the works [31], [18], [19] where all parties are only required to perform 2 · `x
+
+bits communication to reconstruction. Formally, we formally define the circular shifted lookup pair. We give the definition as follows. 
+
+Definition 3. Let T `x,` y be a lookup table with `x-bit input and `y -bit output. We say a 2PC circular shift lookup pair for 7Fig. 5: Secure ML Operator Evaluation with lookup Table. 
+
+Input : S inputs a lookup table T `x,` y ∈ (Z2`y )2`x 
+
+in the preprocessing phase. S and C inputs a secret shared index JxK`x in the online phase. 
+
+Output : The secret shared lookup table evaluation result JT (x)K`y .
+
+Preprocessing: 
+
+1) C and S invoke Π(2 `x −1,2`x )-ROT : 
+
+> •
+
+S receives (mi|i ∈ [2 `x ], mi ∈ (Z2`y )2`x 
+
+). 
+
+> •
+
+C receives JrK0 and (mi|i ∈ [2 `x ]\{ JrK0}).2) C picks random mJrK0 ← (Z2`y )2`x 
+
+.3) C and S generate the matrix M ∈ (Z2`y )2`x ×2`x 
+
+by setting mi as the ith column vectors. 4) C and S right circular shift the ith row of M by i
+
+positions locally for i ∈ [2 `x ].5) S and C computes vi = ∑2`x −1 
+
+> j=0
+
+m(i,j ) and 
+
+ui = ∑2`x −1 
+
+> j=0
+
+(−m(j,i )) for i ∈ [2 `x ], and denotes 
+
+v := ( v0, . . . , v 2`x −1) and u := ( u0, . . . , u 2`x −1).6) C computes wi = vi + uJrK0+i, and denotes 
+
+w := ( w0, . . . , w 2`x −1).7) S picks random JrK1 ∈ Z2`x and right circular shift T by JrK1 positions to obtain ˆT .8) S sends s = ˆT + u to C and sets JT ′K1 := v.9) C computes JT ′K0 := shift (s, JrK0) − w.
+
+Online: 
+
+1) S and C calculates JδK`x = JxK`x − JrK`x .2) C and S invoke δ ← Π`x
+
+> rec →{C ,S}
+
+(JδK`x ).3) C and S set output JT (x)K`y = JT ′(δ)K`y .Protocol Π`x,` y
+
+> lookup
+
+(T `x,` y , JxK`x )
+
+Fig. 6: The lookup evaluation protocol Πlookup .lookup table T `x,` y is (JT ′K`y , JrK`x ), if it holds that T ′(x) = 
+
+T (x + r).
+
+Circular Shift Lookup Pair in Outsourcing Setting. The circular shift lookup table pair can be generated easily in the outsourcing setting. Since the employed computation parties 
+
+P0 and P1 will not collude with the model holder S, S can directly generate r ∈ Z2`x −1 and locally circular shift T to r
+
+position and obtain T ′. Consequantly, S secret share T ′ and 
+
+r to P0 and P1.
+
+Circular Shift Lookup Pair in C/S Setting. The circular shift lookup pair generation has more challenges in the C/S setting. Recently, Lu [46] et. al propose a vector oblivious shift evaluation (VOSE) scheme that can secure shift a n-dimension binary vector T ∈ (Z2)n to a random position r
+
+in the two-party setting. In VOSE, P0 inputs a binary vector 
+
+T := ( t0, . . . , t n−1) ∈ (Z2)n and receives JT K10, P1 receives 
+
+JT K11 and offset r where JT K10 ⊕ JT K11 = shift (T , r ). We realize that applying their definition to the ring Z2`y satisfies our requirements. We adopt the technique of Lu et. al to our circular shift lookup pair generation. In our setting, we define the VOSE in the arbitrary ring Z2` , namely, S inputs a vector 
+
+T ∈ (Z2` )n and receives JT K0, C receives JT K1 and offset r
+
+where JT K0 + JT K1 = shift (T , r ). Using VOSE, we realize the circular shift lookup pair generation. We let S locally circular shift T to r1 position and input the shifted lookup table to VOSE. C input another position r0 to VOSE. Since S
+
+locally shift T to r1 position and VOSE shift r0 position, the overall shifted position is r0 + r1. After that C receive JT ′K0
+
+and S receive JT ′K1 where T ′ = shift (T , r 0 + r1). Setting 
+
+JrK0 = r0 and JrK1 = r1, we obtain the circular shift lookup pair generation. Our VOSE protocol is also inspired by Lu et. al [46], At a high level, the VOSE protocol contains two parts. In the first part, all parties generate a random VOSE, where T is a random vector, rather than determined by P0. In the second part, all parties construct VOSE based on random VOSE. 
+
+Random Vector Oblivious Shift Evaluation over Ring. In our random VOSE scheme, C receives two n-dimension random vectors u ∈ (Z2` )n and v ∈ (Z2` )n; S receives a offset r and a vector w ∈ (Z2` )n, and it holds w = shift (u, r ) + v. We realize random VOSE from ` · n length n − 1 out of n random OT. Specifically, we describe the process as follows.  
+
+> •
+
+S and C invoke an instance of Π(n−1,n )-ROT . After the protocol, S receives n messages (m0, . . . , mN −1) and 
+
+mi ∈ (Z2` )n. C receives r and all messages except for 
+
+mr . We allow C pick random ˆmr ← (Z2` )n. Viewing 
+
+(m0, . . . , mn−1) as a n × n-dimension matrix M, S
+
+obtains the complete M, while C can obtain the ˆM with dummy rth column ˆmr . 
+
+> •
+
+S and C right circular shift the ith row of M ( ˆM for C)by i positions for i ∈ [n], and denote the new matrix as 
+
+M′ := ( m′
+
+> (i,j )
+
+)i∈[n],j ∈[n] (or ˆM′ := ( ˆ m′
+
+> (i,j )
+
+)i∈[n],j ∈[n]).  
+
+> •
+
+S sets vi = ∑n−1 
+
+> j=0
+
+m′ 
+
+> (i,j )
+
+and ui = ∑n−1 
+
+> j=0
+
+(−m′
+
+> (j,i )
+
+)
+
+for i ∈ [n] to generate v := ( v0, . . . , v n−1) and u := (u0, . . . , u n−1). Note that vi is the sum of ith row of M′
+
+and ui is the sum of ith column of M′. 
+
+> •
+
+Similarly, C calculates ˆvi = ∑n−1 
+
+> j=0
+
+ˆm′ 
+
+> (i,j )
+
+and ˆui =
+
+∑n−1 
+
+> j=0
+
+(− ˆm′
+
+> (j,i )
+
+) for i ∈ [n]. Let wi = ˆ vi +ˆ ur+i mod 2 `,it holds that wi = ˆ vi − ˆm′ 
+
+> (i,i +r)
+
++ m′ 
+
+> (i,i +r)
+
++ ˆ ur+i +
+
+m(i,i +r) − m′ 
+
+> (i,i +r)
+
+= vi + ur+i. Considering m′ 
+
+> (i,i +r)
+
+is the only item shift by m′ 
+
+> r
+
+which correspond to ˆm′ 
+
+> r
+
+of C,8the calculation of wi eliminates the same item of m′ 
+
+> r
+
+and 
+
+ˆm′ 
+
+> r
+
+so that S can correctly calculate wi. While any other 
+
+vi or ui is random to S. S set w := ( w0, . . . , w n−1).Obviously, w, u and v satisfy w = shift (u, r ) + v.
+
+Private lookup Evaluation from VOSE. Based on the random VOSE, we construct our private lookup evaluation protocol for T `x,` y . Fig. 6 illustrates the specific procedure of lookup evaluation protocol Πlookup . Random VOSE output vectors u ∈
+
+(Z2`y )2`x 
+
+and v ∈ (Z2`y )2`x 
+
+to S, r0 ∈ Z2`x and a vector w ∈
+
+(Z2`y )2`x 
+
+to C, such that w = shift (u, r 0) + v. We let S picks random offset r1 ∈ Z2`x and locally shift T by r1 position to obtain ˆT . Consequently, S sends s = ˆT + u to C. Then C
+
+sets JT ′K1 = shift (s, r 0) − w and S sets JT ′K0 = v. Clearly, 
+
+JT ′K1 + JT ′K0 = shift (s, r 0) − shift (u, r 0) = shift ( ˆT , r 0) = 
+
+shift (T , r 1 +r0). For the security proof of our protocol Πlookup ,we refer the reader to Appendix. A. V. PPML FOR QUANTIZED MODELS .In this section, we give a concrete construction for our PPML framework. We first propose the general PPML frame-work of our outsourcing setting and C/S setting, in which all the operator is viewed as SISO operators. Next, we discuss the special case of the MISO operators. 
+
+A. The Outsourcing Setting. 
+
+We first talk about how to apply our paradigm to the outsourcing setting. Compared to the C/S structure, the offline of our outsourcing structure is much cheaper. We define the execution procedure of quantization, lookup table evaluation, and de-quantization as follows. Fig. 7 formally illustrates our quantization framework.  
+
+> •
+
+Input Quantization. In the outsourcing setting, the data client holds the input vector x ∈ (Z2` )n and inputs it in the online phase, while the model server holds the scale factor s ∈ Z2` , offset b ∈ Z2`′ and input in the preprocessing phase. They would like to employ two computation parties P0 and P1 to evaluate E(x) :=  
+
+> 1
+> s
+
+· x − b ∈ Z2`′ . At the preprocessing phase, we let the model holder S first encode 1 
+
+> s
+
+as the fixed-point encoding, namely ˆs = enc ( 1 
+
+> s
+
+) (Note that enc scale 1 
+
+> s
+
+up to k bits), and secret share the VOLE triple (JrK`, JˆsK`, JrˆsK`) to 
+
+P0 and P1. In the online phase, the data client encode x
+
+as ˆx = enc (x) (Similarly, enc scale x up to k bits) and secret share ˆx to P0 and P1. P0 and P1 reveal δ = ˆ x−r
+
+and calculate Jx′K` = δ · JˆsK` + JxˆsK` which is equals to J ˆx · ˆsK` := ( ˆ x0 · ˆs, . . . , ˆxn−1 · ˆs). Consequently, we apply Jx′
+
+> i
+
+K`′
+
+← Π`′
+
+> cut
+
+(J ˆxi · ˆsK`, 2k) for i ∈ [n] to chop `′
+
+significant bits (Note that the last 2k bits is the fractional part introduced by the multiplication of ˆx and ˆs). For the additive part of Jx′K`′
+
++ JbK`′
+
+, it can be evaluated locally.  
+
+> •
+
+Q-model Evaluation. For the lookup table evaluation of each element x′ in the vector x′, i.e., the lookup table 
+
+T `′,` ′
+
+with input Jx′K`′
+
+and output JyK`′
+
+= JT (x′)K`′
+
+,we adopt the aforementioned shift pair (The procedure is shown in Fig. 5), we let the model server S shift T
+
+with a random offset r, namely, T ′(i) = T (i + r) for 
+
+Input : The fractional precision k is common input; the fixed-point encode of input ˆx = encode (x) ∈ Z2`
+
+is input by C; the scale factor ˆs = encode ( 1 
+
+> s
+
+) ∈
+
+Z2` , b ∈ Z2`′ for encoding function E is input by S; the quantized lookup table set for model 
+
+f ′ := ( op 0, . . . , op N −1, ˆop ) is input by S, where 
+
+ˆop is the last lookup table which is combined with the dequantization D.
+
+Output : model evaluation result z := D(f ′(E(x))) .
+
+Input Quantization: 
+
+- (Preprocessing) S picks random vector 
+
+r ← (Z2` )n and invokes Π`
+
+> out
+
+(S, r) ,Π`
+
+> out
+
+(S, ˆs)
+
+and Π`
+
+> out
+
+(S, r · ˆs), where the computing node Pi
+
+for i ∈ { 0, 1} holds (JrK`i , JˆsK`i , Jr · ˆsK`i );- C invokes Π`
+
+> out
+
+(C, ˆx) and the computing node Pi
+
+for i ∈ { 0, 1} holds J ˆxK`i ;- Pi for i ∈ { 0, 1} does: 
+
+– calculate JδK`i = J ˆxK`i − JrK`i and invoke 
+
+Π`
+
+> rec →{P 0,P1}
+
+(JδK`) to reconstruct δ.
+
+– calculate Jx′K`i = δ · JˆsK`i + Jr · ˆsK`i .
+
+– invoke cut function Jx′ 
+
+> j
+
+K`′
+
+← Π`′
+
+> cut
+
+(Jx′ 
+
+> j
+
+K`, 2k) for 
+
+j ∈ [n], x ′ 
+
+> j
+
+∈ x′ locally. 
+
+Model evaluation: 
+
+For the operators (op 0, . . . , op N −1) with each element Jx′K`′
+
+of input vector Jx′K`′
+
+and output 
+
+Jop ∗ 
+
+> j
+
+(x′)K`′
+
+,- (Preprocessing) S invokes Π`′
+
+> out
+
+(S, op ∗(j + r)) for 
+
+j ∈ { 0, . . . , 2`′
+
+− 1} and Π`
+
+> out
+
+(S, r ), where Pi for 
+
+i ∈ { 0, 1} holds the share of lookup table 
+
+(JT ′(0) Ki, . . . , JT ′(2 `′
+
+− 1) Ki) and the offset JrKi.- Pi for i ∈ { 0, 1}does: 
+
+– calculate JδK`′ 
+
+> i
+
+= Jx′Ki − JrKi and invoke 
+
+Π`′
+
+> rec →{P 0,P1}
+
+(JδK) to reconstruct δ.
+
+– set Jy′K`′ 
+
+> i
+
+= JT ′(δ)Ki.
+
+Output Dequantization: 
+
+For the operator ˆop ∗ which combines the dequantiza-tion operator with the last operator and each element 
+
+x′ of input vector x′,- (Preprocessing) S invokes 
+
+JT `′,` (j)K ← Π`
+
+> out
+
+(S, op ∗(j + r)) for 
+
+j ∈ { 0, . . . , 2`′
+
+− 1} and JrK`′
+
+← Π`′
+
+> out
+
+(S, r ).- Pi for i ∈ { 0, 1} does: 
+
+– calculate JδK`′ 
+
+> i
+
+= Jx′K`′ 
+
+> i
+
+− JrK`′ 
+
+> i
+
+and invoke 
+
+Π`′
+
+> rec →{P 0,P1}
+
+(JδK) to reconstruct δ.
+
+– set JˆzK`i = JT (δ)K`′ 
+
+> i
+
+and send JˆzK`i to C.
+
+– C calculate z = decode (JˆzK` 
+
+> 0
+
++ JˆzK`
+
+> 1
+
+) and combine all element to vector z.Quantization scheme Πout quantize (x, E, f ′, D)
+
+Fig. 7: The quantization PPML scheme in the outsourcing setting 
+
+i ∈ Z2`′ . In the preprocessing phase, S secret share T ′
+
+and r to P0 and P1. In the online phase, Pj for i ∈ { 0, 1}
+
+calculates JδKj = Jx′Kj − JrKj and reconstruct ∆. Pj
+
+9Input : The fractional precision k is common input; ˆx = encode (x) ∈ Z2` input by C;
+
+ˆs = encode ( 1 
+
+> s
+
+) ∈ Z2` , b ∈ Z2`′ for encoding function 
+
+E input by S; f ′ := ( op 0, . . . , op N −1, ˆop ) input by 
+
+S, ˆop is combined with the dequantization D.
+
+Output : The model evaluation result z := 
+
+D(f ′(E(x))) .
+
+Quantize: 
+
+- (Preprocessing) C picks random 
+
+r := ( r0, . . . , r n−1) ← (Z2` )n;- (Preprocessing) S and invokes JˆsK` ← ΠC/S (ˆ s);- (Preprocessing) S and C invokes 
+
+Jr′K := ( Jr′
+
+> 0
+
+K, . . . , Jr′
+
+> n−1
+
+K)i∈n ← Π`
+
+> vole
+
+(r, ˆs);- C calculates δ = x − r := ( δ0, δ 1, . . . , δ N −1) and sends to S.- C and S calculate Jx′
+
+> i
+
+K` = δi · JˆsK` + Jr′
+
+> i
+
+K` for 
+
+i ∈ [n];- C and S invoke cut function 
+
+Jx′
+
+> i
+
+K`′
+
+← Π`′
+
+> cut
+
+(Jx′
+
+> i
+
+K`, 2k) for i ∈ [n] locally and set 
+
+Jx′K`′
+
+= ( Jx′
+
+> i
+
+K`′
+
+)i∈[n].
+
+Model evaluation/De-quantization: 
+
+- For the quantized operator op ∗ with input 
+
+Jx′K`′
+
+:= ( Jx′
+
+> i
+
+K`′
+
+)i∈[n] and output Jop ∗(x′)K`′
+
+, C
+
+and S invoke 
+
+JyiK`′
+
+← Π`′,` ′
+
+> lookup
+
+(( op ∗(0) , . . . , op ∗(2 `′
+
+− 1)) , JxiK`′
+
+)
+
+for i ∈ [n].- For the last operator ˆop ∗ which is combined with the de-quantization, C and S invoke 
+
+JˆziK` ← Π`′,` 
+
+> lookup
+
+(( op ∗(0) , . . . , op ∗(2 `′
+
+− 1)) , JxiK`′
+
+)
+
+for i ∈ [n].- S sends J ˆzK` 
+
+> 1
+
+:= ( Jˆz0K`
+
+> 1
+
+, . . . , Jˆzn−1K`
+
+> 1
+
+) to C.- C reconstruct ˆz = J ˆzK` 
+
+> 0
+
++ J ˆzK` 
+
+> 1
+
+and recover the fixed-point value z = decode ( ˆ z).Quantization scheme ΠC/S
+
+> quantize
+
+(x, E, f ′, D)
+
+Fig. 8: The quantization PPML scheme in C/S setting then locally sets output as JyK`′ 
+
+> j
+
+= JT ′(δ)Kj . Obviously, 
+
+T ′(δ) = T (δ + r) = T (x′). 
+
+> •
+
+Output De-quantization. As mentioned before, the de-quantization function ˆy = E(y′) = s(y′ − b), where 
+
+y′ ∈ (Z2`′ )n and ˆy ∈ (Z2` )n, can be combined with the previous operator ˆy = s(op ∗(y′)−b). The model server S
+
+generates the lookup table T ∈ Z2`′ 
+
+> 2`
+
+and evaluate it as like the model evaluation. Upon calculating the result J ˆyK`,
+
+P0 and P1 reconstruct ˆy to the data client C. C invoke decode function y = decode ( ˆ y) to obtain the fixed-point result y.
+
+B. Client/Server structure 
+
+Compared to outsourcing setting, the C/S setting has more challenges. In the outsourcing setting, we assume that the server and the computing nodes will not collude, such that the revealed data δ = x − r will not leak information of x.In contrast, in the C/S setting, no matter the multiplication triple (r, ˆs, r · ˆs) or the shift pair (T ′, r ) can not be directly 
+
+Fig. 9: A illustration example of lookup table evaluation for matrix multiplication. generated by server S, because the knowledge of r will lead 
+
+S learn x from δ. For this concern, we utilize the VOLE protocol Πvole and our 2PC private lookup evaluation protocol 
+
+Πlookup to realize PPML inference.  
+
+> •
+
+Input Quantization. In the C/S setting, the data client holds the input vector x ∈ (Z2` )n and the model sever holds the scale factor s ∈ Z2` and b ∈ Z2`′ . They directly invoke a 2PC protocol to evaluate E(x) := 1 
+
+> s
+
+· x − b ∈
+
+Z2`′ . Similarly, the model holder encode ˆs = 1 
+
+> s
+
+at first. At the preprocessing phase, C generate random shared vector r := ( r0, . . . , r n−1). In particular, C picks random value ri ∈ Z2` for i ∈ [n]. They adopt (Jˆs · riK`)i∈[n] ←
+
+Πvole (ˆ s, (r0, . . . , r n−1)) , where C input (ri)i∈[n] and S
+
+input ˆs. S secret share ˆs at the same round. In the online phase, C sends δ = x−r to S. Similar to the outsourcing setting, all parties calculate Jx′K` = δ · JˆsK` + JxˆsK` and perform Π`′ 
+
+> cut
+
+to obtain Jx′K`′
+
+. 
+
+> •
+
+Q-model Evaluation/Output De-quantization. We adopt the private lookup table evaluation scheme for the model evaluation in the C/S setting. For each op-erator op ∗ with input JxK`′
+
+. C and S invoke JyiK`′
+
+←
+
+Π`′,` ′
+
+> lookup
+
+(( op ∗(0) , . . . , op ∗(2 `′
+
+− 1)) , JxiK`′
+
+) for each i ∈
+
+[n]. All parties set the output vector y := ( y0, . . . , y n−1).For the operator ˆop ∗ : Z2`′ → Z2` witch contains both model operator and dequantization, C and S in-voke JˆziK`′
+
+← Π`′,` 
+
+> lookup
+
+(( ˆ op ∗(0) , . . . , ˆop ∗(2 `′
+
+−1)) , JxiK`′
+
+).Consequently, S sends JˆziK1 to C. C reconstruct ˆz := (ˆ z0, . . . , ˆzn−1) and invoke decode to recover the fixed-point value. 
+
+C. lookup for MISO. 
+
+Above we describe how to evaluate the quantized operator with the lookup table and convert SISO operators of PPML, e.g., activate function, to the lookup table. There remain some operators which are the MISO structure. Since the lookup table size grows exponentially as the input size increases, the lookup scheme is not applicable for the multiple input function. We analyze those MISO operators as follows. 10 Multiple lookup table with a single index. For the convolu-tion layer or the matrix multiplication layer, each private input will multiplicate multiple weights, which can be viewed as a query multiple lookup table with a single index. In particular, as shown in Fig. 9, let W := ( wi,j )i∈Z3,j ∈Z4 be a 3 × 4
+
+dimension matrix, and x := ( x0, . . . , x 3) be a 4 dimension vector. In the calculation of W × x, x0 will multiplicate both w0,0, w0,1 and w0,2. Naively, it can be realized by performing Πlookup three times. Given f0(x0) = w0,0 · x0,
+
+f1(x0) = w0,1 · x0 and f2(x0) = w0,2 · x0, we observe that we can combine three functions to an overall function 
+
+F (x0) := f0(x0)|| f1(x0)|| f2(x0). Its corresponding lookup table has `′ bits input and 3`′ bits output. Considering the online phase of Πlookup only depends on the input size, the online phase cost for N times query lookup table with a single index equals the cost of a single query. 
+
+Addition. For the addition y = x0 + x1, where x0 = s0(x′ 
+
+> 0
+
++
+
+b0) and x1 = s1(x′ 
+
+> 1
+
++ b1) are the temporary variable from two different wires which are unknown to both C and S, y =
+
+s2(y′ + b2) is the output of addition, its quantized function is y′ = s0 
+
+> s2
+
+(x′ 
+
+> 0
+
++ b0) + s1 
+
+> s2
+
+(x′ 
+
+> 1
+
++ b1) − b2. Addition can be realized using two times invoking lookup table with f0(x′
+
+> 0
+
+) :=  
+
+> s0
+> s2
+
+(x′ 
+
+> 0
+
++ b0) and f1(x′
+
+> 1
+
+) := s1 
+
+> s2
+
+(x′ 
+
+> 1
+
++ b1) − b2.
+
+Convert the dual-input operator to the SISO structure. 
+
+For the multiplication y = x0 · x1, its quantified function is 
+
+y′ = s0·s1 
+
+> s2
+
+(x′ 
+
+> 0
+
++ b0)( x′ 
+
+> 1
+
++ b1) − b2. A naive idea is to evaluate 
+
+x′ = ( x′ 
+
+> 0
+
++ b0)( x′ 
+
+> 1
+
++ b1) using 2PC multiplication in Z2`′ ,after that all parties evaluate y′ = s0·s1 
+
+> s2
+
+· x′ − b2 with lookup table. Nevertheless, this approach will incur a significant error caused by overflow of (x′ 
+
+> 0
+
++ b0)( x′ 
+
+> 1
+
++ b1). Considering (x′ 
+
+> 0
+
++
+
+b0)( x′ 
+
+> 1
+
++ b1) > 2`′
+
+, in lookup table, s0·s1 
+
+> s2
+
+will scale it back to [0 , 2`′
+
+− 1] while separate calculation will lose the overflow part, leading to a big error. The potential solution is to deal 
+
+(x′ 
+
+> 0
+
++b0)( x′ 
+
+> 1
+
++b1) in Z22`′ , however, it still enlarged the range of lookup table input. Our solution is to convert the dual-input operator to the SISO structure, and it can be used to deal with arbitrary dual-input operators op ∗. We set the previous layer of 
+
+op ∗ to be `′/2 output, by encoding the corresponding `′/2-bit into the previous lookup table. Before inputting two `′/2-bit values to op ∗, we combine them to `′-bit value. For the other operators’ construction for CNN and Trans-former, we refer the reader to Appendix. C. VI. I MPLEMENTATION AND BENCHMARK .In this section, we benchmark our lookup-based quanti-zation PPML framework. We realize two types of machine learning models – the convolutional neural network for image classification models and the large language models. 
+
+A. Benchmark setting 
+
+We implement our protocols in C++. For the ΠOT , we utilize the OT library – libOTe [1]. For our experiments, the CPU version is performed in the server that runs Ubuntu 18.04.2 LTS with Intel(R) Xeon(R) Silver 4214 CPU @ 2.20GHz, 48 CPUs, 128 GB Memory; the GPU version is performed in the server with the CPU version with extra 4 × Nvidia 
+
+(a) 4-bit Quantization. (b) 8-bit Quantization. 
+
+Fig. 10: Lookup table evaluation in the LAN setting. 
+
+(a) 4bit Quantization. (b) 8bit Quantization. 
+
+Fig. 11: Lookup table evaluation in the WAN setting. RTX 2080ti, 8GB; for the edge devices, we benchmark in the Raspberry Pi 4B with 1.5GHz CPU and 4GB DDR4 Memory. In our benchmark, we set the security parameter λ = 128 .Since most of the code is not available, as a baseline, we use the data in CryptoFlow2 [56], Bicoptor [69], Piranha [67], CrypTen [40], Sigma [26], and use the software to simulate the operating environment in these papers. The benchmarks of our private lookup table evaluation in both outsourcing and C/S settings can be found in Appendix. B. 
+
+B. Private Look-up Table Evaluation. 
+
+We benchmark our private look-up table evaluation against the function secret sharing-based private look-up table eval-TABLE III: Online performance (for both C/S setting and outsourcing setting) comparison with Piranha-Falcon [67], [65] and Bicoptor [69] for CNN model. (We take ` = 64 and 
+
+`′ = 8 . The bandwidth is 5Gbps/100Mbps in the LAN and the WAN setting respectively and the latency is 0.2ms/40ms respectively.)                                  
+
+> Model Batch Size Protocol LAN WAN Plaintext Time CIFAR10 AlexNet 1650 P-Falcon 16.72s 297.45s 0.32s Bicoptor 5.00s 99.83s Ours 0.98s 22.86s Tiny AlexNet 510 P-Falcon 30.47s 513.48s 0.10s Bicoptor 7.12s 179.53s Ours 1.02s 34.18s CIFAR10 VGG16 240 P-Falcon 54.28s 968.43s 0.55s Bicoptor 15.17s 336.64s Ours 2.30s 22.32 Tiny VGG16 60 P-Falcon 55.02s 967.74 0.15s Bicoptor 15.35s 336.09s Ours 3.12s 20.01s
+
+11 TABLE IV: Performance benchmark of our framework (8bit quantization) on the different device platforms.                                            
+
+> Model LAN WAN Raspberry Pi GPU CPU(96 Threads) Raspberry Pi GPU CPU(96 Threads)
+> LeNet 160.09 456.13 21.33 718.34 947.76 612.49 VGG16-Cirfar10 3956.11 1530.48 44.12 4968.66 2460.35 1413.11 ResNet18-Cirfar10 4047.35 1714.87 44.52 5187.35 2618.93 1488.55 GPT-2(8 input) 18306.62 3261.14 42.71 25461.80 8135.61 8384.51 GPT-2(16 input) 36825.99 5953.27 54.70 44286.03 12143.00 9141.99 LeNet VGG16 ResNet18 GPT2
+> 10 2
+> 10 3
+> 10 4
+> Model Performance (ms)  LAN Raspberry Pi GPU CPU(96 Threads) LeNet VGG16 ResNet18 GPT2
+> 10 3
+> 10 4
+> Model Performance (ms)  WAN
+
+Fig. 12: Performance benchmark of our framework (8bit quantization) on the different device platforms. 
+
+Fig. 13: Online performance comparison with Sigma [26] and CrypTen [40] for LLM (1.3B/2.7B/7B/13B corresponds to GPT-Neo1.3B, GPT-Neo2.7B, Llama2-7B, Llama2-13B re-spectively) in the LAN setting with 8-bit. The sequence length of the input is 128 and the token output is 1.uation scheme proposed by Ji [34]. For the 2PC setting of FSS, we apply the technique proposed by Doerner et al [20] and use the garbled circuit to evaluate the decryption circuit of AES (CTR mode). For garbled circuits, we utilize the code from the EMP-tool kit [66] to implement the evaluation. All benchmarks are conducted in the single-threaded. Since David et al. [29] do not provide the code, we directly employ 
+
+(a) LAN setting (b) WAN setting 
+
+Fig. 14: Online performance comparison for LLM with Sigma [26] and CrypTen [40].(The bandwidth is 9.4 Gbps/293 Mbps in the LAN and the WAN setting respectively and the latency is 0.05 ms / 60 ms respectively. The sequence length of the input is 128 and the output is one token.) the public lookup table, which compiles the entire lookup table into a circuit and then uses the garbled circuit for evaluation. This approach results in lower communication and computational complexity compared to David et al.’s scheme. Nevertheless, our solution remains two orders of magnitude more efficient than both garbled circuits and FSS in the LAN setting both in 4-bit and 8-bit quantization. Considering the WAN setting, when the data size is sufficiently large, the communication overhead becomes the dominant factor in runtime. In this scenario, our protocol is 5 times more efficient than the FSS protocol and over an order of magnitude more efficient than garbled circuits. 
+
+C. Convolutional neural network evaluation. 
+
+For the CNN model, we realize the typical CNN model, like SqueezeNet, ResNet50, AlexNet, and VGG16. We use their 8-bit quantized version in ONNX Model Zoo [2](For SqueezeNet, we manually generate its quantized model). We compare SqueezeNet and ResNet50 with the 2PC frame-work CryptoFlow2 [56]. We consider the same setting of CryptoFlow2 which performs SqueezeNet and ResNet50 in the ImageNet with the batch size 1 (The dimension of the input image is 224 × 224 × 3). The performance is shown in TABLE. V(Cf. Appendix. B). Our framework achieves more than 40 × performance improvement of the online phase com-pared to CryptoFlow2 in the LAN setting for both SqueezeNet and ResNet50; achieves over 60 × performance improvement in the WAN setting. As a trade-off, our protocol introduces a heavy offline phase. Nevertheless, our framework is 2× faster than CryptoFlow2 even adding the offline cost. We compare 12 fp32 16bit 8bit 4bit                  
+
+> 60 70
+> 76 .91 76 .63 76 .46 74 .58 75 .67 75 .774 .96 71 .567 .41 66 .67 61 .27 58 .16 70 .34 70 .41 67 .42 60 .86
+> Accuracy (%) LeNet VGG GPT2 GPT-Neo LeNet VGG16 GPT2 GPT-Neo
+> 10 2
+> 10 3
+> 20 42 399 2,122 21 44 415 2,600 23 46 645 3,334
+> Performance (ms) LAN LeNet VGG16 GPT2 GPT-Neo
+> 10 0
+> 10 1
+> 0.48 1.37 12 .17 28 .64 0.48 1.38 12 .28 28 .86 0.49 1.85 14 .16 36 .15
+> Performance (s) WAN 4bit 8bit 16bit
+
+Fig. 15: Performance and Accuracy comparison of 4-bit/8-bit/16-bit quantization in LAN and WAN settings. VGG and LeNet used the CIFAR-10 dataset, while for GPT, we fine-tuned the corresponding text classification model using the MRPC dataset. the performance of the online phase with the Falcon [65] and Bicoptor [69] for AlexNet and VGG. They are 3PC based on the PPML GPU-platform Piranha [67]. It is worth mentioning that Bicoptor utilizes 8-bit ReLU to realize CNN. We follow their setting where the data set is CIFAR10 ( 32 ×32 input) and Tiny ImageNet ( 64 ×64 ×3 input). Our CPU-based framework realizes more than 5× performance improvement compared to Bicoptor and more than 15 × improvement compared to Falcon in both LAN and WAN settings for both AlexNet and VGG16. 
+
+D. LLM model evaluation. 
+
+For the LLM model, we realize GPT-2-Base, GPT-Neo1.3B, GPT-Neo2.7B, Llama2-7B and Llama2-13B. The 8-bit quan-tized model for all of these can be found in Hugging Face [3]. We compare the online phase performance of our framework with Sigma [26] and CrypTen [40]. All of their implemen-tation is based on GPU. Fig. 13 illustrates the performance comparison for GPT-Neo1.3B, GPT-Neo2.7B, Llama2-7B, and Llama2-13B models in the LAN setting. Compared to the CPU version of Sigma, our framework achieves more than 5×
+
+performance improvement for all benchmarked LLM models. Even though CrypTen uses GPU acceleration, our framework is over 4× faster than CrypTen for GPT-Neo2.7B. The perfor-mance of GPT-2 and GPT-Neo1.3B is depicted in Fig. 14. Our multithreaded version achieves 3 times the performance of the SigmaGPU version on a LAN and 5 times the performance on a WAN. Our framework is 10 × faster than the CPU version of Sigma for both GPT-2 and GPT-Neo1.3B in the LAN setting. This improvement will be further amplified over the WAN. 
+
+E. Performance evaluation on different devices. 
+
+Fig. 12 and Table. IV depict the performance evaluation across different devices. We benchmark the Raspberry Pi, GPU-equipped server, and the server with 96 threads CPU. Using a multi-threaded CPU yields the best performance. Interestingly, utilizing a GPU does not provide significant performance gains, primarily due to the high time overhead associated with data transfers between the GPU and the host. In our protocol, data frequently moves in and out of the GPU, resulting in memory access overhead dominating the runtime rather than computational overhead. In such scenarios, multi-threading offers better performance improvements. In WAN environments, as the model size increases, network commu-nication becomes the primary performance bottleneck, with the performance of the CPU and GPU becoming comparable. Given the performance limitations of the Raspberry Pi, its model evaluation efficiency is lower than that of the CPU. However, in WAN scenarios, its performance is competitive with that of the CPU, especially for small-scale models. Our results demonstrate that our protocol is highly suitable for multi-threaded devices and exhibits scalability even on resource-constrained devices. 
+
+F. Performance evaluation on quantization bits. 
+
+Fig. 15 illustrates the performance and accuracy evaluation of our framework’s online phase under different quantization bit settings. The experiments are conducted with 96 threads. For CNN models, 8-bit quantization does not lead to signif-icant accuracy loss (less than 1%), while 4-bit quantization leads to an accuracy drop of under 5%. For transformer models like GPT-2 and GPT-Neo, 16-bit quantization maintains low accuracy loss (less than 1%), while 8-bit quantization results in a more substantial accuracy decrease. In our experiments, the accuracy loss observed in the transformer model is primarily attributed to the layer normalization layer (when we utilize a 16-bit quantized normalization layer, the accuracy loss is close to the overall 16-bit quantization model). In practical applications, it may be advisable to utilize 16-bit quantization or adopt a mixed quantization approach, such as employing 16-bit quantization for the layer normalization layer and 8-bit quantization for other layers. For small-scale models, the choice of quantization bits had minimal impact on the results. However, for transformer models such as GPT, the perfor-mance overhead increased with higher quantization bits. In the LAN environment, moving from 4-bit to 8-bit quantization resulted in a 20% increase in runtime, and from 8-bit to 16-13 bit, it increased by 25%. In the WAN environment, there was no significant performance difference between 4-bit and 8-bit quantization, but the time overhead increased by 30% when moving from 8-bit to 16-bit. Our results suggest that 8-bit quantization is the optimal choice for balancing efficiency and accuracy in our framework. ACKNOWLEDGEMENT 
+
+This work was supported in part by the National Natural Science Foundation of China under Grant 62072401 and Grant 62232002, in part by Input Output (iohk.io), in part by Ant Group, and in part by Cybersecurity College Student Innova-tion Funding. (Corresponding author: Bingsheng Zhang.) REFERENCES [1] libote. https://github.com/osu-crypto/libOTe. [2] Onnx model zoo. https://github.com/onnx/models. [3] Quantized gpt-2 model. https://huggingface.co/ybelkada/gpt2-xl-8bit. [4] Nitin Agrawal, Ali Shahin Shamsabadi, Matt J. Kusner, and Adri` aGasc´ on. Quotient: Two-party secure neural network training and prediction. In CCS , 2019. [5] Yoshimasa Akimoto, Kazuto Fukuchi, Youhei Akimoto, and Jun Sakuma. Privformer: Privacy-preserving transformer with mpc. In 2023 IEEE 8th European Symposium on Security and Privacy (EuroS&P) ,pages 392–410, 2023. [6] Carsten Baum, Daniel Escudero, Alberto Pedrouzo-Ulloa, Peter Scholl, and Juan Ram´ on Troncoso-Pastoriza. Efficient protocols for oblivious linear function evaluation from ring-lwe. Journal of Computer Security ,30(1):39–78, 2022. [7] Donald Beaver. Precomputing oblivious transfer. In Annual International Cryptology Conference , pages 97–109. Springer, 1995. [8] A. Br¨ uggemann, R. Hundt, T. Schneider, A. Suresh, and H. Yalame. Flute: Fast and secure lookup table evaluations. In 2023 2023 IEEE Symposium on Security and Privacy (SP) (SP) , pages 515–533. IEEE Computer Society, 2023. [9] Megha Byali, Harsh Chaudhari, Arpita Patra, and Ajith Suresh. FLASH: fast and robust framework for privacy-preserving machine learning. 
+
+Proc. Priv. Enhancing Technol. , 2020(2):459–480, 2020. [10] Ran Canetti. Universally composable security: A new paradigm for cryptographic protocols. In Proceedings 42nd IEEE Symposium on Foundations of Computer Science , pages 136–145. IEEE, 2001. [11] Melissa Chase, Esha Ghosh, and Oxana Poburinnaya. Secret-shared shuffle. In Advances in Cryptology–ASIACRYPT 2020: 26th Interna-tional Conference on the Theory and Application of Cryptology and Information Security, Daejeon, South Korea, December 7–11, 2020, Proceedings, Part III 26 , pages 342–372. Springer, 2020. [12] Harsh Chaudhari, Ashish Choudhury, Arpita Patra, and Ajith Suresh. Astra: High throughput 3pc over rings with application to secure prediction. In Proceedings of the 2019 ACM SIGSAC Conference on Cloud Computing Security Workshop , CCSW’19, page 81–92, New York, NY, USA, 2019. Association for Computing Machinery. [13] Harsh Chaudhari, Rahul Rachuri, and Ajith Suresh. Trident: Efficient 4pc framework for privacy preserving machine learning. In NDSS 2020 ,2020. [14] Tianyu Chen, Hangbo Bao, Shaohan Huang, Li Dong, Binxing Jiao, Daxin Jiang, Haoyi Zhou, Jianxin Li, and Furu Wei. The-x: Privacy-preserving transformer inference with homomorphic encryption. In ACL ,2022. [15] Yu Cheng, Duo Wang, Pan Zhou, and Tao Zhang. A survey of model compression and acceleration for deep neural networks. arXiv preprint ,2017. [16] Yu Cheng, Duo Wang, Pan Zhou, and Tao Zhang. Model compression and acceleration for deep neural networks: The principles, progress, and challenges. IEEE Signal Processing Magazine , 2018. [17] Anders Dalskov, Daniel Escudero, and Marcel Keller. Secure evaluation of quantized neural networks, 2020. [18] Ivan Damg˚ ard and Rasmus Zakarias. Fast oblivious aes a dedicated ap-plication of the minimac protocol. In David Pointcheval, Abderrahmane Nitaj, and Tajjeeddine Rachidi, editors, AFRICACRYPT , 2016. [19] Ghada Dessouky, Farinaz Koushanfar, Ahmad-Reza Sadeghi, Thomas Schneider, Shaza Zeitouni, and Michael Zohner. Pushing the communi-cation barrier in secure computation using lookup tables. NDSS, 2018. [20] Jack Doerner and Abhi Shelat. Scaling oram for secure computation. In CCS , 2017. [21] Ye Dong, Wen jie Lu, Yancheng Zheng, Haoqi Wu, Derun Zhao, Jin Tan, Zhicong Huang, Cheng Hong, Tao Wei, and Wenguang Chen. Puma: Secure inference of llama-7b in five minutes, 2023. [22] Nico D¨ ottling, Sanjam Garg, Mohammad Hajiabadi, Daniel Masny, and Daniel Wichs. Two-round oblivious transfer from cdh or lpn. In 
+
+Annual International Conference on the Theory and Applications of Cryptographic Techniques , pages 768–797. Springer, 2020. [23] Daniel Escudero, Satrajit Ghosh, Marcel Keller, Rahul Rachuri, and Peter Scholl. Improved primitives for mpc over mixed arithmetic-binary circuits. In CRYPTO , 2020. [24] Shimon Even, Oded Goldreich, and Abraham Lempel. A randomized protocol for signing contracts. Communications of the ACM , 28(6):637– 647, 1985. [25] Daniel G¨ unther, ´Agnes Kiss, and Thomas Schneider. More efficient universal circuit constructions. In ASIACRYPT , 2017. [26] Kanav Gupta, Neha Jawalkar, Ananta Mukherjee, Nishanth Chandran, Divya Gupta, Ashish Panwar, and Rahul Sharma. SIGMA: Secure GPT inference with function secret sharing. Cryptology ePrint Archive, Paper 2023/1269, 2023. https://eprint.iacr.org/2023/1269. [27] Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun. Deep residual learning for image recognition. In CVPR , 2016. [28] David Heath and Vladimir Kolesnikov. One hot garbling. In CCS , 2021. [29] David Heath, Vladimir Kolesnikov, and Lucien K. L. Ng. Garbled circuit lookup tables with logarithmic number of ciphertexts. In EUROCRYPT 2024 , 2024. [30] Zhicong Huang, Wen-jie Lu, Cheng Hong, and Jiansheng Ding. Cheetah: Lean and fast secure {Two-Party } deep neural network inference. In 
+
+31st USENIX Security Symposium (USENIX Security 22) , pages 809– 826, 2022. [31] Yuval Ishai, Eyal Kushilevitz, Sigurd Meldgaard, Claudio Orlandi, and Anat Paskin-Cherniavsky. On the power of correlated randomness in secure computation. In Theory of Cryptography , 2013. [32] Benoit Jacob, Skirmantas Kligys, Bo Chen, Menglong Zhu, Matthew Tang, Andrew Howard, Hartwig Adam, and Dmitry Kalenichenko. Quantization and training of neural networks for efficient integer-arithmetic-only inference. In CVPR , 2018. [33] Neha Jawalkar, Kanav Gupta, Arkaprava Basu, Nishanth Chandran, Divya Gupta, and Rahul Sharma. Orca: FSS-based secure training and inference with GPUs. In S&P , 2024. [34] Keyu Ji, Bingsheng Zhang, Tianpei Lu, Lichun Li, and Kui Ren. Uc secure private branching program and decision tree evaluation. TDSC ,2023. [35] Keyu Ji, Bingsheng Zhang, Tianpei Lu, and Kui Ren. Multi-party private function evaluation for RAM. TIFS, 2022. [36] Wen jie Lu, Zhicong Huang, Zhen Gu, Jingyu Li, Jian Liu, Cheng Hong, Kui Ren, Tao Wei, and WenGuang Chen. BumbleBee: Secure two-party inference framework for large transformers. Cryptology ePrint Archive, Paper 2023/1678, 2023. [37] Marcel Keller, Emmanuela Orsini, and Peter Scholl. Mascot: faster malicious arithmetic secure computation with oblivious transfer. In 
+
+Proceedings of the 2016 ACM SIGSAC Conference on Computer and Communications Security , 2016. [38] Marcel Keller and Ke Sun. Secure quantized training for deep learning, 2022. [39] Florian Kerschbaum, Erik-Oliver Blass, and Rasoul Akhavan Mahdavi. Faster secure comparisons with offline phase for efficient private set intersection. In NDSS , 2023. [40] Brian Knott, Shobha Venkataraman, Awni Hannun, Shubho Sengupta, Mark Ibrahim, and Laurens van der Maaten. Crypten: Secure multi-party computation meets machine learning, 2022. [41] Nishant Kumar, Mayank Rathee, Nishanth Chandran, Divya Gupta, Aseem Rastogi, and Rahul Sharma. Cryptflow: Secure tensorflow inference. In S&P 2020 , pages 336–353, 2020. [42] Sudhakar Kumawat and Hajime Nagahara. Privacy-preserving action recognition via motion difference quantization. In European Conference on Computer Vision , pages 518–534. Springer Nature Switzerland, Cham, 2022. 
+
+14 [43] Natalie Lang, Elad Sofer, Tomer Shaked, and Nir Shlezinger. Joint privacy enhancement and quantization in federated learning. IEEE Transactions on Signal Processing , 71:295–310, 2023. [44] Dacheng Li, Rulin Shao, Hongyi Wang, Han Guo, Eric P. Xing, and Hao Zhang. Mpcformer: fast, performant and private transformer inference with mpc, 2023. [45] Minghui Li, Sherman S. M. Chow, Shengshan Hu, Yuejing Yan, Chao Shen, and Qian Wang. Optimizing privacy-preserving outsourced con-volutional neural network predictions. IEEE Trans. Dependable Secur. Comput. , 19(3):1592–1604, 2022. [46] Tianpei Lu, Xin Kang, Bingsheng Zhang, Zhuo Ma, Xiaoyuan Zhang, Yang Liu, and Kui Ren. Efficient 2PC for constant round secure equality testing and comparison. Cryptology ePrint Archive, Paper 2024/949, 2024. [47] Yukui Luo, Nuo Xu, Hongwu Peng, Chenghong Wang, Shijin Duan, Kaleel Mahmood, Wujie Wen, Caiwen Ding, and Xiaolin Xu. Aq2pnn: Enabling two-party privacy-preserving deep neural network inference with adaptive quantization. In Proceedings of the 56th Annual IEEE/ACM International Symposium on Microarchitecture , pages 628– 640, 2023. [48] Pratyush Mishra, Ryan Lehmkuhl, Akshayaram Srinivasan, Wenting Zheng, and Raluca Ada Popa. Delphi: A cryptographic inference service for neural networks. In USENIX Security 2020 , pages 2505–2522, 2020. [49] Payman Mohassel and Peter Rindal. Aby3: A mixed protocol framework for machine learning. In Proceedings of the 2018 ACM SIGSAC Conference on Computer and Communications Security , CCS ’18, page 35–52, New York, NY, USA, 2018. Association for Computing Machinery. [50] Payman Mohassel and Yupeng Zhang. SecureML: A system for scalable privacy-preserving machine learning. In S&P 2017 , pages 19–38, 2017. [51] Arpita Patra Ajith Suresh Nishat Koti, Mahak Pancholi. Swift: Super-fast and robust privacy-preserving machine learning. In USENIX , 2021. [52] Qi Pang, Jinhao Zhu, Helen M¨ ollering, Wenting Zheng, and Thomas Schneider. BOLT: Privacy-preserving, accurate and efficient inference for transformers. Cryptology ePrint Archive, Paper 2023/1893, 2023. [53] Arpita Patra, Thomas Schneider, Ajith Suresh, and Hossein Yalame. Aby2. 0: Improved {Mixed-Protocol } secure {Two-Party } computation. In 30th USENIX Security Symposium (USENIX Security 21) , pages 2165–2182, 2021. [54] Arpita Patra and Ajith Suresh. BLAZE: blazing fast privacy-preserving machine learning. In 27th Annual Network and Distributed System Security Symposium, NDSS 2020, San Diego, California, USA, February 23-26, 2020 . The Internet Society, 2020. [55] Srinivasan Raghuraman and Peter Rindal. Blazing fast psi from im-proved okvs and subfield vole. In Proceedings of the 2022 ACM SIGSAC Conference on Computer and Communications Security , CCS ’22, page 2505–2517, New York, NY, USA, 2022. Association for Computing Machinery. [56] Deevashwer Rathee, Mayank Rathee, Nishant Kumar, Nishanth Chan-dran, Divya Gupta, Aseem Rastogi, and Rahul Sharma. Cryptflow2: Practical 2-party secure inference. In Proceedings of the 2020 ACM SIGSAC Conference on Computer and Communications Security , pages 325–342, 2020. [57] M Sadegh Riazi, Mohammad Samragh, Hao Chen, Kim Laine, Kristin Lauter, and Farinaz Koushanfar. {XONN }:{XNOR-based } oblivious deep neural network inference. In USENIX , 2019. [58] M. Sadegh Riazi, Christian Weinert, Oleksandr Tkachenko, Ebrahim M. Songhori, Thomas Schneider, and Farinaz Koushanfar. Chameleon: A hybrid secure computation framework for machine learning applications. In AsiaCCS 2018 , pages 707–721, 2018. [59] Peter Rindal and Phillipp Schoppmann. Vole-psi: Fast oprf and circuit-psi from vector-ole. In Advances in Cryptology – EUROCRYPT 2021 ,pages 901–930, Cham, 2021. Springer International Publishing. [60] Jinhyun So, Bas ¸ak G¨ uler, and A. Salman Avestimehr. Codedprivateml: A fast and privacy-preserving framework for distributed machine learning. 
+
+IEEE Journal on Selected Areas in Information Theory , 2(1):441–451, 2021. [61] Kyle Storrier, Adithya Vadapalli, Allan Lyons, and Ryan Henry. Grotto: Screaming fast (2 + 1) -PC for Z2n via (2, 2)-DPFs. Cryptology ePrint Archive, Paper 2023/108, 2023. https://eprint.iacr.org/2023/108. [62] Sijun Tan, Brian Knott, Yuan Tian, and David J. Wu. Cryptgpu: Fast privacy-preserving machine learning on the gpu. In 2021 IEEE Symposium on Security and Privacy (SP) , pages 1021–1038. IEEE, 2021. [63] Adithya Vadapalli, Ryan Henry, and Ian Goldberg. Duoram: Abandwidth-efficient distributed ORAM for 2- and 3-party computation. USENIX Security, 2023. [64] Sameer Wagh, Divya Gupta, and Nishanth Chandran. SecureNN: 3-party secure computation for neural network training. Proc. Priv. Enhancing Technol. , 2019(3):26–49, 2019. [65] Sameer Wagh, Shruti Tople, Fabrice Benhamouda, Eyal Kushilevitz, Prateek Mittal, and Tal Rabin. Falcon: Honest-majority maliciously secure framework for private deep learning. Proc. Priv. Enhancing Technol. , 2021(1):188–208, 2021. [66] Xiao Wang, Alex J Malozemoff, and Jonathan Katz. Emp-toolkit: Efficient multiparty computation toolkit, 2016. [67] Jean-Luc Watson, Sameer Wagh, and Raluca Ada Popa. Piranha: A gpu platform for secure computation, 2022. [68] Shuoyao Zhao, Yu Yu, Jiang Zhang, and Hanlin Liu. Valiant’s uni-versal circuits revisited: an overall improvement and a lower bound. ASIACRYPT, 2018. [69] Lijing Zhou, Qingrui Song, Su Zhang, Ziyu Wang, Xianggui Wang, and Yong Li. Bicoptor 2.0: Addressing challenges in probabilistic truncation for enhanced privacy-preserving machine learning, 2024. [70] Hangyu Zhu, Rui Wang, Yaochu Jin, Kaitai Liang, and Jianting Ning. Distributed additive encryption and quantization for privacy preserving federated deep learning. Neurocomputing , 463:309–327, 2021. [71] Michael Zhu and Suyog Gupta. To prune, or not to prune: exploring the efficacy of pruning for model compression. arXiv preprint , 2017. [72] Xi Zhu, Junbo Wang, Wuhui Chen, and Kento Sato. Model compression and privacy preserving framework for federated learning. Future Generation Computer Systems , 140:376–389, 2023. 
+
+APPENDIX 
+
+A. Security of Private lookup Table Evaluation 
+
+Universal Composability (UC). Our protocols ensure security within the standard semi-honest setting. In this scenario, the adversary may attempt to extract private information from legitimate messages but must adhere strictly to the protocol’s procedure. The security proof is based on the Universal Com-posability (UC) framework [10], which follows the simulation-based security paradigm. In the UC framework, protocols are executed across multiple interconnected machines. The network adversary Adv is allowed to partially control the communication tapes of all uncorrupted machines, observing messages sent to/from uncorrupted parties and influencing message sequences. Then, a protocol Π is considered UC-secure in realizing a functionality F if, for every probabilistic polynomial-time (PPT) adversary Adv targeting an execution of Π, there exists another PPT adversary known as a simulator 
+
+Sim attacking the ideal execution of F such that the executions of Π with Adv and that of F with Sim are indistinguishable to any PPT environment Z.
+
+UC for private lookup evaluation. Next, we prove the security of our private lookup table protocol Πlookup . We first provide the functionality for the private lookup table evaluation in Fig. 16. 
+
+The idea world execution Ideal Flookup ,Sim ,Z (1 λ). In the ideal world, the parties P := {C , S} only communicate with the ideal functionality Flookup with the executed function f . Both parties send their private data to Flookup , and Flookup calculates and output the result to C and S.
+
+The real world execution Real Πlookup ,Adv ,Z (1 λ). In the real world, the parties P := {C , S} communicate with each other, it executes the protocol Πlookup . Our protocols work in the 15 Flookup interacts with C, S and the simulator Sim .Let f denote the function encoded to the lookup table. 
+
+Input:  
+
+> •
+
+Upon receiving (Input , sid , (T `x,` y , x 1)) from S,record (T `x,` y , x 1) and send (Input , sid , S) to Sim ,where T `x,` y ∈ (Z2`y )`x , x 1 ∈ Z2`x . 
+
+> •
+
+Upon receiving (Input , sid , x 0) from C, record x0
+
+and send (Input , sid , C) to Sim , where x0 ∈ Z2`x .
+
+Execution:  
+
+> •
+
+If both T `x,` y , x 0, x 1 are recorded, compute 
+
+y = T `x,` y (x0 + x1). 
+
+> •
+
+Upon receiving (Output , sid , y ′ ∈ Z2`y ) from Sim ,if S is corrupted calculate y0 = y − y′ and y1 = y′,otherwise calculate y1 = y − y′ and y0 = y′. 
+
+> •
+
+Send (Output , sid , y 0) to C and (Output , sid , y 1) to 
+
+S.Functionality Flookup 
+
+Fig. 16: The Ideal Functionality Flookup for private lookup table evaluation. pre-processing model, but we analyze the offline and online protocols together as a whole. 
+
+Theorem 1. Protocol Πlookup UC-secure realizes functionality 
+
+Flookup in the F(N −1,N )-OT -hybrid model against semi-honest PPT adversaries with statical corruption, namely it holds: 
+
+Real Πlookup ,Adv ,Z (1 λ) ≈ Ideal Flookup ,Sim ,Z (1 λ)
+
+Proof. Before proving Theorem 1, we replace 
+
+Π(2 `x −1,2`x )-ROT with functionality F(2 `x −1,2`x )-ROT in Chase et. al [11]. To prove Theorem 1, we construct a PPT simulator S, such that no non-uniform PPT environment Z
+
+can distinguish between the ideal world Ideal Flookup ,S,Z (1 λ)
+
+and the real world Real Πlookup ,Adv ,Z (1 λ). We consider the following cases: 
+
+Case 1: C is corrupted. We construct the simulator Sim 
+
+which internally runs Adv , forwarding messages to/from Z
+
+and simulates the interface of honest S. 
+
+> •
+
+Upon receiving (Input , sid ) from Flookup , Sim starts sim-ulation.  
+
+> •
+
+Sim emulates F(N −1,N )-ROT and forward the output 
+
+mi ∈ (Z2`y )2`x 
+
+for i ∈ [2 `x ]\{ JrK0} and JrK0 to C. 
+
+> •
+
+Sim generates the matrix M by using the {mi}i∈[2 `x ] as the column vectors, and right circular shift the ith row of 
+
+M by i positions locally for i ∈ [2 `x ]. 
+
+> •
+
+Sim computes vi = ∑2`x −1 
+
+> j=0
+
+m(i,j ) and ui =
+
+∑2`x −1 
+
+> j=0
+
+−m(j,i ) to generate u := ( u0, . . . , u 2`x −1) and 
+
+v := ( v0, . . . , v 2`x −1). 
+
+> •
+
+Sim picks random vector s and acts as S to send s to C. 
+
+> •
+
+Sim picks random JδK`x 
+
+> 1
+
+and acts as S to send it to C. 
+
+> •
+
+Upon receiving JδK`x 
+
+> 0
+
+from C, Sim extracts JxK`x 
+
+> 0
+
+=
+
+JδK`x 
+
+> 0
+
++ JrK`x 
+
+> 0
+
+. 
+
+> •
+
+Sim calculate δ := JδK`x 
+
+> 0
+
++ JδK`x 
+
+> 1
+
+and JT ′K0 with the values s, JrK`x 
+
+> 0
+
+, w.TABLE V: Online performance and offline performance in C/S setting for CNN model comparison with CryptoFlow2 [56].(We take ` = 64 and `′ = 8. The bandwidth is 377 MBps and 40 MBps in the LAN and the WAN setting respectively and the latency is 0.3ms and 80ms respectively. )                        
+
+> Model Protocol LAN WAN Comm. ImageNet SqueezeNet CryptoFlow2 44.3s 293.6s 26.07GB Our Online 1.66s 5.88s 0.077GB Our Offline 80.54s 440.20s 108.0GB ImageNet ResNet50 CryptoFlow2 619.4s 3611.6s 370.8GB Our Online 7.32s 13.46s 0.45GB Our Offline 352.40s 1586.59s 481.8GB
+> •
+
+Sim inputs (Input , sid , JxK`x 
+
+> 0
+
+) to Flookup . 
+
+> •
+
+Sim inputs (Output , sid , JT ′(δ)K0) to Flookup .Informally, we discuss the indistinguishable. Obviously, in the above simulation, considering S will input JxK`x 
+
+> 1
+
+to Flookup 
+
+calculates y = T (JxK`x 
+
+> 0
+
++ JxK`x 
+
+> 1
+
+) and output y − JT ′(δ)K0 to 
+
+S. When C sets output as JT ′(δ)K0, we get the same output in the real world. To illustrate the indistinguishable of temporary value, we prove that the ideal world JδK`x 
+
+> 1
+
+, s are generated randomly. For s, it is easy to see that it is uniform random in the real world since the vector u can be viewed as a random vector. So the values JδK`x 
+
+> 1
+
+, s both keep the same distribution between the real world and ideal world and can not be distinguished. 
+
+Case 2: S is corrupted. We construct the simulator Sim 
+
+which internally runs Adv , forwarding messages to/from Z
+
+and simulates the interface of honest C. 
+
+> •
+
+Upon receiving (Input , sid ) from Flookup , Sim starts sim-ulation.  
+
+> •
+
+Sim emulates F(N −1,N )-ROT and forward the output 
+
+mi ∈ (Z2`y )2`x 
+
+for i ∈ [2 `x ] to C. 
+
+> •
+
+Sim calculate v, u, w using the output of F(N −1,N )-ROT . 
+
+> •
+
+Upon receiving s for S, Sim extracts ˆT = s − u. 
+
+> •
+
+Sim picks random JδK`x 
+
+> 0
+
+and acts as C to send it to S. 
+
+> •
+
+Upon receiving JδK`x 
+
+> 1
+
+from S, Sim calculates δ = JδK`x 
+
+> 0
+
++
+
+JδK`x 
+
+> 1
+
+. 
+
+> •
+
+Sim inputs (Input , sid , ( ˆT , JδK`x 
+
+> 1
+
+)) as like S to Flookup . 
+
+> •
+
+Sim inputs (Output , sid , v δ ) to Flookup .Informally, we discuss the indistinguishable. For the output, in above simulation, Flookup will calculate y = ˆT (JδK`x 
+
+> 1
+
++JxK`x 
+
+> 0
+
+).Since ˆT (x) = T (x + JrK`x 
+
+> 1
+
+) and JδK`x 
+
+> 1
+
+= JxK`x 
+
+> 1
+
+− JrK`x 
+
+> 1
+
+, it equals to T (JxK`x 
+
+> 1
+
+−JrK`x 
+
+> 1
+
++JxK`x 
+
+> 0
+
++JrK`x 
+
+> 1
+
+), which is y = T (x).
+
+Flookup sends y − vδ to C, while the corrupted S hold vδ due to δ received from Sim . Furthermore, JδK`x 
+
+> 0
+
+in the ideal world is randomly generated which is indistinguishable from the real world. This concludes the proof. 
+
+B. Other benchmarks 
+
+In this section, we give more benchmarks. We set bandwidth 5Gbps/40Mbps for the LAN and the WAN settings respec-tively and the latency 0.05 ms / 60 ms respectively. 16 Performance for C/S setting Compared to CrypT-Flow2 [56]. Table V depicts the performance comparison be-tween our framework and CrypTFlow2. Our framework online phase is 300 × faster than that ofCrypTFlow2 on ResNet50. 
+
+Offline performance for C/S setting. Figure 17 shows the offline performance for the C/S setting with different element sizes in LAN and WAN settings. The element size in the legend represents the number of elements in each line of the lookup table. While the element size is 1, the lookup table can be used to compute functions such as ReLU or Maxpool for individual elements. However, when the element size is 10, 100, or higher, these lookup tables are employed for matrix multiplication with dimensions of 10, 100, or higher. During matrix multiplication, the same input is multiplied with multiple elements in one row or column, allowing these tables to be efficiently combined into a single table line for offline processing. As the number of tables and the element size increase, the corresponding runtime also increases. Despite some fluctuations, the growth in time is largely linearly related to the increase in the number of tables. Additionally, the time used for WAN does not exhibit a significant increase compared to LAN time. This means that during this runtime process, network communication does not significantly contribute to the overall time consumption. Given our device and code limitations, there is theoretically room for further improvement in runtime, especially considering that many computations can be parallelized and better memory management.  
+
+> (a) LAN (b) WAN
+
+Fig. 17: The running time of offline phase for C/S setting compared with different element sizes in LAN and WAN setting. 
+
+Offline performance for outsourcing setting. Figure 18 shows the offline performance for outsourcing settings with different element sizes in LAN and WAN settings. Due to the impact of factors such as network and memory, the initial part of the curve exhibits slight fluctuations. However, it still demonstrates a linear relationship. In the context of outsourcing, two computational nodes primarily handle the lookup table from the server, while the server providing the machine learning model performs relatively less complex com-putations compared with the C/S setting. Notably, the impact of network communication restrictions is more pronounced in this scenario, as the WAN time significantly exceeds the LAN time. 
+
+C. Operator for CNN and Transformer 
+
+Convolutional Neural Network. We implemented typical convolutional neural network (CNN) models in our framework,  
+
+> (a) LAN (b) WAN
+
+Fig. 18: The running time of offline phase for outsourcing setting compared with different element sizes in LAN and WAN setting. including LeNet, VGG16, and ResNet18. All SISO-type oper-ators, such as batch normalization, ReLU, sigmoid, and so on, can be directly evaluated using our paradigm. For the MISO-type operators, we discuss their implementation as follows.  
+
+> •
+
+Convolution(Conv)/Fully Connection(FC)/General Ma-trix Multiplication(GeMM): The convolution operator can be transferred to the general matrix multiplication. For in-stance, the naive method explicitly lowers the convolution to GeMM, commonly known as im2col. Furthermore, the full connection can also be represented as the GeMM form. As mentioned before, viewing the weight as part of the lookup table, our framework can deal with GeMM as a “multiple lookup table query with a single index”. For the sum part of GeMM, due to each item keeping the same scale factor, it can be calculated by the sum of each quantized value. In particular, we take two-dimensional multiplication as an example. Considering 
+
+z = z1 + z2 = x1 · y1 + x2 · y2, where x1, x 2 are in the same vector so that they keep the same scale factor s1, b 1,the same to y1, y 2 with scale factor s2, b 2. It holds that 
+
+z′ = s1·s2 
+
+> s3
+
+(( x′ 
+
+> 1
+
+− b1)( y′ 
+
+> 1
+
+− b2) + ( x′ 
+
+> 2
+
+− b1)( y′ 
+
+> 2
+
+− b2)) + b3.Considering z′ 
+
+> 1
+
+= s1·s2 
+
+> s3
+
+(x′ 
+
+> 1
+
+− b1)( y′ 
+
+> 1
+
+− b2) + b3 and z′ 
+
+> 2
+
+= 
+
+> s1·s2
+> s3
+
+(x′ 
+
+> 2
+
+− b1)( y′ 
+
+> 2
+
+− b2) + b3, we have z′ = z′ 
+
+> 1
+
++ z′ 
+
+> 2
+
+− b3.Without loss of generality, for n-dimension inner product, the quantized output holds z′ = ∑N −1 
+
+> i=0
+
+z′
+
+> i
+
+−(n−1) ·b3. For the secret form [z′]`′
+
+= ∑N −1 
+
+> i=0
+
+[z′
+
+> i
+
+]`′
+
+−(n−1) ·b3, the part minus (n−1) ·b3 can be evaluated locally by S. Note that since matrix multiplication requires summing during the output process and considering the precision requirements after summing, we use higher precision outputs, such as 16-bit, to generate the lookup tables when performing matrix multiplication.  
+
+> •
+
+Max Pooling or Average Pooling: The max pooling is an expensive operator in our framework since evaluating 
+
+n-dimensional max pooling is equivalent to performing 
+
+n − 1 comparisons. We must convert the dual-input operator to a SISO structure to evaluate the comparison. For example, for 8-dimension max pooling with 8-bit output, we let the previous layer output 4-bit vector, such as [x0]4, . . . , [x7]4. We evaluate the comparison between each share and obtain 4-dimension 4-bit shared vector. We perform comparison layer by layer until the dimension is reduced to 1. In the last layer, we utilize the 
+
+8-bit output lookup table to recover 8-bit quantization. 17 The average pooling is much cheaper, the sum part of it can be evaluated by locally adding the quantized value since all the elements are in the same vector, which keeps the same scale factor. To avoid a wrap-around of the secret, we need to perform division before summation( with higher precision output). For the division, we use the SISO lookup table. 
+
+Large Language Models. For the Large Language Models (LLM), we implement GPT-2 models. In LLM, the GeLU operator is SISO-type, allowing us to apply our paradigm directly. For the matrix multiplication which all the input is unknown to the model server, we convert the dual-input operator to the SISO structure. For the softmax and layer normalization, we discuss the implementation as follows.  
+
+> •
+
+Softmax: For the softmax operator Softmax (x) := ( exi  
+
+> ∑n−1
+> i=0 exi
+
+)i∈[n] (The scale factor of x is ˆs and ˆb), we fol-low the typical PPML implementation [21] and modify it for quantization scheme. We first perform max (x) to find out the max element of x, denoted by ˆx. After that we define temporary variable yi = exi−ˆx = es(x′
+
+> i−b−ˆx+b)
+
+.Considering ex′ 
+
+> i−ˆx
+
+≤ 1, we can take the scale factor 
+
+ˆs and ˆb for y := (y0, . . . , y n−1) as ˆs · 2`′
+
+/n = 1
+
+and ˆb = 0 , such that ∑n−1 
+
+> i=0
+
+y′ 
+
+> i
+
+will not wrap around. We have ˆs · y′ 
+
+> i
+
+= es(x′ 
+
+> i−ˆx)
+
+and exi  
+
+> ∑n−1
+> i=0 exi
+
+= y′ 
+
+> i
+> ∑n−1
+> i=0 y′
+> i
+
+.Based on these logics, we evaluate the Softmax (x) as follows. i. evaluate y′ 
+
+> i
+
+= 1ˆs · es(x′ 
+
+> i−ˆx)
+
+with lookup table. ii. calculate ˆy = ∑n−1 
+
+> i=0
+
+y′ 
+
+> i
+
+in quantized value. iii. perform 
+
+z′ 
+
+> i
+
+= 1 
+
+> s2
+
+· y′ 
+
+> i
+> ˆy
+
++ b2 with lookup table to obtain the quantized output, where s2, b 2 is the scale factor for 
+
+z := ( z0, . . . , z n−1). 
+
+> •
+
+Word2Vec/Gather: Word2Vec is used for LLM tasks to produce word embeddings, which are dense vector representations of words. The Word2Vec is realized by the operator Gather, which picks a row vector from a matrix. For GPT-2, the word matrix has 50257 row vectors for each potential word. Each row vector involves 
+
+768 quantized elements in GPT-2-base or 1600 quantized elements in GPT-2-XL. We utilize our lookup table to evaluate Gather, where the lookup table input is in Z50257 
+
+and the output is in Z2`′ .
+
+D. Related Works 
+
+The current works on secure multi-party computation in PPML mainly focus on two-party, three-party, and four-party settings. The representative works for two-party setting are SecureML [50], Delphi [48], Chameleon [58], Crypt-Flow2 [56], ABY2.0 [53], Cheetah [30], and Li et al. [45]. For three-party setting, there are SecureNN [64], Falcon [65], ABY 3 [49], ASTRA [12], BLAZE [54], CryptFlow [41]. SWIFT [51], FLASH [9], and Trident [13] are considering four-party setting. Recently, Orca [33] applied function secret sharing on the PPML where the three parties share the function secret share key in the offline phase. and the two parties perform secure computation in the online phase. Edabits [23] implements PPML in multiparty settings and supports the 
+
+Fig. 19: Case of quantization. security against malicious adversaries. For the GPU setting, CryptGPU [62],CrypTen [40], Piranha [40] and Orca [33] construct the GPU platform for PPML. Recently, THE-X [14], MPCformer [44], Privformer [5], BOLT [52], BumbleBee [36] and Sigma [26], Grotto [61] focus on the large language models and also use GPU to accelerate performance. Note that Sigma utilizes the lookup table evaluation to perform non-linear function evaluation. Using quantization techniques in the field of PPML [72], [42], [47], [70], [43], [60] is a promising approach to im-proving PPML performance, with the most typical application being in distributed machine learning, primarily constructed based on federated learning. Currently, the use of quantization techniques for evaluating PPML in MPC scenarios is still in its early stages. A series of studies employ traditional MPC meth-ods to evaluate quantized models (Riazi et. al [57], Agrawal et. al [4] and Keller et. al [38]). To ensure performance, they use public and fixed quantization parameters set as powers of 2, which sacrifices model accuracy, and the public quantization parameters can potentially leak model information.” 
+
+E. Quantization Model Diagram 
+
+Fig. 19 illustrates a quantization workflow for a neural network model. On the left, we have an unquantized model, which takes an input x and processes it through convolution, ReLU and Fully Connection layers. On the right, the quantized model is shown in detail: 1) The input x is quantized into x′ using a quantization function with scale s0 and offset b0.2) Unquantized weights w1 and w2 are processed with additional quantization parameters s4, b4, s5, and b5.3) The quantized input x′ is passed through quantized ver-sions of the layers: Conv*, ReLU*, and FC*, and generate the output y′.4) The output of the quantized model, y′, is de-quantized using parameters s3 and b3 to obtain the final output y.18

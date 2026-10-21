@@ -1,0 +1,422 @@
+Title: CloserToMe: A Unified Framework for Accurate and Transferable Latency Prediction Across Heterogeneous Devices
+
+URL Source: https://ojs.aaai.org/index.php/AAAI/article/download/39779/43740
+
+Number of Pages: 9
+
+Markdown Content:
+# CloserToMe: A Unified Framework for Accurate and Transferable Latency Prediction Across Heterogeneous Devices 
+
+# Cheng Tang 1, Guochong Sui 1, Wenqi Lou 1,3* , Zihan Wang 1, Jiayi Tuo 1, Wenqian Xie 2,Yinkang Gao 1, Yixuan Zhu 1, Lei Gong 1, Chao Wang 1,3* , Xuehai Zhou 1
+
+> 1
+
+University of Science and Technology of China 
+
+> 2
+
+Duke University 
+
+> 3
+
+Suzhou Institute of Advanced Research, University of Science and Technology of China sisyphustc@mail.ustc.edu.cn, {louwenqi,cswang }@ustc.edu.cn 
+
+Abstract 
+
+Hardware accelerators such as GPUs, NPUs, and FPGAs are essential to meeting AI’s computational demands. With the proliferation of heterogeneous devices across cloud and edge, various model optimization techniques adapt to di-verse hardware characteristics through operator transforma-tions and structural modifications. Accurate, efficient latency prediction enables rapid selection of optimal strategies across hardware backends. Many existing methods treat hardware as a black-box executor, directly regressing latency with-out explicitly modeling the intricate interactions between neural network (NN) structures and device-specific execu-tion behaviors. To address these challenges, we introduce a new modeling perspective that captures the interaction be-tween neural architectures and hardware execution. To cap-ture device-specific characteristics, we propose two comple-mentary modeling strategies. The Device Behavior Signature Selector (DBSel) characterizes hardware execution behavior by selectively probing a small set of representative architec-tures, forming a compact, workload-driven profile. In paral-lel, we construct capability vectors that capture the hierar-chical memory of each device and compute characteristics, providing a structured abstraction of its architectural capac-ity. To unify both behavioral and structural views, we intro-duce the Hardware–Operation Dialogue Module (HODM), which models fine-grained interactions between neural op-erators and hardware properties. Together, these components empower CloserToMe to deliver accurate and transferable la-tency predictions across unseen and diverse platforms. 
+
+# Introduction 
+
+NNs are increasingly deployed on edge and cloud platforms, where inference latency has become a critical considera-tion (Cai et al. 2020; Lin et al. 2020; Lou et al. 2021; Chen et al. 2024; Geng et al. 2024; Misra, Saoda, and Abdelza-her 2025; Zhou et al. 2025). In such settings, accurate la-tency prediction plays a pivotal role in guiding architecture selection and workload scheduling strategies (Wang et al. 2024; Khare et al. 2025; Fu et al. 2025). However, the grow-ing diversity of both neural architectures and hardware plat-forms makes it increasingly challenging to obtain accurate 
+
+> *
+
+Corresponding authors. Copyright © 2026, Association for the Advancement of Artificial Intelligence (www.aaai.org). All rights reserved. 
+
+latency measurements at scale, especially for emerging or rarely profiled devices (Xing et al. 2022; Liu et al. 2024; Lv, Zhang, and Wang 2025). This motivates the need for fast, generalizable latency predictors that work across plat-forms (Lou et al. 2024), including edge and cloud GPUs (e.g., AGX Xavier, NVIDIA V100), FPGAs (e.g., ZC706), and CPUs (e.g., Snapdragon 855). Early latency prediction relied on proxy metrics like FLOPs (He et al. 2018; Li et al. 2017; Tan et al. 2019; Hanxiao, Karen, and Yiming 2019) to estimate NN latency indirectly. Later works (Cai et al. 2019; Wu et al. 2019; Cai et al. 2020) used operator-level lookup tables, sum-ming individual latencies. nn-Meter (Zhang et al. 2021) predicts kernel-wise latency via regression and aggregates them. However, these methods neglect end-to-end execution paths, failing to capture latency variations from graph-level optimizations and hardware scheduling. With deep learning advances, end-to-end predictors emerged. LAD (Xu et al. 2020) conducts large-scale profiling (e.g., 100K samples), encodes sub-architectures as binary vectors, and uses multi-layer regressors. BRP (Dudziak et al. 2020) employs GNNs but relies heavily on device-specific training distributions. Still, such methods are platform-specific and require costly retraining for new or unseen hardware. FLAT (Akhauri and Abdelfattah 2024a) and FLAN (Akhauri and Abdelfattah 2024b) systematically improve predictor transfer via few-shot adaptation and encoding design across devices. How-ever, these methods still do not explicitly model how neu-ral architectures interact with device-specific execution pat-terns, which can limit their achievable accuracy, especially on unseen devices. In particular, devices are mostly repre-sented as opaque learned identifiers rather than as struc-tured abstractions that capture workload-dependent execu-tion behavior and underlying physical characteristics. More-over, while many existing latency-aware approaches primar-ily emphasize latency ranking, we instead aim for accurate absolute latency prediction across heterogeneous devices, which is a more sensitive objective under hardware-specific variability (Dudziak et al. 2020). These limitations reflect broader shortcomings in existing methods: lack of device-specific execution behavior model-ing, weak hardware representation, and the absence of intri-The Fortieth AAAI Conference on Artificial Intelligence (AAAI-26) 
+
+25805 Figure 1: While GPU, MLU, and mobile SoC architectures differ considerably at the microarchitectural level, their key functional components can be mapped to a unified two-layer abstraction of compute and memory. cate interactions between hardware and device-specific exe-cution behavior hinder generalization to unseen platforms. To enable accurate prediction across diverse hardware platforms, we jointly model structured device capabilities and interaction patterns between neural architectures and hardware behavior. We first model hardware behavior from a workload-driven perspective, and we propose the Device Behavior Signature Selector (DBSel), which constructs a 
+
+Device Behavior Signature (DBS) by probing the latencies of a small set of representative architectures on the target device. This signature serves as a compact and informative descriptor of the device’s execution behavior. Meanwhile, we build a structured Hardware Capability Vector (HCV), offering a unified, physically grounded representation of the platform’s compute and memory capacity. Finally, the 
+
+Hardware–Operation Dialogue Module (HODM) explicitly models the latent co-dependencies between network seman-tics and hardware traits. Together, these components enable 
+
+CloserToMe to deliver accurate and transferable latency pre-dictions across diverse device–architecture combinations. The main contributions of this work are as follows: • A unified latency prediction framework. We propose 
+
+CloserToMe , an end-to-end predictor that jointly models neural architectures and hardware features for accurate cross-device latency prediction. • Device Behavior Signature Selector (DBSel). We intro-duce DBSel , a sampling algorithm that constructs com-pact and representative workload-driven Device Behav-ior Signature to guide generalizable prediction. • Hardware-aware modeling via Hardware Capabil-ity Vector (HCV) and Hardware–Operation Dialogue Module (HODM). We design an HCV and an HODM, enabling cross-modal attention between operators and device traits for robust inference latency modeling. • Extensive validation on real-world hardware. Experi-ments on standard benchmarks and an extended dataset confirm our method’s superior generalization and accu-racy compared to state-of-the-art baselines. 
+
+# Motivation 
+
+Due to the wide variability in hardware design, including fabrication technology, compute capacity, and microarchi-tectural organization, the same neural network can exhibit drastically different latency across devices (Li et al. 2025). This performance-level platform dependency makes cross-device latency prediction particularly challenging. Fortu-nately, recent research in the systems and architecture com-munity suggests that the regularity of neural network com-putations enables performance to be approximated using a unified abstraction of hardware structure and dataflow. As illustrated in Figure 1, various hardware platforms share a similar hierarchical organization: CPUs typically contain a small number of cores with private L1 caches, while NPUs and GPUs often integrate a large number of paral-lel cores along with more powerful MAC units. Most plat-forms also adopt multi-level memory hierarchies, such as L1 and L2 caches. Although recent works (e.g., (Zhang et al. 2024)) have achieved promising simulation accuracy, their reliance on domain-specific hardware knowledge and time-consuming simulation procedures makes them impractical for real-time model feedback. Leveraging this shared hierarchy, we distill device capa-bilities into a compact set of physically interpretable met-rics. Execution is modeled as a data-processing pipeline over a multi-level compute–memory substrate, with each level summarized by its compute throughput, memory/storage ca-pacity, and cross-level bandwidth. These structured descrip-tors form the Hardware Capability Vector (HCV), offer-ing a unified, device-general interface for latency modeling. However, such structural capability alone cannot capture dy-namic behaviors introduced by compiler- and runtime-level optimizations (e.g., tiling, fusion, and scheduling). To re-flect how devices execute real workloads, we further go be-yond purely structural capability descriptors by introducing a workload-driven profile that captures device–operation in-teractions beyond static hardware specifications. 
+
+# Method 
+
+In this section, we present the overall architecture of Closer-ToMe , as illustrated in Figure 2. We begin by constructing a 
+
+Device Behavior Signature (DBS) for the unseen (test) de-vice using the DBSel algorithm . DBS is then concatenated with the encoded representation of the target neural network. The model representation, comprising the operation-level feature matrix and structural adjacency matrix, is first pro-cessed by a Graph Neural Network based on Dense Graph Flow and Graph Attention . The resulting embeddings are then passed through a second GNN layer to further refine the latency-relevant features from a workload perspective. The output feature tensor X, together with the hardware capa-bility vector, is fed into the Hardware–Operation Dialogue Module . Finally, the fused representation from HODM and HCV is passed to an MLP to predict the final latency. 
+
+DBSel: Representative Signature Selection 
+
+Achieving accurate latency prediction across diverse hard-ware platforms remains a challenge, largely due to the 25806 Figure 2: Overview of the proposed framework. (a) illustrates the overall architecture of CloserToMe; (b) depicts how represen-tative architectures are selected from training devices via DBSel to form the Device Behavior Signature (DBS) on a previously unseen target device; (c) details the Hardware–Operation Dialogue Module (HODM). complex and platform-specific execution behaviors that NN workloads exhibit. Notably, the same NN can demonstrate vastly different latency across devices, driven by variations in scheduling policies, operator fusion mechanisms, and low-level execution pipelines. These discrepancies neces-sitate representations effectively capturing nuanced hard-ware–NN workload interactions. To achieve this, inspired by (Lee et al. 2021), we pro-pose the Device Behavior Signature Selector (DBSel), a workload-driven mechanism that constructs hardware rep-resentations based on lightweight latency probing. Specifi-cally, DBSel selects a small, representative subset of neural architectures from training sets, and evaluates them on the target platform to form a compact Device Behavior Signa-ture (DBS), which captures how the device responds to di-verse neural operations and enables more accurate, sample-efficient latency prediction. DBSel incorporates three key components: device-level similarity modeling, temperature-scaled weight initialization, and diversity–coverage-aware sampling. These modules collectively guarantee that the se-lected architectures capture salient execution patterns and remain representative across diverse hardware backends. 
+
+Wij =exp 
+
+
+
+αsim · Sij −μj  
+
+> σj+ϵ
+
+/τ 
+
+PDtrain  
+
+> i′=1
+
+exp 
+
+
+
+αsim · Si′j −μj  
+
+> σj+ϵ
+
+/τ 
+
+ (1) In Eq. (1), Sij denotes a hybrid similarity score between training device i and test device j, computed by combining cosine similarity and Pearson correlation over their probe-based latency data. To normalize these scores, we apply z-score standardization across training devices using the per-test-device mean μj and standard deviation σj . The stan-dardized similarities are then scaled by a factor αsim and passed through a temperature-controlled softmax, resulting in an alignment weight Wij for each device pair. We average 
+
+Wij across all test devices and interpolate with a uniform prior to obtain a final device weight wi. These weights guide representative architecture selection by emphasizing archi-tectures that show high variance on similar devices, while promoting broad latency-space coverage. DiversityCoverageScore (i) = γ ·
+
+> Dtrain
+
+X
+
+> d=1
+
+wd
+
+ Lid − ¯Li
+
+2
+
++ (1 − γ) · 11 + ¯Li − median (¯L) (2) In Eq. (2), we define a hybrid scoring function to select the first representative architecture by balancing inter-device diversity and global representativeness. Lid is the latency of architecture i on training device d, and ¯Li = 1
+
+> Dtrain
+
+P 
+
+> d
+
+Lid 
+
+denotes its mean latency across devices. ¯L is the vector of ¯Li
+
+for all architectures. wd is the similarity-derived importance weight of device d, and γ ∈ [0 , 1] is a tunable coefficient controlling the trade-off between diversity and representa-tiveness. The first term favors architectures with high latency variance across similar devices, while the second term en-courages the selection of candidates whose average latency lies near the global median, thus avoiding extreme outliers 25807 Algorithm 1: Device Behavior Signature Selector Algorithm 
+
+Input: Training latency matrix Ltrain ∈ RN ×Dtrain ;Number of probe models p, selected models k;Distance metric: hybrid; Probe mode: random; Hyperparameters: τ , αsim , β, αcov 
+
+Output: Representative indices S = {s1, . . . , s k } (k ≪ N )
+
+P = RandomSample ({1, 2, . . . , N }, p )
+
+// Device Similarity Computation 
+
+Ptrain = Ltrain [P, :] ⊤ ∈ RDtrain ×p
+
+Ptest = ( Lprobe test )⊤ ∈ RDtest ×p
+
+Sij = Joint -CosSimPearsonCorr( Ptrain [i, :] , Ptest [j, :]) 
+
+// Sampling Device Weight Initialization 
+
+μj = 1
+
+> Dtrain
+
+PDtrain  
+
+> i=1
+
+Sij 
+
+σ2 
+
+> j
+
+= 1
+
+> Dtrain
+
+PDtrain  
+
+> i=1
+
+(Sij − μj )2
+
+Wij = exp          
+
+> 
+> αsim ·Sij −μjσj+ϵ/τ
+> PDtrain
+> i′=1 exp
+> 
+> αsim ·Si′j−μjσj+ϵ/τ
+> 
+
+W final  
+
+> ij
+
+= (1 − β) · Wij + βDtrain 
+
+wi = 1
+
+> Dtest
+
+PDtest  
+
+> j=1
+
+W final 
+
+> ij
+
+// Weighted Point Sampling Begin 
+
+s1 = arg max i{DiversityCoverageScore (i)} (Formula-2) 
+
+For t = 2 to k:
+
+d(t) 
+
+> i
+
+= min s∈S t−1
+
+PDtrain  
+
+> d=1
+
+wd · | Lid − Lsd |
+
+c(t) 
+
+> i
+
+= PDtrain  
+
+> d=1
+
+wd · max(0 , RangeExt id ) 
+
+> CurrentRange d+ϵ
+
+if t > k/ 2
+
+st = arg max i / ∈S t−1
+
+h
+
+(1 − αcov ) · d(t) 
+
+> i
+
++ αcov · c(t)
+
+> i
+
+i
+
+Return: S = {s1, s 2, . . . , s k }
+
+and improving coverage of the latency distribution. Subsequent architectures are selected iteratively using a weighted farthest-point sampling strategy, where each can-didate maximizes a combined objective of diversity and in-cremental coverage gain. The resulting subset constitutes the DBS for the target device and is used to guide downstream latency prediction. 
+
+Graph Interaction Modeling 
+
+To effectively model structural dependencies between neu-ral operators and DBS, we adopt the Dense Graph Flow (DGF) framework (Ning et al. 2023), building on the strong performance of Graph Convolutional Networks (GCNs) for structured data (Ning et al. 2022). We further augment DGF with a graph-attention module inspired by (Akhauri and Ab-delfattah 2024b). The attention branch inherits residual con-nection and identity mapping principles from GCNII (Chen et al. 2020), which mitigate the over-smoothing issue in deep GCNs and preserve high-order neighborhood dependencies. Let O denote the concatenated operation embedding, Xl
+
+the node features at layer l, and A the sparse adjacency matrix. Trainable parameters include projection matrices 
+
+W lo, W lf , W lp, an attention vector a, and bias blf . The DGF update is defined as: 
+
+Xl+1 = σ OW lo
+
+ ⊙  A  XlW lf
+
+ + XlW lf + blf (3) where σ(·) is a non-linear activation (e.g., ReLU) and ⊙ de-notes element-wise multiplication. The first term modulates neighborhood aggregation via operation-aware gating, while the remaining terms form a residual path to retain identity information. To enhance node-level adaptivity, we incorpo-rate a pairwise graph-attention mechanism. For each neigh-bor node j, its attention-weighted contribution is given by: 
+
+Attn j (Xl) = σ  LR  Aj · a  W lpXl · W lpXlj
+
+ · W lpXlj
+
+(4) where W lp projects node features into attention space, a(·) is a trainable scoring function and LR( ·) denotes LeakyReLU activation. Similarity between the center node and its neigh-bors is computed via the dot product. The final attention-based update aggregates all neighbor contributions and ap-plies an operation-aware gating followed by normalization: 
+
+Xl+1 = LayerNorm 
+
+σ  OW lo
+
+ ⊙
+
+> n
+
+X
+
+> j=1
+
+Attn j (Xl)
+
+ (5) 
+
+Capability-level Metrics. Modern hardware platforms ex-hibit complex architectural heterogeneity across multiple abstraction levels in the compute and memory hierar-chy (Dao et al. 2022; Srivastava, Arora, and Boneh 2024). Due to this diversity, the latency of an identical NN can vary significantly between devices, posing substantial challenges to cross-device latency prediction. We observe that neural network computations exhibit structural regularity that permits their execution charac-teristics to be approximated by unified abstractions of hardware capability . As shown in Figure 1, we therefore construct a structured Hardware Capability Vector (HCV) 
+
+that encodes a superset of capability-level metrics covering compute, memory, and parallelism resources, including 
+
+Peak Throughput , Core-Level Parallelism ,
+
+Frequency , Peak Bandwidth , On-chip Memory Capacity , and DRAM/HBM Capacity .Guided by empirical insights, we instantiate this HCV with both linear-scale features (e.g., core frequency 
+
+clock MHz , FP32 peak throughput fp32 tflops ) and higher-level architectural metrics. The latter capture device-family-specific resources, such as core count and 
+
+fp32 au per sm for GPUs, functionally analogous quan-tities (e.g., dsp count on FPGAs), and general parameters such as inter-level memory bandwidth BW GBps .We define a unified HCV schema over this superset of metrics and populate each device as follows: if the architec-ture natively defines a metric, we directly record its value; if no exact counterpart exists but a semantically equiva-lent resource type is present (e.g., FP32 arithmetic units on GPUs vs. DSP slices on FPGAs), we use that functionally analogous quantity; otherwise, the metric is treated as non-applicable for that device family. To keep the representation tensorizable while preserving semantics, all HCV dimen-sions are numerically zero-padded and accompanied by an availability indicator, enabling the model to distinguish true zero-valued capabilities from metrics that are undefined or irrelevant for a given architecture. This vector representation encapsulates the essential physical constraints that govern computation across the 25808 compute and memory hierarchy, providing a compact, in-terpretable, and physically grounded abstraction of device execution capability. The resulting vectors are aligned with a predefined device list and stored in matrix form, yielding a unified encoding of the compute–bandwidth–parallelism 
+
+profile. Crucially, by coupling structural insights with a workload-driven perspective, the HCV not only captures static hardware attributes but also serves as the foundational input to our Hardware–Operation Dialogue module, facili-tating accurate and generalizable latency prediction across diverse hardware platforms. 
+
+Hardware–Operation Dialogue Module 
+
+In real-world deployments, NNs do not operate in isola-tion: their performance is co-determined by the target hard-ware’s microarchitectural traits and runtime behavior. This forms a tightly coupled, bidirectional system where latency emerges from complex interactions between model struc-ture and hardware execution dynamics. However, model-ing such interactions is highly challenging. On one hand, hardware platforms differ vastly in their architectural hier-archies—e.g., compute throughput, memory capacity, and scheduling strategies, resulting in significant latency varia-tion for the same network across devices. On the other hand, dynamic behaviors introduced by compiler-level optimiza-tions (such as tiling, fusion, or memory coalescing) create intricate, dataflow-driven dependencies that cannot be cap-tured by static architecture descriptors alone. To bridge this gap, we propose the Hardware–Operation Dialogue module (HODM) that establishes a “dialogue” be-tween the network and the hardware, dynamically capturing their runtime interactions and enabling accurate, hardware-aware latency prediction with strong generalization. As shown in Figure 2(c), the bottom-right panel highlights the HODM details. The GNN layers produce a feature tensor 
+
+X ∈ RB×L×d, where B is the batch size, L the number of architectural operations, and d the hidden dimension. Each device yields a capability vector H ∈ RB×k (Hardware Ca-pability Vector). We first apply Feature-wise Linear Modu-lation (FiLM) to adjust the channel distribution of each node in X based on hardware context: 
+
+eXb,i, : = γb, : ⊙ Xb,i, : + βb, :, b = 1 , . . . , B, i = 1 , . . . , L 
+
+(6) Here, γ, β ∈ RB×d are modulation vectors learned from H
+
+through two shared MLPs. This mechanism equips the pre-dictor with dynamic hardware awareness : even on unseen platforms, a few target-device samples suffice to fine-tune γ
+
+and β for fast adaptation. Next, we compute cross-attention between the modulated features eX and the hardware vector 
+
+H. We project eX to queries Q, and H to keys and values 
+
+(K, V ), then compute attention scores and aggregation: 
+
+Ab,ℓ,i = ⟨Qb,ℓ, :, K b,i, :⟩√dhead 
+
+, αb,ℓ,i = softmax  
+
+> i
+
+(Ab,ℓ,i ) (7) 
+
+Zb,ℓ, : =
+
+> k
+
+X
+
+> i=1
+
+αb,ℓ,i ·Vb,i, :, X′ = eX +αres ·(ZW O ) (8) Here, W O ∈ Rd×d is a learnable projection, and αres is a trainable scalar that controls the strength of residual fusion. This parameter allows the model to softly integrate hard-ware context, inspired by residual weight tuning in trans-former backbones. Symmetrically, we reverse the attention direction: project H into queries and X into keys/values to compute hardware-aware response H′. Finally, the two branches are adaptively blended via a learnable gating coef-ficient λ ∈ [0 , 1] :OUTPUT = λ · X′ + (1 − λ) · H′ (9) The final representation thus encodes both how the net-work queries the hardware (X′) and which network regions the hardware attends to (H′), substantially enhancing pre-diction robustness under heterogeneous devices. 
+
+# Experiment 
+
+Experimental Setup 
+
+In this section, we rigorously evaluate the generalization ca-pability of our latency predictor on hardware platforms and architectures that are not included in the training set. We re-port performance on the FBNet benchmark using Relative Approximation Error (RAE), and present the Cumulative Distribution Function (CDF) of absolute prediction errors across diverse heterogeneous devices. To further evaluate transfer reliability, we report the percentage of predictions falling within different RAE ranges. Finally, we extend our evaluation to several real-world platforms. 
+
+Dataset Construction: Following HW-NAS-Bench (Li et al. 2021), we evaluate our model on two representa-tive NAS search spaces—NASBench-201 (Dong and Yang 2020) and FBNet (Wu et al. 2019), covering both cell-based and macro-level architectures. To further assess real-world generalization, we collect latency measurements across a di-verse set of heterogeneous SoC and cloud platforms, span-ning a broad range of compute capabilities and architectural characteristics. These devices form a challenging testbed for cross-device latency prediction. Rather than relying on ar-bitrary train-test splits, we adopt the correlation-aware de-vice partitioning strategy introduced in FLAT (Akhauri and Abdelfattah 2024a). Specifically, we construct a device sim-ilarity graph based on pairwise negative Spearman correla-tions in latency behavior, and apply spectral bisection to pro-duce dissimilar hardware groups. This yields four partition settings (N@1–N@4, F@1–F@4), designed to minimize la-tency correlation between training and test devices, thus en-abling rigorous evaluation of cross-device generalization. All models are trained under identical settings on A6000 GPUs, and all test devices are strictly held out during train-ing to ensure fair and unbiased evaluation. 
+
+Evaluations 
+
+To evaluate prediction accuracy, we report the RAE, com-puted as RAE = |ˆy−y| 
+
+> y
+
+, where ˆy denotes the predicted la-tency and y is the ground-truth. Lower RAE indicates bet-ter prediction accuracy and is commonly used in regression tasks like latency prediction tasks (Xu et al. 2020). 25809 RAE ↓ (%) 
+
+F@1 F@2 1080ti 1 1080ti 32 2080ti 32 titan rtx 1 titanxp 1 eyeriss fpga raspi4 samsung a50 #FLOPs 12.65 1.42 14.72 2.21 13.91 1.38 20.53 3.27 18.37 2.75 21.83 2.18 35.97 5.03 22.46 2.71 40.15 6.18 
+
+LAD 7.85 0.47 5.42 0.53 9.04 1.08 15.38 2.31 13.43 1.48 18.54 2.96 17.67 2.12 13.39 1.87 30.76 3.99 
+
+BRP 5.85 0.39 6.20 0.47 11.18 1.45 10.45 1.35 14.66 2.20 7.64 0.66 17.14 2.23 13.29 1.71 20.39 3.26 
+
+nn-Meter 6.75 0.54 5.88 0.58 12.43 1.86 10.42 1.36 9.72 1.65 8.48 1.10 19.27 2.74 12.39 1.63 28.76 4.02 
+
+FLAT 5.45 0.41 5.31 0.39 6.12 0.78 10.25 1.63 8.66 1.21 7.56 0.94 20.29 3.65 11.33 1.59 39.67 6.04 
+
+Ours 3.58 0.15 4.35 0.51 5.14 0.58 5.28 0.72 3.08 0.86 6.07 0.41 13.54 0.93 9.26 1.22 19.41 2.64 
+
+F@3 F@4 1080ti 1 1080ti 32 2080ti 1 titan rtx 1 titan rtx 32 1080ti 1 essential ph 1 pixel2 #FLOPs 13.65 1.38 14.78 1.84 12.91 1.15 15.03 2.36 13.72 1.78 19.40 2.33 65.92 9.01 60.13 11.02 
+
+LAD 5.16 0.29 5.81 0.53 4.90 0.44 7.45 1.09 6.76 0.95 14.70 2.56 53.88 7.98 52.17 9.04 
+
+BRP 8.97 0.83 6.27 0.58 6.28 0.51 7.19 1.03 6.12 0.62 7.10 0.77 16.25 2.34 13.50 2.28 
+
+nn-Meter 4.92 0.24 5.78 0.49 5.92 0.56 6.27 0.84 5.87 0.51 6.08 0.73 15.82 2.76 38.54 6.18 
+
+FLAT 3.19 0.19 5.65 0.58 5.78 0.65 9.32 1.24 6.06 0.61 5.56 0.45 14.83 2.01 24.03 3.88 
+
+Ours 5.23 0.26 5.15 0.21 3.76 0.48 3.36 0.58 3.15 0.15 3.14 0.11 13.03 2.21 11.18 2.23 
+
+Table 1: Relative Approximation Error (RAE ↓) across diverse hardware platforms under transfer learning. Devices are grouped by framework partitions (F@1–F@4). Bold indicates best performance per device. All baselines use open-source implementa-tions and are evaluated on NVIDIA A6000 GPUs. Results are reported as mean std .
+
+Figure 3: Percentage of predictions with error below 5%, 10%, and 15% across N@1–N@4. Each value indicates the proportion of correctly predicted samples, higher is better. 
+
+Figure 4: CDF of absolute prediction error on FBNet. A higher CDF indicates that a larger fraction of predictions fall within a given error threshold. As shown in Table 1, our approach not only achieves the lowest RAE on an overwhelming majority of devices but does so with substantial margins that demonstrate its superior robustness. This superiority is particularly evident on challenging platforms; for instance, our model reduces prediction error on the high-end titan rtx 1 (F@3) by 64% compared to FLAT, while simultaneously outperforming the FLAT competitor on the mobile pixel2 (F@4) by over 53%. Furthermore, our method demonstrates consistent perfor-mance across device categories, achieving the top rank on all nine devices in both the F@1 and F@2 partitions. In ad-dition, we empirically observe that training on subsets of the training data whose hardware characteristics more closely match the target deployment scenario yields higher accuracy than using the entire training heterogeneous pool, suggesting that modest specialization to related domains can be benefi-cial. 
+
+CDF of Three Diverse Hardware Figure 4 compares the CDF of absolute latency-prediction errors for our method and the baseline across three diverse hardware platforms: an FPGA (Xilinx ZC706), a high-end GPU (RTX 2080 Ti), and a mobile phone (Samsung A50). A higher curve signifies a more accurate predictor, as it represents a larger fraction of predictions falling within any given error threshold. As shown, our CDF curve consistently lies above the baseline, demonstrating clear superiority across all platforms. 
+
+NASBench-201 Figure 3 summarizes the proportion of predictions with relative error within three predefined thresholds (5%, 10%, and 15%) across all NASBench-201 subsets. As shown, our method consistently outperforms all baselines across all test cases, demonstrating superior accu-racy and generalization. The performance gap is especially 25810 Total RAE ↓ Coverage (RAE ≤ x%) ↑
+
+RAE ≤ 5.00% RAE ≤ 10.00% RAE ≤ 15.00% FLAT Ours FLAT Ours FLAT Ours FLAT Ours AGX 15625 0.2109 0.1820 17.88% 20.48% 35.56% 37.48% 51.48% 53.86% 
+
+NX 8000 0.1962 0.2075 13.42% 20.44% 36.70% 30.22% 46.50% 52.98% 
+
+TX2 0.8194 1.0610 1.08% 1.44% 7.50% 7.32% 14.56% 19.34% 
+
+P4 0.2240 0.2002 17.82% 19.72% 35.72% 36.26% 48.54% 51.90% 
+
+P100 0.1785 0.1575 12.48% 20.00% 40.64% 42.80% 55.88% 69.00% 
+
+Titan XP 0.1604 0.1200 18.04% 27.96% 41.70% 56.26% 58.94% 70.28% 
+
+V100 0.1678 0.1546 15.54% 21.08% 43.68% 52.52% 57.62% 61.44% 
+
+Cambricon MLU270 0.1954 0.1856 20.56% 18.58% 37.30% 34.86% 51.76% 53.62% 
+
+Table 2: RAE and Prediction Coverage under Error Thresholds (5%, 10%, 15%) across Eight Heterogeneous Devices 
+
+Model 1080ti 32 2080ti 32 titan rtx 1 titanxp 1 
+
+Baseline 5.16 10.48 9.36 12.23 Variant A 4.96 (↓0.20 )8.90 (↓1.58 )8.12 (↓1.24 )9.76 (↓2.47 )Variant B 4.73 (↓0.43 )7.91 (↓2.57 )7.11 (↓2.25 )6.85 (↓5.38 )Variant C 5.12 (↓0.04 )9.53 (↓0.95 )8.87 (↓0.49 )10.11 (↓2.12 )Ours 4.35 
+
+(↓0.81 )
+
+5.14 
+
+(↓5.34 )
+
+5.28 
+
+(↓4.08 )
+
+3.08 
+
+(↓9.15 )Table 3: Ablation study. RAE (%) comparison and delta ( vs GNN+One-hot ) across four hardware platforms. notable on the N@3 dataset, where our model achieves 75.39% within the 15% error threshold—outperforming FLAT by 17.75%. Our approach also maintains a clear ad-vantage in more challenging settings like N@4, underscor-ing its robustness across heterogeneous hardware. 
+
+Heterogeneous SoC and Cloud Devices Table 2 com-pares our method with FLAT across eight real-world plat-forms. Evaluation metrics include RAE and the proportion of predictions within relative error thresholds (5%, 10%, and 15%). Our method consistently achieves lower total RAE on most devices—showing notable gains. In terms of threshold-based accuracy, our predictor yields higher coverage under all error bounds on nearly all platforms. The prediction er-ror on the Jetson TX2 is relatively higher than on other de-vices. This is mainly due to its significant distance from the training devices in terms of hardware hierarchy and compute capability. 
+
+Ablation Study 
+
+To assess the individual contributions of each core compo-nent in CloserToMe , we conduct a series of ablation exper-iments covering structured hardware modeling, the use of Device Behavior Signature (DBS), the DBSel-based sam-pling strategy, and Hardware–Operation Dialogue Module (HODM). We evaluate the following variants: • Baseline : A widely used GNN-based predictor with identifier hardware encoding (like BRP); no hardware ca-pability vector, no dialogue module, and no DBS. • Variant A : Replaces identifier encoding with our Hard-ware Capability Vector and Dialogue Module; Device Behavior Signature is not used. • Variant B : Builds on Variant A by incorporating DBS sampled randomly from the architecture space. • Variant C : Similar to Variant B, but DBS are selected using an extreme policy (e.g., latency-homogeneous ar-chitectures) that lacks representativeness. • Ours : Full model with DBSel-selected representative DBS, Hardware Capability Vector, and HODM. As shown in Table 3, introducing structured hardware mod-eling via our HCV and HODM (Variant A) already yields consistent gains over the baseline. Adding DBS, even with random sampling (Variant B), further improves accuracy, while our DBSel-based variant (Ours) achieves the best overall performance—e.g., on titanxp , reducing RAE from 12.23% to 3.08%. In contrast, Variant C highlights the importance of profiling quality: unrepresentative DBS can mislead the predictor, whereas DBSel yields more informa-tive and generalizable representations. 
+
+# Conclusion 
+
+In this work, we present CloserToMe, a unified and hardware-aware framework for accurate and generalizable latency prediction across diverse deployment platforms. It integrates three key components: (1) the Device Behavior Signature Selector (DBSel), which efficiently samples rep-resentative model responses to characterize device behav-ior with minimal profiling cost; (2) a multi-level Hardware Capability Vector that encodes essential physical features such as frequency, bandwidth, and memory hierarchy; and (3) the Hardware–Operation Dialogue Module , a bidirec-tional attention mechanism that models fine-grained interac-tions between neural operators and hardware. Through ex-plicit modeling of how architectures interact with platform-specific execution behavior, CloserToMe achieves robust prediction accuracy and strong cross-device generalization in deployment-oriented latency estimation. 25811 Acknowledgments 
+
+This work was supported in part by the National Natural Science Foundation of China under Grants 62502489 and 62172380; in part by the Jiangsu Provincial Natural Science Foundation under Grants BK20250479 and BK20241818; and in part by the Global Cooperation Expansion and Culti-vation Fund of USTC YD5040008002. 
+
+# References 
+
+Akhauri, Y.; and Abdelfattah, M. 2024a. On Latency Pre-dictors for Neural Architecture Search. Proceedings of Ma-chine Learning and Systems (MLsys) , 6: 512–523. Akhauri, Y.; and Abdelfattah, M. S. 2024b. Encodings for Prediction-based Neural Architecture Search. In Interna-tional Conference on Machine Learning (ICML) , 740–759. PMLR. Cai, H.; Gan, C.; Wang, T.; Zhang, Z.; and Han, S. 2020. Once-for-all: Train One Network and Specialize it for Effi-cient Deployment. In International Conference on Learning Representations (ICLR) .Cai, H.; et al. 2019. ProxylessNAS: Direct Neural Architec-ture Search on Target Task and Hardware. In International Conference on Learning Representations (ICLR) .Chen, E.-C.; Chen, P.-Y.; Chung, I.; Lee, C.-R.; et al. 2024. Overload: Latency attacks on object detection for edge de-vices. In Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR) , 24716– 24725. Chen, M.; Wei, Z.; Huang, Z.; Ding, B.; and Li, Y. 2020. Simple and deep graph convolutional networks. In Interna-tional conference on machine learning (ICML) , 1725–1735. PMLR. Dao, T.; Fu, D.; Ermon, S.; Rudra, A.; and R´ e, C. 2022. Flashattention: Fast and memory-efficient exact attention with io-awareness. Advances in neural information process-ing systems (NeurIPS) , 35: 16344–16359. Dong, X.; and Yang, Y. 2020. NAS-Bench-201: Extend-ing the Scope of Reproducible Neural Architecture Search. In Advances in Neural Information Processing Systems (NeurIPS) , volume 33, 16487–16499. Dudziak, L.; Chau, T.; Abdelfattah, M.; Lee, R.; Kim, H.; and Lane, N. 2020. Brp-nas: Prediction-based nas using gcns. Advances in neural information processing systems (NeurIPS) , 33: 10480–10490. Fu, W.; Lou, W.; Tang, C.; Wen, H.; Qin, Y.; Gong, L.; Wang, C.; and Zhou, X. 2025. UniCoS: A Unified Neu-ral and Accelerator Co-Search Framework for CNNs and ViTs. In 2025 62nd ACM/IEEE Design Automation Con-ference (DAC) , 1–6. IEEE. Geng, X.; Wang, Z.; Chen, C.; Xu, Q.; Xu, K.; Jin, C.; Gupta, M.; Yang, X.; Chen, Z.; Aly, M. M. S.; et al. 2024. From algorithm to hardware: A survey on efficient and safe deployment of deep neural networks. IEEE Transactions on Neural Networks and Learning Systems , 36(4): 5837–5857. Hanxiao, L.; Karen, S.; and Yiming, Y. 2019. Darts: Differ-entiable architecture search. In International Conference on Learning Representations (ICLR) .He, Y.; Lin, J.; Liu, Z.; Wang, H.; Li, L.-J.; and Han, S. 2018. Amc: Automl for model compression and acceleration on mobile devices. In Proceedings of the European conference on computer vision (ECCV) , 784–800. Khare, A.; et al. 2025. SuperServe: Fine-Grained Inference Serving for Unpredictable Workloads. In 22nd USENIX Symposium on Networked Systems Design and Implemen-tation (NSDI) , 739–758. Lee, H.; Lee, S.; Chong, S.; and Hwang, S. J. 2021. Hardware-adaptive efficient latency prediction for nas via meta-learning. Advances in Neural Information Processing Systems (NeurIPS) , 34: 27016–27028. Li, C.; et al. 2021. Hw-nas-bench: Hardware-aware neural architecture search benchmark. In International Conference on Learning Representations (ICLR) .Li, H.; Kadav, A.; Durdanovic, I.; Samet, H.; and Graf, H. P. 2017. Pruning Filters for Efficient ConvNets. In Interna-tional Conference on Learning Representations (ICLR) .Li, W.; Wang, D.; Ding, Z.; Sohrabizadeh, A.; Qin, Z.; Cong, J.; and Sun, Y. 2025. Hierarchical mixture of experts: Gener-alizable learning for high-level synthesis. In Proceedings of the AAAI Conference on Artificial Intelligence (AAAI) , vol-ume 39, 18476–18484. Lin, J.; Chen, W.-M.; Lin, Y.; Gan, C.; Han, S.; et al. 2020. Mcunet: Tiny deep learning on iot devices. Advances in neu-ral information processing systems (NeurIPS) , 33: 11711– 11722. Liu, W.; Zhu, Z.; Li, B.; Xiong, Y.; Lian, Z.; Geng, J.; and Zhou, X. 2024. Arch2End: Two-Stage Unified System-Level Modeling for Heterogeneous Intelligent De-vices. IEEE Transactions on Computer-Aided Design of In-tegrated Circuits and Systems , 43(11): 4154–4165. Lou, W.; Gong, L.; Wang, C.; Du, Z.; and Zhou, X. 2021. OctCNN: A high throughput FPGA accelerator for CNNs using octave convolution algorithm. IEEE Transactions on Computers , 71(8): 1847–1859. Lou, W.; Gong, L.; Wang, C.; Qian, J.; Wang, X.; Li, C.; and Zhou, X. 2024. Unleashing network/accelerator co-exploration potential on fpgas: A deeper joint search. IEEE Transactions on Computer-Aided Design of Integrated Cir-cuits and Systems , 43(10): 3041–3054. Lv, H.; Zhang, L.; and Wang, Y. 2025. In-situ NAS: A Plug-and-Search Neural Architecture Search framework across hardware platforms. IEEE Transactions on Computers .Misra, A.; Saoda, N.; and Abdelzaher, T. 2025. Latency-constrained input-aware quantization of time series infer-ence workflows at the edge. In IEEE INFOCOM 2025-IEEE Conference on Computer Communications (INFOCOM) , 1– 10. IEEE. Ning, X.; Zheng, Y.; Zhou, Z.; Zhao, T.; Yang, H.; and Wang, Y. 2023. A Generic Graph-Based Neural Architecture Encoding Scheme With Multifaceted Information. IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI) , 45(7): 7955–7969. Ning, X.; Zhou, Z.; Zhao, J.; Zhao, T.; Deng, Y.; Tang, C.; Liang, S.; Yang, H.; and Wang, Y. 2022. TA-GATES: An en-coding scheme for neural network architectures. Advances 25812 in Neural Information Processing Systems (NeurIPS) , 35: 32325–32339. Srivastava, M.; Arora, S.; and Boneh, D. 2024. Optimistic verifiable training by controlling hardware nondetermin-ism. Advances in Neural Information Processing Systems (NeurIPS) , 37: 95639–95661. Tan, M.; Chen, B.; Pang, R.; Vasudevan, V.; Sandler, M.; Howard, A.; and Le, Q. V. 2019. Mnasnet: Platform-aware neural architecture search for mobile. In Proceedings of the IEEE/CVF conference on computer vision and pattern recognition (ICCV) , 2820–2828. Wang, Z.; Gong, L.; Lou, W.; Cheng, Q.; Chen, X.; Wang, C.; and Zhou, X. 2024. UniCoMo: A Unified Learning-Based Cost Model for Tensorized Program Tuning. In 2024 IEEE 42nd International Conference on Computer Design (ICCD) , 487–495. IEEE. Wu, B.; et al. 2019. Fbnet: Hardware-aware efficient con-vnet design via differentiable neural architecture search. In 
+
+Proceedings of the IEEE/CVF conference on computer vi-sion and pattern recognition (CVPR) , 10734–10742. Xing, J.; Wang, L.; Zhang, S.; Chen, J.; Chen, A.; and Zhu, Y. 2022. Bolt: Bridging the gap between auto-tuners and hardware-native performance. Proceedings of Machine Learning and Systems (MLsys) , 4: 204–216. Xu, Y.; Xie, L.; Zhang, X.; Chen, X.; Shi, B.; Tian, Q.; and Xiong, H. 2020. Latency-aware differentiable neural archi-tecture search. arXiv preprint arXiv:2001.06392 .Zhang, H.; Ning, A.; Prabhakar, R. B.; and Wentzlaff, D. 2024. Llmcompass: Enabling efficient hardware design for large language model inference. In 2024 ACM/IEEE 51st Annual International Symposium on Computer Architecture (ISCA) , 1080–1096. IEEE. Zhang, L. L.; et al. 2021. Nn-meter: Towards accurate la-tency prediction of deep-learning model inference on diverse edge devices. In Proceedings of the 19th Annual Interna-tional Conference on Mobile Systems, Applications, and Ser-vices (MobiSys) , 81–93. Zhou, Q.; Wen, Y.; Chen, R.; Gao, K.; Xiong, W.; Li, L.; Guo, Q.; Wu, Y.; and Chen, Y. 2025. QiMeng-GEMM: Au-tomatically Generating High-Performance Matrix Multipli-cation Code by Exploiting Large Language Models. In Pro-ceedings of the AAAI Conference on Artificial Intelligence (AAAI) , volume 39, 22982–22990. 25813

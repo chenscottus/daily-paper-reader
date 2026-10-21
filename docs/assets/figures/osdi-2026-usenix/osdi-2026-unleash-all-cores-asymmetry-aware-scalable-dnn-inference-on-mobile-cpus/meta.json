@@ -1,0 +1,150 @@
+{
+  "version": 2,
+  "extractor": "pymupdf-images",
+  "figures": [
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-001.webp",
+      "caption": "",
+      "page": 4,
+      "index": 1,
+      "width": 1253,
+      "height": 577
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-002.webp",
+      "caption": "",
+      "page": 4,
+      "index": 2,
+      "width": 2326,
+      "height": 1426
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-003.webp",
+      "caption": "",
+      "page": 5,
+      "index": 3,
+      "width": 6000,
+      "height": 1200
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-004.webp",
+      "caption": "",
+      "page": 5,
+      "index": 4,
+      "width": 1047,
+      "height": 340
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-005.webp",
+      "caption": "",
+      "page": 5,
+      "index": 5,
+      "width": 390,
+      "height": 366
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-006.webp",
+      "caption": "",
+      "page": 5,
+      "index": 6,
+      "width": 4800,
+      "height": 3000
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-007.webp",
+      "caption": "",
+      "page": 5,
+      "index": 7,
+      "width": 942,
+      "height": 746
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-008.webp",
+      "caption": "",
+      "page": 7,
+      "index": 8,
+      "width": 1329,
+      "height": 625
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-009.webp",
+      "caption": "",
+      "page": 7,
+      "index": 9,
+      "width": 717,
+      "height": 366
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-010.webp",
+      "caption": "",
+      "page": 9,
+      "index": 10,
+      "width": 1384,
+      "height": 460
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-011.webp",
+      "caption": "",
+      "page": 10,
+      "index": 11,
+      "width": 6654,
+      "height": 2434
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-012.webp",
+      "caption": "",
+      "page": 11,
+      "index": 12,
+      "width": 3221,
+      "height": 1731
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-013.webp",
+      "caption": "",
+      "page": 11,
+      "index": 13,
+      "width": 1124,
+      "height": 441
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-014.webp",
+      "caption": "",
+      "page": 12,
+      "index": 14,
+      "width": 2349,
+      "height": 913
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-015.webp",
+      "caption": "",
+      "page": 12,
+      "index": 15,
+      "width": 2349,
+      "height": 801
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-016.webp",
+      "caption": "",
+      "page": 12,
+      "index": 16,
+      "width": 2348,
+      "height": 851
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-017.webp",
+      "caption": "",
+      "page": 12,
+      "index": 17,
+      "width": 3584,
+      "height": 1127
+    },
+    {
+      "url": "assets/figures/osdi-2026-usenix/osdi-2026-unleash-all-cores-asymmetry-aware-scalable-dnn-inference-on-mobile-cpus/fig-018.webp",
+      "caption": "",
+      "page": 13,
+      "index": 18,
+      "width": 3174,
+      "height": 893
+    }
+  ]
+}
