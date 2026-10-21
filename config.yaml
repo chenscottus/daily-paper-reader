@@ -208,6 +208,52 @@ subscriptions:
           source: manual
           note: ''
       updated_at: '2026-10-21T05:18:21.285Z'
+    - tag: litert-ops
+      description: LiteRT 算子硬件加速
+      enabled: true
+      paper_sources:
+        - arxiv
+      keywords:
+        - keyword: operator kernel implementation
+          keyword_cn: 算子内核实现
+          query: implementing operator kernels for the LiteRT runtime
+        - keyword: operator quantization
+          keyword_cn: 算子量化
+          query: quantized operator support and constraints in LiteRT
+        - keyword: hardware acceleration
+          keyword_cn: 硬件加速
+          query: hardware acceleration for tensor operator execution
+        - keyword: operator acceleration
+          keyword_cn: 算子加速
+          query: accelerating LiteRT operator performance with hardware backends
+        - keyword: kernel optimization
+          keyword_cn: 内核优化
+          query: operator kernel optimization for accelerated inference
+        - keyword: quantized kernels
+          keyword_cn: 量化内核
+          query: quantized operator kernels for efficient hardware execution
+      intent_queries:
+        - query: How are operators converted and optimized when converting models to LiteRT?
+          query_cn: 将模型转换为 LiteRT 时，算子如何被转换和优化？
+          enabled: true
+          source: manual
+          note: ''
+        - query: How to accelerate LiteRT operators with hardware delegates on mobile and embedded devices
+          query_cn: 如何在移动和嵌入式设备上使用硬件委托加速 LiteRT 算子
+          enabled: true
+          source: manual
+          note: ''
+        - query: What techniques improve LiteRT operator performance using GPU, NPU, and CPU accelerators
+          query_cn: 哪些技术可以利用 GPU、NPU 和 CPU 加速器提升 LiteRT 算子性能
+          enabled: true
+          source: manual
+          note: ''
+        - query: How are LiteRT operators optimized through kernel fusion, quantization, and memory layout
+          query_cn: LiteRT 算子如何通过内核融合、量化和内存布局进行优化
+          enabled: true
+          source: manual
+          note: ''
+      updated_at: '2026-10-21T05:22:45.940Z'
 source_backends:
   arxiv:
     papers_table: arxiv_papers
